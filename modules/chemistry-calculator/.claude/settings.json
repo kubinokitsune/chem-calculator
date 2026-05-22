@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(python main.py)",
+      "Read(//c/Users/pipef/OneDrive/Desktop/chem calculator project/**)",
+      "Bash(python \"chem Calculator/modules/chemistry-calculator/main.py\")"
+    ]
+  }
+}

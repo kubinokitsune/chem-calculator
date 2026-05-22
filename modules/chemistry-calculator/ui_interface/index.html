@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chemistry Calculator</title>
+  <style>
+    /* ── CSS Custom Properties ─────────────────────────── */
+    :root {
+      --bg:        #0f1117;
+      --calc-bg:   #1a1d2e;
+      --screen-bg: #0a1a0a;
+      --screen-fg: #33ff66;
+      --screen-dim:#1a8a33;
+      --border:    #2a2d3e;
+      --btn-bg:    #252838;
+      --btn-fg:    #c8cce8;
+      --btn-mod:   #1e3a5f;
+      --btn-mod-fg:#7ab8ff;
+      --btn-calc:  #2d5a2d;
+      --btn-calc-fg:#5dff7a;
+      --btn-active:#3a7aff;
+      --btn-active-fg:#fff;
+      --label-fg:  #6b6f8a;
+      --input-bg:  #1a1d2e;
+      --input-fg:  #c8cce8;
+      --input-br:  #3a3d5e;
+      --result-ok: #33ff66;
+      --result-err:#ff4444;
+      --shadow:    0 8px 32px rgba(0,0,0,0.6);
+    }
+    [data-theme="light"] {
+      --bg:        #d4d8e8;
+      --calc-bg:   #e8eaf6;
+      --screen-bg: #c8d4c0;
+      --screen-fg: #1a3a1a;
+      --screen-dim:#4a7a4a;
+      --border:    #b0b4c8;
+      --btn-bg:    #d0d4e8;
+      --btn-fg:    #1a1d3a;
+      --btn-mod:   #b8cce8;
+      --btn-mod-fg:#1a3a6a;
+      --btn-calc:  #b0d4b0;
+      --btn-calc-fg:#1a3a1a;
+      --btn-active:#3a7aff;
+      --btn-active-fg:#fff;
+      --label-fg:  #6060a0;
+      --input-bg:  #f4f4fc;
+      --input-fg:  #1a1d3a;
+      --input-br:  #a0a4c0;
+      --result-ok: #1a6a1a;
+      --result-err:#cc0000;
+      --shadow:    0 8px 32px rgba(0,0,0,0.15);
+    }
+
+    /* ── Reset / Base ──────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 20px 8px 40px;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      transition: background 0.3s;
+    }
+
+    /* ── Calculator Shell ──────────────────────────────── */
+    .calc {
+      background: var(--calc-bg);
+      border: 2px solid var(--border);
+      border-radius: 18px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: var(--shadow);
+      padding: 16px 14px 20px;
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    /* ── Header ────────────────────────────────────────── */
+    .calc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .brand {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--label-fg);
+      text-transform: uppercase;
+    }
+    .brand span { color: var(--btn-active); }
+    .theme-btn {
+      background: var(--btn-bg);
+      border: 1px solid var(--border);
+      color: var(--btn-fg);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .theme-btn:hover { background: var(--btn-active); color: #fff; }
+
+    /* ── LCD Screen ────────────────────────────────────── */
+    .screen {
+      background: var(--screen-bg);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      min-height: 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .screen-label {
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: var(--screen-dim);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .screen-content {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      color: var(--screen-fg);
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.5;
+      min-height: 40px;
+    }
+    .screen-content.error { color: var(--result-err); }
+    .screen-prompt {
+      font-size: 10px;
+      color: var(--screen-dim);
+      margin-top: 4px;
+    }
+
+    /* ── Module Grid ───────────────────────────────────── */
+    .mod-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+    .mod-btn {
+      background: var(--btn-mod);
+      color: var(--btn-mod-fg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 2px;
+      font-size: 9px;
+      text-align: center;
+      cursor: pointer;
+      line-height: 1.3;
+      transition: background 0.15s, transform 0.1s;
+      user-select: none;
+    }
+    .mod-btn:hover { background: var(--btn-active); color: var(--btn-active-fg); }
+    .mod-btn.active { background: var(--btn-active); color: var(--btn-active-fg); font-weight: 700; }
+    .mod-btn:active { transform: scale(0.95); }
+    .mod-num { font-size: 8px; opacity: 0.7; display: block; }
+
+    /* ── Input Panel ───────────────────────────────────── */
+    .input-panel {
+      background: var(--btn-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 10px 6px;
+      margin-bottom: 10px;
+      min-height: 60px;
+    }
+    .panel-title {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--label-fg);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .field-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .field-row label {
+      font-size: 10px;
+      color: var(--label-fg);
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+    .field-row input,
+    .field-row select,
+    .field-row textarea {
+      flex: 1;
+      min-width: 0;
+      background: var(--input-bg);
+      color: var(--input-fg);
+      border: 1px solid var(--input-br);
+      border-radius: 5px;
+      padding: 5px 7px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .field-row input:focus,
+    .field-row select:focus,
+    .field-row textarea:focus { border-color: var(--btn-active); }
+    .field-row textarea { resize: vertical; min-height: 32px; font-size: 11px; }
+
+    .dynamic-rows { margin-top: 4px; }
+    .dyn-row {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 5px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .dyn-row input {
+      background: var(--input-bg);
+      color: var(--input-fg);
+      border: 1px solid var(--input-br);
+      border-radius: 5px;
+      padding: 4px 6px;
+      font-size: 11px;
+      font-family: 'Courier New', monospace;
+      outline: none;
+    }
+    .dyn-row input:focus { border-color: var(--btn-active); }
+    .dyn-row input.w-sm { width: 52px; }
+    .dyn-row input.w-md { width: 80px; }
+    .dyn-row input.w-lg { width: 110px; }
+    .dyn-row .dyn-label { font-size: 9px; color: var(--label-fg); }
+    .add-row-btn, .rem-row-btn {
+      background: none;
+      border: 1px solid var(--input-br);
+      color: var(--label-fg);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .add-row-btn:hover { border-color: var(--btn-active); color: var(--btn-active); }
+    .rem-row-btn:hover { border-color: var(--result-err); color: var(--result-err); }
+
+    .radio-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .radio-row label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--btn-fg);
+      cursor: pointer;
+    }
+
+    /* ── Calculate Button ──────────────────────────────── */
+    .calc-btn {
+      width: 100%;
+      background: var(--btn-calc);
+      color: var(--btn-calc-fg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .calc-btn:hover { background: var(--btn-active); color: #fff; }
+    .calc-btn:active { transform: scale(0.98); }
+
+    /* ── Utility ───────────────────────────────────────── */
+    .hidden { display: none !important; }
+    .sep { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+  </style>
+</head>
+<body>
+
+<div class="calc">
+
+  <!-- Header -->
+  <div class="calc-header">
+    <div class="brand"><span>Chem</span>Calc FX-11</div>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">☀ Light</button>
+  </div>
+
+  <!-- LCD Screen -->
+  <div class="screen">
+    <div class="screen-label">Output</div>
+    <div class="screen-content" id="screenOut">Select a module below.</div>
+    <div class="screen-prompt" id="screenPrompt"></div>
+  </div>
+
+  <!-- Module Selector Grid -->
+  <div class="mod-grid">
+    <button class="mod-btn" onclick="selectMod(1)"><span class="mod-num">01</span>Mole Conv.</button>
+    <button class="mod-btn" onclick="selectMod(2)"><span class="mod-num">02</span>Empirical Formula</button>
+    <button class="mod-btn" onclick="selectMod(3)"><span class="mod-num">03</span>Eqn Balancer</button>
+    <button class="mod-btn" onclick="selectMod(4)"><span class="mod-num">04</span>Lim. Reactant</button>
+    <button class="mod-btn" onclick="selectMod(5)"><span class="mod-num">05</span>% Comp.</button>
+    <button class="mod-btn" onclick="selectMod(6)"><span class="mod-num">06</span>Vol/Mass</button>
+    <button class="mod-btn" onclick="selectMod(7)"><span class="mod-num">07</span>Oxidation #</button>
+    <button class="mod-btn" onclick="selectMod(8)"><span class="mod-num">08</span>Atom Economy</button>
+    <button class="mod-btn" onclick="selectMod(9)"><span class="mod-num">09</span>Ionic Bond</button>
+    <button class="mod-btn" onclick="selectMod(10)"><span class="mod-num">10</span>% Yield</button>
+    <button class="mod-btn" onclick="selectMod(11)"><span class="mod-num">11</span>Periodic Table</button>
+  </div>
+
+  <!-- Input Panel (changes per module) -->
+  <div class="input-panel" id="inputPanel">
+    <div class="panel-title" id="panelTitle">No module selected</div>
+    <div id="panelBody"></div>
+  </div>
+
+  <!-- Calculate -->
+  <button class="calc-btn" onclick="calculate()">= Calculate</button>
+
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════
+   Theme toggle
+════════════════════════════════════════════════════════ */
+function toggleTheme() {
+  const html = document.documentElement;
+  const btn  = document.getElementById('themeBtn');
+  if (html.getAttribute('data-theme') === 'dark') {
+    html.setAttribute('data-theme', 'light');
+    btn.textContent = '☽ Dark';
+  } else {
+    html.setAttribute('data-theme', 'dark');
+    btn.textContent = '☀ Light';
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   Screen output helpers
+════════════════════════════════════════════════════════ */
+function showResult(text) {
+  const el = document.getElementById('screenOut');
+  el.textContent = text;
+  el.className = 'screen-content';
+  document.getElementById('screenPrompt').textContent = '';
+}
+function showError(text) {
+  const el = document.getElementById('screenOut');
+  el.textContent = 'ERROR: ' + text;
+  el.className = 'screen-content error';
+  document.getElementById('screenPrompt').textContent = '';
+}
+function showPrompt(text) {
+  document.getElementById('screenPrompt').textContent = text;
+}
+
+/* ════════════════════════════════════════════════════════
+   Module selector
+════════════════════════════════════════════════════════ */
+let currentMod = 0;
+const MOD_NAMES = {
+  1:  'Mole Conversions',
+  2:  'Empirical Formula',
+  3:  'Equation Balancer',
+  4:  'Limiting Reactant',
+  5:  'Percent Composition',
+  6:  'Volume / Mass',
+  7:  'Oxidation Numbers',
+  8:  'Atom Economy',
+  9:  'Ionic Bonding',
+  10: 'Percentage Yield',
+  11: 'Periodic Table',
+};
+
+function selectMod(n) {
+  currentMod = n;
+  document.querySelectorAll('.mod-btn').forEach((b, i) => {
+    b.classList.toggle('active', i + 1 === n);
+  });
+  document.getElementById('panelTitle').textContent = MOD_NAMES[n];
+  renderPanel(n);
+  showResult('Module ' + String(n).padStart(2,'0') + ' — ' + MOD_NAMES[n]);
+  showPrompt('Enter values and press = Calculate');
+}
+
+/* ════════════════════════════════════════════════════════
+   Panel renderers
+════════════════════════════════════════════════════════ */
+function renderPanel(n) {
+  const body = document.getElementById('panelBody');
+  body.innerHTML = '';
+  const fn = PANELS[n];
+  if (fn) fn(body);
+}
+
+const PANELS = {
+  /* ── 1. Mole Conversions ─────────────────────────── */
+  1(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Conversion</label>
+        <select id="moleType" onchange="updateMoleFields()">
+          <option value="mass_to_moles">Mass → Moles</option>
+          <option value="moles_to_mass">Moles → Mass</option>
+          <option value="moles_to_particles">Moles → Particles</option>
+          <option value="particles_to_moles">Particles → Moles</option>
+          <option value="moles_to_volume">Moles → Volume (STP)</option>
+          <option value="volume_to_moles">Volume → Moles (STP)</option>
+        </select>
+      </div>
+      <div id="moleFields"></div>`;
+    updateMoleFields();
+  },
+
+  /* ── 2. Empirical Formula ────────────────────────── */
+  2(body) {
+    body.innerHTML = `
+      <div class="panel-title" style="margin-bottom:4px">Elements &amp; Masses (g)</div>
+      <div class="dynamic-rows" id="empRows"></div>
+      <button class="add-row-btn" onclick="addEmpRow()">+ Add Element</button>`;
+    addEmpRow(); addEmpRow();
+  },
+
+  /* ── 3. Equation Balancer ────────────────────────── */
+  3(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Equation</label>
+        <input id="eqInput" type="text" placeholder="H2 + O2 -> H2O" />
+      </div>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">
+        Use -> to separate reactants and products. Use + between compounds.
+      </div>`;
+  },
+
+  /* ── 4. Limiting Reactant ────────────────────────── */
+  4(body) {
+    body.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Reactants (name, coefficient, moles)</div>
+      <div class="dynamic-rows" id="limRRows"></div>
+      <button class="add-row-btn" onclick="addLimR()">+ Reactant</button>
+      <hr class="sep">
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Products (name, coefficient)</div>
+      <div class="dynamic-rows" id="limPRows"></div>
+      <button class="add-row-btn" onclick="addLimP()">+ Product</button>`;
+    addLimR(); addLimR();
+    addLimP();
+  },
+
+  /* ── 5. Percent Composition ──────────────────────── */
+  5(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Formula</label>
+        <input id="pctFormula" type="text" placeholder="H2O, CuSO4, Fe2O3..." />
+      </div>`;
+  },
+
+  /* ── 6. Volume / Mass ────────────────────────────── */
+  6(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Conversion</label>
+        <select id="volType" onchange="updateVolFields()">
+          <option value="mass_to_volume">Mass → Volume</option>
+          <option value="volume_to_mass">Volume → Mass</option>
+          <option value="density">Density (from m &amp; V)</option>
+        </select>
+      </div>
+      <div id="volFields"></div>`;
+    updateVolFields();
+  },
+
+  /* ── 7. Oxidation Numbers ────────────────────────── */
+  7(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Formula</label>
+        <input id="oxFormula" type="text" placeholder="KMnO4, H2SO4..." />
+      </div>
+      <div class="field-row">
+        <label>Ion charge</label>
+        <input id="oxCharge" type="number" value="0" style="width:60px;flex:none" />
+        <span style="font-size:9px;color:var(--label-fg)">(0 = neutral)</span>
+      </div>
+      <div class="field-row">
+        <label style="min-width:auto">
+          <input type="checkbox" id="oxPeroxide" style="width:auto;flex:none" />
+          &nbsp;Peroxide compound
+        </label>
+      </div>`;
+  },
+
+  /* ── 8. Atom Economy ─────────────────────────────── */
+  8(body) {
+    body.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Reactants (formula, coefficient)</div>
+      <div class="dynamic-rows" id="aeRRows"></div>
+      <button class="add-row-btn" onclick="addAER()">+ Reactant</button>
+      <hr class="sep">
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Desired product</div>
+      <div class="dyn-row">
+        <input class="w-lg" id="aeDesiredFormula" placeholder="formula" />
+        <span class="dyn-label">coeff</span>
+        <input class="w-sm" id="aeDesiredCoeff" value="1" />
+      </div>`;
+    addAER(); addAER();
+  },
+
+  /* ── 9. Ionic Bonding ────────────────────────────── */
+  9(body) {
+    body.innerHTML = `
+      <div class="radio-row">
+        <label><input type="radio" name="ionicAction" value="classify" checked onchange="updateIonicFields()"> Classify bond</label>
+        <label><input type="radio" name="ionicAction" value="formula" onchange="updateIonicFields()"> Write formula</label>
+      </div>
+      <div id="ionicFields"></div>`;
+    updateIonicFields();
+  },
+
+  /* ── 10. Percentage Yield ────────────────────────── */
+  10(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Find</label>
+        <select id="yieldType" onchange="updateYieldFields()">
+          <option value="percent">% Yield (actual &amp; theoretical known)</option>
+          <option value="actual">Actual yield (% &amp; theoretical known)</option>
+          <option value="theoretical">Theoretical yield (actual &amp; % known)</option>
+        </select>
+      </div>
+      <div id="yieldFields"></div>`;
+    updateYieldFields();
+  },
+
+  /* ── 11. Periodic Table ──────────────────────────── */
+  11(body) {
+    body.innerHTML = `
+      <div class="radio-row">
+        <label><input type="radio" name="perType" value="symbol" checked> Symbol</label>
+        <label><input type="radio" name="perType" value="name"> Name</label>
+        <label><input type="radio" name="perType" value="number"> Atomic #</label>
+      </div>
+      <div class="field-row">
+        <label>Search</label>
+        <input id="perQuery" type="text" placeholder="e.g. Fe / Iron / 26" />
+      </div>`;
+  },
+};
+
+/* ════════════════════════════════════════════════════════
+   Dynamic sub-panel helpers
+════════════════════════════════════════════════════════ */
+
+/* Module 1 */
+function updateMoleFields() {
+  const t = document.getElementById('moleType').value;
+  const needsMolar = ['mass_to_moles', 'moles_to_mass'].includes(t);
+  const f = document.getElementById('moleFields');
+  const labels = {
+    mass_to_moles:       ['Mass (g)', 'Molar mass (g/mol)'],
+    moles_to_mass:       ['Moles (mol)', 'Molar mass (g/mol)'],
+    moles_to_particles:  ['Moles (mol)', null],
+    particles_to_moles:  ['Particles', null],
+    moles_to_volume:     ['Moles (mol)', null],
+    volume_to_moles:     ['Volume (L)', null],
+  }[t];
+  f.innerHTML = `
+    <div class="field-row">
+      <label>${labels[0]}</label>
+      <input id="mA" type="number" step="any" placeholder="value" />
+    </div>
+    ${labels[1] ? `<div class="field-row"><label>${labels[1]}</label><input id="mB" type="number" step="any" placeholder="value" /></div>` : ''}`;
+}
+
+/* Module 2 */
+function addEmpRow() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `
+    <input class="w-sm" placeholder="sym" title="Element symbol" />
+    <span class="dyn-label">mass(g)</span>
+    <input class="w-md" type="number" step="any" placeholder="0.0" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('empRows').appendChild(row);
+}
+
+/* Module 4 */
+function addLimR() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `
+    <input class="w-md" placeholder="reactant" />
+    <span class="dyn-label">coeff</span><input class="w-sm" type="number" step="any" value="1" />
+    <span class="dyn-label">mol</span><input class="w-sm" type="number" step="any" value="1" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('limRRows').appendChild(row);
+}
+function addLimP() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `
+    <input class="w-md" placeholder="product" />
+    <span class="dyn-label">coeff</span><input class="w-sm" type="number" step="any" value="1" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('limPRows').appendChild(row);
+}
+
+/* Module 6 */
+function updateVolFields() {
+  const t = document.getElementById('volType').value;
+  const cfg = {
+    mass_to_volume: ['Mass (g)', 'Density (g/mL)'],
+    volume_to_mass: ['Volume (mL)', 'Density (g/mL)'],
+    density:        ['Mass (g)', 'Volume (mL)'],
+  }[t];
+  document.getElementById('volFields').innerHTML = `
+    <div class="field-row"><label>${cfg[0]}</label><input id="vA" type="number" step="any" /></div>
+    <div class="field-row"><label>${cfg[1]}</label><input id="vB" type="number" step="any" /></div>`;
+}
+
+/* Module 8 */
+function addAER() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `
+    <input class="w-lg" placeholder="formula" />
+    <span class="dyn-label">coeff</span>
+    <input class="w-sm" type="number" step="any" value="1" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('aeRRows').appendChild(row);
+}
+
+/* Module 9 */
+function updateIonicFields() {
+  const action = document.querySelector('input[name="ionicAction"]:checked').value;
+  const f = document.getElementById('ionicFields');
+  if (action === 'classify') {
+    f.innerHTML = `
+      <div class="field-row"><label>Element 1</label><input id="ion1" type="text" placeholder="Na" /></div>
+      <div class="field-row"><label>Element 2</label><input id="ion2" type="text" placeholder="Cl" /></div>`;
+  } else {
+    f.innerHTML = `
+      <div class="field-row"><label>Cation symbol</label><input id="ionCat" type="text" placeholder="Na" /></div>
+      <div class="field-row"><label>Cation charge</label><input id="ionCatChg" type="number" value="1" /></div>
+      <div class="field-row"><label>Anion symbol</label><input id="ionAni" type="text" placeholder="Cl" /></div>
+      <div class="field-row"><label>Anion charge</label><input id="ionAniChg" type="number" value="-1" /></div>`;
+  }
+}
+
+/* Module 10 */
+function updateYieldFields() {
+  const t = document.getElementById('yieldType').value;
+  const cfg = {
+    percent:     ['Actual yield (g)', 'Theoretical yield (g)'],
+    actual:      ['% Yield', 'Theoretical yield (g)'],
+    theoretical: ['Actual yield (g)', '% Yield'],
+  }[t];
+  document.getElementById('yieldFields').innerHTML = `
+    <div class="field-row"><label>${cfg[0]}</label><input id="yA" type="number" step="any" /></div>
+    <div class="field-row"><label>${cfg[1]}</label><input id="yB" type="number" step="any" /></div>`;
+}
+
+/* ════════════════════════════════════════════════════════
+   API helpers
+════════════════════════════════════════════════════════ */
+async function post(url, data) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+function val(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+/* ════════════════════════════════════════════════════════
+   Calculate dispatcher
+════════════════════════════════════════════════════════ */
+async function calculate() {
+  if (!currentMod) { showError('Select a module first.'); return; }
+  showResult('Calculating...');
+  try {
+    await CALCS[currentMod]();
+  } catch(e) {
+    showError(e.message || String(e));
+  }
+}
+
+const CALCS = {
+  /* ── 1. Mole Conversions ─────────────────────────── */
+  async 1() {
+    const t = val('moleType');
+    const a = val('mA');
+    const b = document.getElementById('mB') ? val('mB') : null;
+    if (!a) { showError('Enter a value.'); return; }
+    const body = { type: t, a };
+    if (b !== null) body.b = b;
+    const d = await post('/api/mole', body);
+    if (d.error) { showError(d.error); return; }
+    showResult(`Result: ${d.result.toExponential ? d.result : d.result} ${d.unit}`);
+    showPrompt('');
+  },
+
+  /* ── 2. Empirical Formula ────────────────────────── */
+  async 2() {
+    const rows = document.querySelectorAll('#empRows .dyn-row');
+    const elements = [], masses = [];
+    rows.forEach(r => {
+      const ins = r.querySelectorAll('input');
+      if (ins[0].value.trim()) {
+        elements.push(ins[0].value.trim());
+        masses.push(ins[1].value.trim());
+      }
+    });
+    if (elements.length < 1) { showError('Add at least one element.'); return; }
+    const d = await post('/api/empirical', { elements, masses });
+    if (d.error) { showError(d.error); return; }
+    showResult(`Empirical Formula:\n${d.formula}`);
+  },
+
+  /* ── 3. Equation Balancer ────────────────────────── */
+  async 3() {
+    const eq = val('eqInput');
+    if (!eq) { showError('Enter an equation.'); return; }
+    const d = await post('/api/equation', { equation: eq });
+    if (d.error) { showError(d.error); return; }
+    showResult(`Balanced:\n${d.balanced}`);
+  },
+
+  /* ── 4. Limiting Reactant ────────────────────────── */
+  async 4() {
+    const rRows = document.querySelectorAll('#limRRows .dyn-row');
+    const pRows = document.querySelectorAll('#limPRows .dyn-row');
+    const reactants = [], products = [];
+    rRows.forEach(r => {
+      const ins = r.querySelectorAll('input');
+      if (ins[0].value.trim()) reactants.push({ name: ins[0].value.trim(), coeff: ins[1].value, moles: ins[2].value });
+    });
+    pRows.forEach(r => {
+      const ins = r.querySelectorAll('input');
+      if (ins[0].value.trim()) products.push({ name: ins[0].value.trim(), coeff: ins[1].value });
+    });
+    if (!reactants.length || !products.length) { showError('Need at least 1 reactant and 1 product.'); return; }
+    const d = await post('/api/limiting', { reactants, products });
+    if (d.error) { showError(d.error); return; }
+    let out = `Limiting: ${d.limiting}\n\nLeftovers (mol):\n`;
+    for (const [k, v] of Object.entries(d.leftovers)) out += `  ${k}: ${v}\n`;
+    out += `\nExpected yields (mol):\n`;
+    for (const [k, v] of Object.entries(d.yields)) out += `  ${k}: ${v}\n`;
+    showResult(out.trimEnd());
+  },
+
+  /* ── 5. Percent Composition ──────────────────────── */
+  async 5() {
+    const formula = val('pctFormula');
+    if (!formula) { showError('Enter a formula.'); return; }
+    const d = await post('/api/percent', { formula });
+    if (d.error) { showError(d.error); return; }
+    let out = `Formula: ${d.formula}\nMolar mass: ${d.molar_mass} g/mol\n\n`;
+    for (const [el, pct] of Object.entries(d.percents)) out += `  ${el}: ${pct}%\n`;
+    showResult(out.trimEnd());
+  },
+
+  /* ── 6. Volume / Mass ────────────────────────────── */
+  async 6() {
+    const t = val('volType'), a = val('vA'), b = val('vB');
+    if (!a || !b) { showError('Enter both values.'); return; }
+    const d = await post('/api/volume', { type: t, a, b });
+    if (d.error) { showError(d.error); return; }
+    showResult(`Result: ${d.result} ${d.unit}`);
+  },
+
+  /* ── 7. Oxidation Numbers ────────────────────────── */
+  async 7() {
+    const formula = val('oxFormula');
+    const charge = parseInt(val('oxCharge') || '0');
+    const peroxide = document.getElementById('oxPeroxide').checked;
+    if (!formula) { showError('Enter a formula.'); return; }
+    const d = await post('/api/oxidation', { formula, charge, peroxide });
+    if (d.error) { showError(d.error); return; }
+    let out = `Formula: ${d.formula}  Charge: ${d.charge}\n\nOxidation numbers:\n`;
+    for (const [el, ox] of Object.entries(d.numbers)) out += `  ${el}: ${ox > 0 ? '+' : ''}${ox}\n`;
+    showResult(out.trimEnd());
+  },
+
+  /* ── 8. Atom Economy ─────────────────────────────── */
+  async 8() {
+    const rRows = document.querySelectorAll('#aeRRows .dyn-row');
+    const reactants = [];
+    rRows.forEach(r => {
+      const ins = r.querySelectorAll('input');
+      if (ins[0].value.trim()) reactants.push({ formula: ins[0].value.trim(), coeff: ins[1].value });
+    });
+    const desF = val('aeDesiredFormula'), desC = val('aeDesiredCoeff');
+    if (!reactants.length || !desF) { showError('Fill in reactants and desired product.'); return; }
+    const d = await post('/api/atom_eco', { reactants, desired: { formula: desF, coeff: desC || '1' } });
+    if (d.error) { showError(d.error); return; }
+    showResult(
+      `Atom Economy: ${d.atom_economy}%\nDesired MW: ${d.mw_desired} g/mol\nTotal reactant MW: ${d.mw_reactants} g/mol`
+    );
+  },
+
+  /* ── 9. Ionic Bonding ────────────────────────────── */
+  async 9() {
+    const action = document.querySelector('input[name="ionicAction"]:checked').value;
+    let body = { action };
+    if (action === 'classify') {
+      body.elem1 = val('ion1'); body.elem2 = val('ion2');
+      if (!body.elem1 || !body.elem2) { showError('Enter both elements.'); return; }
+    } else {
+      body.cation = val('ionCat'); body.cation_charge = val('ionCatChg');
+      body.anion  = val('ionAni'); body.anion_charge  = val('ionAniChg');
+      if (!body.cation || !body.anion) { showError('Enter cation and anion.'); return; }
+    }
+    const d = await post('/api/ionic', body);
+    if (d.error) { showError(d.error); return; }
+    if (action === 'classify') {
+      showResult(`${d.elem1} — ${d.elem2}\nEN difference: ${d.diff}\nBond type: ${d.bond_type}`);
+    } else {
+      showResult(`Ionic formula: ${d.formula}\n${d.cation}(${d.cation_charge > 0 ? '+' : ''}${d.cation_charge}) + ${d.anion}(${d.anion_charge})`);
+    }
+  },
+
+  /* ── 10. Percentage Yield ────────────────────────── */
+  async 10() {
+    const t = val('yieldType'), a = val('yA'), b = val('yB');
+    if (!a || !b) { showError('Enter both values.'); return; }
+    const d = await post('/api/yield_calc', { type: t, a, b });
+    if (d.error) { showError(d.error); return; }
+    let out = `Result: ${d.result} ${d.unit}`;
+    if (d.warning) out += `\n\nNote: ${d.warning}`;
+    showResult(out);
+  },
+
+  /* ── 11. Periodic Table ──────────────────────────── */
+  async 11() {
+    const t = document.querySelector('input[name="perType"]:checked').value;
+    const q = val('perQuery');
+    if (!q) { showError('Enter a search query.'); return; }
+    const d = await post('/api/periodic', { type: t, query: q });
+    if (d.error) { showError(d.error); return; }
+    if (!d.found) { showError('Element not found.'); return; }
+    showResult(
+      `${d.name}  (${d.symbol})\nAtomic number: ${d.number}\nAtomic weight: ${d.atomic_weight} g/mol`
+    );
+  },
+};
+</script>
+</body>
+</html>
