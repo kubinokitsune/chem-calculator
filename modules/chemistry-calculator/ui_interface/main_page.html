@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Chemistry Calculator - Launcher</title>
+  <style>
+    body{font-family:Arial;padding:20px;max-width:900px;margin:auto}
+    button{display:block;margin:8px 0;padding:10px 14px;font-size:16px}
+    pre{background:#f6f6f6;padding:10px}
+  </style>
+</head>
+<body>
+  <h1>Chemistry Calculator - Main Menu</h1>
+  <p>Click a tool to open its CLI window.</p>
+
+  <div>
+    <button onclick="openModule('mole_conversions')">1. Mole Conversions</button>
+    <button onclick="openModule('empirical_formula')">2. Empirical Formula Calculator</button>
+    <button onclick="openModule('equation_balancer')">3. Balanced Chemical Equations</button>
+    <button onclick="openModule('limiting_reactant')">4. Limiting Reactant Calculator</button>
+    <!-- add more buttons mapped to MODULE_MAP keys as needed -->
+  </div>
+
+  <pre id="out"></pre>
+
+<script>
+async function openModule(key){
+  document.getElementById('out').textContent = `Opening ${key}...`;
+  const res = await fetch('/api/open', {
+    method: 'POST',
+    headers: {'content-type':'application/json'},
+    body: JSON.stringify({module: key})
+  });
+  const j = await res.json();
+  if (j.error) {
+    document.getElementById('out').textContent = 'Error: ' + j.error;
+  } else {
+    document.getElementById('out').textContent = 'Launched: ' + j.script;
+  }
+}
+</script>
+</body>
+</html>
