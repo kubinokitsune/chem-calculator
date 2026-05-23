@@ -28,6 +28,8 @@ def show_menu():
     print("9. Ionic Bonding Calculator")
     print("10. Percentage Yield Calculator")
     print("11. Periodic Table")
+    print("12. Gas Laws Calculator")
+    print("13. Acid-Base Chemistry Calculator")
     print("0. Exit")
 
 
@@ -127,6 +129,28 @@ def percentage_yield_calculator():
         traceback.print_exc()
         return
     percentage_yield_menu()
+
+
+def open_acid_base():
+    print("\n[INFO] Opening Acid-Base Chemistry Calculator...", flush=True)
+    try:
+        from acid_base import acid_base_menu
+    except Exception as e:
+        print(f"[ERROR] Failed to load Acid-Base Calculator: {e}")
+        traceback.print_exc()
+        return
+    acid_base_menu()
+
+
+def open_gas_laws():
+    print("\n[INFO] Opening Gas Laws Calculator...", flush=True)
+    try:
+        from gas_laws import gas_laws_menu
+    except Exception as e:
+        print(f"[ERROR] Failed to load Gas Laws Calculator: {e}")
+        traceback.print_exc()
+        return
+    gas_laws_menu()
 
 
 def open_periodic_table():
@@ -233,13 +257,15 @@ def main():
         "9": ionic_bonding_calculator,
         "10": percentage_yield_calculator,
     "11": open_periodic_table,
+        "12": open_gas_laws,
+        "13": open_acid_base,
         "0": None,
     }
 
     while True:
         show_menu()
         try:
-            choice = input("Select an option (0-11): ").strip()
+            choice = input("Select an option (0-13): ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nExiting the program.")
             break
