@@ -1,6 +1,6 @@
 # Chemistry Calculator
 
-An interactive physical chemistry calculator built for IB Chemistry. Covers 11 core topics through both a command-line interface and a browser-based web UI.
+An interactive physical chemistry calculator built for IB Chemistry. Covers 13 core topics through both a command-line interface and a browser-based web UI.
 
 **Developer:** Felipe "Pipe" Fonseca
 **Project type:** IB Chemistry / personal STEM project
@@ -22,6 +22,8 @@ An interactive physical chemistry calculator built for IB Chemistry. Covers 11 c
 | 9 | **Ionic Bonding** | Bond classification (ionic / polar covalent / covalent) and ionic formula writer |
 | 10 | **Percentage Yield** | Solves for actual yield, theoretical yield, or % yield |
 | 11 | **Periodic Table** | Element lookup by name, symbol, or atomic number |
+| 12 | **Gas Laws** | Ideal gas law, combined gas law, Graham's law, Dalton's law, molar volume |
+| 13 | **Acid-Base Chemistry** | pH/pOH conversions, strong/weak acid-base, buffers, Ka/Kb, titration |
 
 ---
 
@@ -59,18 +61,20 @@ python main.py
 
 ```
 === Physical Chemistry Calculator ===
-1. Mole Conversions
-2. Empirical Formula Calculator
-3. Balanced Chemical Equations
-4. Limiting Reactant Calculator
-5. Percent Composition Calculator
-6. Volume-to-Mass Conversions
-7. Oxidation Number Calculator
-8. Element Economy Calculator
-9. Ionic Bonding Calculator
+1.  Mole Conversions
+2.  Empirical Formula Calculator
+3.  Balanced Chemical Equations
+4.  Limiting Reactant Calculator
+5.  Percent Composition Calculator
+6.  Volume-to-Mass Conversions
+7.  Oxidation Number Calculator
+8.  Element Economy Calculator
+9.  Ionic Bonding Calculator
 10. Percentage Yield Calculator
 11. Periodic Table
-0. Exit
+12. Gas Laws Calculator
+13. Acid-Base Chemistry Calculator
+0.  Exit
 ```
 
 ### Run the Web UI
@@ -79,7 +83,15 @@ python main.py
 python ui_interface/app.py
 ```
 
-Then open **http://localhost:5000** in your browser. All 11 modules are available through the web interface.
+Then open **http://localhost:5000** in your browser. All modules are available through the web interface.
+
+### Run Diagnostics
+
+```bash
+python run_diagnostics.py
+```
+
+Runs the full automated test suite across all modules — no user input needed. Outputs pass/fail for every test case.
 
 ---
 
@@ -112,6 +124,9 @@ chem-calculator/
 │   │   ├── ionic_bonding_calculator.py
 │   │   ├── percentage_yield_calculator.py
 │   │   ├── Periodic_table.py
+│   │   ├── gas_laws.py
+│   │   ├── acid_base.py
+│   │   ├── run_diagnostics.py       # Automated test suite
 │   │   ├── ui_interface/            # Flask web app
 │   │   │   ├── app.py               # REST API (one route per module)
 │   │   │   └── index.html           # Front-end
