@@ -15,6 +15,19 @@ from atom_economy_calculator import calculate_atom_economy
 from ionic_bonding_calculator import classify_bond, write_ionic_formula
 from percentage_yield_calculator import calc_percentage_yield, calc_actual_yield, calc_theoretical_yield
 from Periodic_table import get_element_by_name, get_element_by_symbol, get_element_by_number
+from gas_laws import (ideal_gas_find_P, ideal_gas_find_V, ideal_gas_find_n, ideal_gas_find_T,
+                      combined_gas_find_P2, combined_gas_find_V2, combined_gas_find_T2,
+                      graham_rate_ratio, dalton_total_pressure)
+from acid_base import (all_four, strong_acid_pH, strong_base_pH,
+                       weak_acid_pH, weak_base_pH, buffer_pH, identify)
+from thermodynamics import (cal_q, cal_m, cal_c, cal_dT, hess_law,
+                             bond_enthalpy_dH, lookup_bond, BOND_ENTHALPIES)
+from ice_solver import build_ice_table
+from electrochemistry import (cell_potential, gibbs_from_cell, faraday_mass,
+                               faraday_current, faraday_time, faraday_molar_mass,
+                               nernst, spontaneity_check, cell_type)
+from kinetics import (determine_order, rate_constant_from_experiment, arrhenius_Ea,
+                      arrhenius_k2, k_units)
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
@@ -229,6 +242,275 @@ def api_periodic():
             return jsonify(found=False)
         return jsonify(found=True, number=elem['number'], symbol=elem['symbol'],
                        name=elem['name'].capitalize(), atomic_weight=elem['atomic_weight'])
+    except Exception as e:
+        return jsonify(error=str(e)), 400
+
+
+# ── 12. Gas Laws ─────────────────────────────────────────────────────────────
+@app.route('/api/gas_laws', methods=['POST'])
+def api_gas_laws():
+    d = request.json or {}
+    t = d.get('type')
+    try:
+        if t == 'ideal':
+            solve = d.get('solve')
+            vals = {k: float(d[k]) for k in ('n', 'v', 'T', 'p') if d.get(k)}
+            if solve == 'P':
+                result = ideal_gas_find_P(vals['n'], vals['v'], vals['T']); unit = 'atm'
+            elif solve == 'V':
+                result = ideal_gas_find_V(vals['n'], vals['T'], vals['p']); unit = 'L'
+            elif solve == 'n':
+                result = ideal_gas_find_n(vals['p'], vals['v'], vals['T']); unit = 'mol'
+            elif solve == 'T':
+                result = ideal_gas_find_T(vals['p'], vals['v'], vals['n']); unit = 'K'
+            else:
+                return jsonify(error='Unknown solve target'), 400
+            return jsonify(result=result, unit=unit)
+
+        elif t == 'combined':
+            solve = d.get('solve')
+            P1, V1, T1 = float(d['P1']), float(d['V1']), float(d['T1'])
+            if solve == 'P2':
+                result = combined_gas_find_P2(P1, V1, T1, float(d['V2']), float(d['T2'])); unit = 'atm'
+            elif solve == 'V2':
+                result = combined_gas_find_V2(P1, V1, T1, float(d['P2']), float(d['T2'])); unit = 'L'
+            elif solve == 'T2':
+                result = combined_gas_find_T2(P1, V1, T1, float(d['P2']), float(d['V2'])); unit = 'K'
+            else:
+                return jsonify(error='Unknown solve target'), 400
+            return jsonify(result=result, unit=unit)
+
+        elif t == 'graham':
+            M1, M2 = float(d['M1']), float(d['M2'])
+            if M1 <= 0 or M2 <= 0:
+                return jsonify(error='Molar masses must be positive'), 400
+            return jsonify(result=graham_rate_ratio(M1, M2))
+
+        elif t == 'dalton':
+            gases = d.get('gases', [])
+            partials = [{'name': g['name'], 'p': float(g['p'])} for g in gases]
+            total = dalton_total_pressure([g['p'] for g in partials])
+            return jsonify(total=total, partials=partials)
+
+        else:
+            return jsonify(error='Unknown gas law type'), 400
+    except Exception as e:
+        return jsonify(error=str(e)), 400
+
+
+# ── 13. Acid-Base ─────────────────────────────────────────────────────────────
+@app.route('/api/acid_base', methods=['POST'])
+def api_acid_base():
+    d = request.json or {}
+    t = d.get('type')
+    try:
+        if t == 'ph_convert':
+            it = d.get('input_type')
+            v = float(d['value'])
+            kwargs = {'H': v} if it == 'H' else {'OH': v} if it == 'OH' else \
+                     {'pH': v} if it == 'pH' else {'pOH': v}
+            pH, pOH, H, OH = all_four(**kwargs)
+        elif t == 'strong_acid':
+            pH = strong_acid_pH(float(d['conc']))
+            _, pOH, H, OH = all_four(pH=pH)
+        elif t == 'strong_base':
+            pH = strong_base_pH(float(d['conc']))
+            _, pOH, H, OH = all_four(pH=pH)
+        elif t == 'weak_acid':
+            pH, approx, x = weak_acid_pH(float(d['Ka']), float(d['conc']))
+            _, pOH, H, OH = all_four(pH=pH)
+            note = f"Approximation {'valid (x/C ≤ 5%)' if approx else 'invalid — quadratic used'}; [H⁺] = {x:.4e}"
+            return jsonify(pH=pH, pOH=pOH, H=H, OH=OH, note=note)
+        elif t == 'weak_base':
+            pH, approx, x = weak_base_pH(float(d['Kb']), float(d['conc']))
+            _, pOH, H, OH = all_four(pH=pH)
+            note = f"Approximation {'valid' if approx else 'invalid — quadratic used'}; [OH⁻] = {x:.4e}"
+            return jsonify(pH=pH, pOH=pOH, H=H, OH=OH, note=note)
+        elif t == 'buffer':
+            pH = buffer_pH(float(d['Ka']), float(d['acid']), float(d['base']))
+            _, pOH, H, OH = all_four(pH=pH)
+        elif t == 'identify':
+            return jsonify(formula=d['formula'], identity=identify(d['formula']))
+        else:
+            return jsonify(error='Unknown type'), 400
+        return jsonify(pH=pH, pOH=pOH, H=H, OH=OH)
+    except Exception as e:
+        return jsonify(error=str(e)), 400
+
+
+# ── 14. Thermodynamics ────────────────────────────────────────────────────────
+@app.route('/api/thermo', methods=['POST'])
+def api_thermo():
+    d = request.json or {}
+    t = d.get('type')
+    try:
+        if t == 'calorimetry':
+            solve = d.get('solve')
+            q = float(d['q']) if d.get('q') else None
+            m = float(d['m']) if d.get('m') else None
+            c = float(d['c']) if d.get('c') else None
+            dT = float(d['dT']) if d.get('dT') else None
+            if solve == 'q':   result, unit = cal_q(m, c, dT), 'J'
+            elif solve == 'm': result, unit = cal_m(q, c, dT), 'g'
+            elif solve == 'c': result, unit = cal_c(q, m, dT), 'J/g·K'
+            elif solve == 'dT':result, unit = cal_dT(q, m, c), 'K'
+            else: return jsonify(error='Unknown solve target'), 400
+            return jsonify(result=result, unit=unit)
+
+        elif t == 'hess':
+            steps = d.get('steps', [])
+            dH_vals = [float(s['dH']) for s in steps]
+            mults   = [float(s['mult']) for s in steps]
+            return jsonify(result=hess_law(dH_vals, mults))
+
+        elif t == 'bond':
+            def parse_bonds(lst):
+                out = []
+                for b in lst:
+                    label = b['bond']
+                    count = float(b.get('count', 1))
+                    kj = b.get('kJ', '')
+                    if kj:
+                        enth = float(kj)
+                    else:
+                        enth = lookup_bond(label)
+                        if enth is None:
+                            raise KeyError(f"Bond '{label}' not in table. Provide kJ/mol manually.")
+                    out.append((label, count, enth))
+                return out
+            broken = parse_bonds(d.get('broken', []))
+            formed = parse_bonds(d.get('formed', []))
+            dH, sb, sf = bond_enthalpy_dH(broken, formed)
+            return jsonify(result=dH, sum_broken=sb, sum_formed=sf)
+
+        elif t == 'gibbs':
+            dH = float(d['dH'])  # kJ/mol
+            dS = float(d['dS'])  # J/mol·K
+            T  = float(d.get('T', 298.15))  # K
+            dG = dH - T * dS / 1000  # kJ/mol
+            return jsonify(result=dG, spontaneous=dG < 0)
+
+        else:
+            return jsonify(error='Unknown type'), 400
+    except Exception as e:
+        return jsonify(error=str(e)), 400
+
+
+# ── 15. ICE Solver ────────────────────────────────────────────────────────────
+@app.route('/api/ice', methods=['POST'])
+def api_ice():
+    d = request.json or {}
+    try:
+        rd = d['reactants']
+        pd = d['products']
+        r_names  = [r['name'] for r in rd]
+        r_coeffs = [float(r['coeff']) for r in rd]
+        r_init   = [float(r['initial']) for r in rd]
+        p_names  = [p['name'] for p in pd]
+        p_coeffs = [float(p['coeff']) for p in pd]
+        p_init   = [float(p['initial']) for p in pd]
+        Kc = float(d['Kc'])
+        result = build_ice_table(r_names, r_coeffs, r_init, p_names, p_coeffs, p_init, Kc)
+        return jsonify(
+            x=result['x'],
+            r_names=r_names, p_names=p_names,
+            r_eq=result['r_eq'], p_eq=result['p_eq'],
+            Q_initial=result['Q_initial'], Q_final=result['Q_final'],
+            approx_pct=result['approx_pct']
+        )
+    except Exception as e:
+        return jsonify(error=str(e)), 400
+
+
+# ── 16. Electrochemistry ──────────────────────────────────────────────────────
+@app.route('/api/electrochem', methods=['POST'])
+def api_electrochem():
+    d = request.json or {}
+    t = d.get('type')
+    try:
+        if t == 'cell':
+            E_cat = float(d['E_cat'])
+            E_ano = float(d['E_ano'])
+            n     = int(d['n'])
+            E_cell = cell_potential(E_cat, E_ano)
+            dG     = gibbs_from_cell(n, E_cell)
+            return jsonify(E_cell=E_cell, dG=dG,
+                           spontaneity=spontaneity_check(E_cell),
+                           cell_type=cell_type(E_cell))
+
+        elif t == 'faraday':
+            solve = d.get('solve')
+            mass = float(d['mass']) if d.get('mass') else None
+            I    = float(d['I'])    if d.get('I')    else None
+            time = float(d['t'])    if d.get('t')    else None
+            M    = float(d['M'])    if d.get('M')    else None
+            n    = int(d['n'])      if d.get('n')    else None
+            if solve == 'mass':
+                return jsonify(result=faraday_mass(I, time, M, n), unit='g')
+            elif solve == 'current':
+                return jsonify(result=faraday_current(mass, time, M, n), unit='A')
+            elif solve == 'time':
+                return jsonify(result=faraday_time(mass, I, M, n), unit='s')
+            elif solve == 'molar_mass':
+                return jsonify(result=faraday_molar_mass(mass, I, time, n), unit='g/mol')
+            else:
+                return jsonify(error='Unknown solve target'), 400
+
+        elif t == 'nernst':
+            E0 = float(d['E0'])
+            n  = int(d['n'])
+            Q  = float(d['Q'])
+            T  = float(d.get('T', 298.15))
+            E  = nernst(E0, n, Q, T)
+            return jsonify(E=E)
+
+        else:
+            return jsonify(error='Unknown type'), 400
+    except Exception as e:
+        return jsonify(error=str(e)), 400
+
+
+# ── 17. Kinetics ──────────────────────────────────────────────────────────────
+@app.route('/api/kinetics', methods=['POST'])
+def api_kinetics():
+    d = request.json or {}
+    t = d.get('type')
+    try:
+        if t == 'order':
+            c1, c2 = float(d['c1']), float(d['c2'])
+            r1, r2 = float(d['r1']), float(d['r2'])
+            order = determine_order(c1, c2, r1, r2)
+            k = rate_constant_from_experiment(r1, [c1], [order])
+            return jsonify(order=order, k=k, k_units=k_units(round(order)))
+
+        elif t == 'arrhenius':
+            solve = d.get('solve')
+            k1 = float(d['k1']); T1 = float(d['T1']); T2 = float(d['T2'])
+            if solve == 'Ea':
+                k2 = float(d['k2'])
+                Ea_J = arrhenius_Ea(k1, T1, k2, T2)
+                return jsonify(Ea_J=Ea_J, Ea_kJ=Ea_J / 1000)
+            else:
+                Ea_J = float(d['Ea'])
+                k2 = arrhenius_k2(k1, T1, T2, Ea_J)
+                return jsonify(k2=k2)
+
+        elif t == 'halflife':
+            solve = d.get('solve')
+            import math
+            if solve == 't_half':
+                k = float(d['k'])
+                return jsonify(t_half=math.log(2) / k)
+            else:
+                t_half = float(d['t_half'])
+                return jsonify(k=math.log(2) / t_half)
+
+        elif t == 'kunits':
+            order = int(d.get('order', 1))
+            return jsonify(order=order, units=k_units(order))
+
+        else:
+            return jsonify(error='Unknown type'), 400
     except Exception as e:
         return jsonify(error=str(e)), 400
 

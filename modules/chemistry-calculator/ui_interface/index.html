@@ -291,7 +291,7 @@
 
   <!-- Header -->
   <div class="calc-header">
-    <div class="brand"><span>Chem</span>Calc FX-11</div>
+    <div class="brand"><span>Chem</span>Calc FX-17</div>
     <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">☀ Light</button>
   </div>
 
@@ -315,6 +315,12 @@
     <button class="mod-btn" onclick="selectMod(9)"><span class="mod-num">09</span>Ionic Bond</button>
     <button class="mod-btn" onclick="selectMod(10)"><span class="mod-num">10</span>% Yield</button>
     <button class="mod-btn" onclick="selectMod(11)"><span class="mod-num">11</span>Periodic Table</button>
+    <button class="mod-btn" onclick="selectMod(12)"><span class="mod-num">12</span>Gas Laws</button>
+    <button class="mod-btn" onclick="selectMod(13)"><span class="mod-num">13</span>Acid-Base</button>
+    <button class="mod-btn" onclick="selectMod(14)"><span class="mod-num">14</span>Thermo.</button>
+    <button class="mod-btn" onclick="selectMod(15)"><span class="mod-num">15</span>ICE Solver</button>
+    <button class="mod-btn" onclick="selectMod(16)"><span class="mod-num">16</span>Electrochem.</button>
+    <button class="mod-btn" onclick="selectMod(17)"><span class="mod-num">17</span>Kinetics</button>
   </div>
 
   <!-- Input Panel (changes per module) -->
@@ -379,6 +385,12 @@ const MOD_NAMES = {
   9:  'Ionic Bonding',
   10: 'Percentage Yield',
   11: 'Periodic Table',
+  12: 'Gas Laws',
+  13: 'Acid-Base',
+  14: 'Thermodynamics',
+  15: 'ICE Solver',
+  16: 'Electrochemistry',
+  17: 'Kinetics',
 };
 
 function selectMod(n) {
@@ -555,6 +567,107 @@ const PANELS = {
         <input id="perQuery" type="text" placeholder="e.g. Fe / Iron / 26" />
       </div>`;
   },
+
+  /* ── 12. Gas Laws ────────────────────────────────── */
+  12(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Law</label>
+        <select id="gasType" onchange="updateGasFields()">
+          <option value="ideal">Ideal Gas Law (PV=nRT)</option>
+          <option value="combined">Combined Gas Law</option>
+          <option value="graham">Graham's Effusion</option>
+          <option value="dalton">Dalton's Partial Pressure</option>
+        </select>
+      </div>
+      <div id="gasFields"></div>`;
+    updateGasFields();
+  },
+
+  /* ── 13. Acid-Base ───────────────────────────────── */
+  13(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Type</label>
+        <select id="abType" onchange="updateABFields()">
+          <option value="ph_convert">pH / [H⁺] / [OH⁻] Converter</option>
+          <option value="strong_acid">Strong Acid → pH</option>
+          <option value="strong_base">Strong Base → pH</option>
+          <option value="weak_acid">Weak Acid → pH</option>
+          <option value="weak_base">Weak Base → pH</option>
+          <option value="buffer">Buffer pH (Henderson-Hasselbalch)</option>
+          <option value="identify">Identify Acid/Base</option>
+        </select>
+      </div>
+      <div id="abFields"></div>`;
+    updateABFields();
+  },
+
+  /* ── 14. Thermodynamics ──────────────────────────── */
+  14(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Type</label>
+        <select id="thermoType" onchange="updateThermoFields()">
+          <option value="calorimetry">Calorimetry (q = mcΔT)</option>
+          <option value="hess">Hess's Law</option>
+          <option value="bond">Bond Enthalpy</option>
+          <option value="gibbs">Gibbs Free Energy (ΔG = ΔH − TΔS)</option>
+        </select>
+      </div>
+      <div id="thermoFields"></div>`;
+    updateThermoFields();
+  },
+
+  /* ── 15. ICE Solver ──────────────────────────────── */
+  15(body) {
+    body.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Reactants (name, coeff, initial mol/L)</div>
+      <div class="dynamic-rows" id="iceRRows"></div>
+      <button class="add-row-btn" onclick="addIceR()">+ Reactant</button>
+      <hr class="sep">
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Products (name, coeff, initial mol/L)</div>
+      <div class="dynamic-rows" id="icePRows"></div>
+      <button class="add-row-btn" onclick="addIceP()">+ Product</button>
+      <hr class="sep">
+      <div class="field-row">
+        <label>Kc</label>
+        <input id="iceKc" type="number" step="any" placeholder="e.g. 0.04" />
+      </div>`;
+    addIceR(); addIceR();
+    addIceP();
+  },
+
+  /* ── 16. Electrochemistry ────────────────────────── */
+  16(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Type</label>
+        <select id="ecType" onchange="updateECFields()">
+          <option value="cell">Cell Potential &amp; ΔG</option>
+          <option value="faraday">Faraday's Law</option>
+          <option value="nernst">Nernst Equation</option>
+        </select>
+      </div>
+      <div id="ecFields"></div>`;
+    updateECFields();
+  },
+
+  /* ── 17. Kinetics ────────────────────────────────── */
+  17(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Type</label>
+        <select id="kinType" onchange="updateKinFields()">
+          <option value="order">Reaction Order (2 experiments)</option>
+          <option value="arrhenius">Arrhenius (find Ea or k₂)</option>
+          <option value="halflife">Half-life ↔ k (1st order)</option>
+          <option value="kunits">Rate Constant Units</option>
+        </select>
+      </div>
+      <div id="kinFields"></div>`;
+    updateKinFields();
+  },
 };
 
 /* ════════════════════════════════════════════════════════
@@ -668,6 +781,267 @@ function updateYieldFields() {
   document.getElementById('yieldFields').innerHTML = `
     <div class="field-row"><label>${cfg[0]}</label><input id="yA" type="number" step="any" /></div>
     <div class="field-row"><label>${cfg[1]}</label><input id="yB" type="number" step="any" /></div>`;
+}
+
+/* ════════════════════════════════════════════════════════
+   Dynamic sub-panel helpers — modules 12-17
+════════════════════════════════════════════════════════ */
+
+/* Module 12 – Gas Laws */
+function updateGasFields() {
+  const t = document.getElementById('gasType').value;
+  const f = document.getElementById('gasFields');
+  if (t === 'ideal') {
+    f.innerHTML = `
+      <div class="field-row"><label>Solve for</label>
+        <select id="gasIdealSolve">
+          <option value="P">Pressure P (atm)</option>
+          <option value="V">Volume V (L)</option>
+          <option value="n">Moles n (mol)</option>
+          <option value="T">Temperature T (K)</option>
+        </select>
+      </div>
+      <div class="field-row"><label>n (mol)</label><input id="gasN" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>V (L)</label><input id="gasV" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>T (K)</label><input id="gasT" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>P (atm)</label><input id="gasP" type="number" step="any" placeholder="—" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Leave the solve-for field blank.</div>`;
+  } else if (t === 'combined') {
+    f.innerHTML = `
+      <div class="field-row"><label>Solve for</label>
+        <select id="gasCombSolve">
+          <option value="P2">P₂</option><option value="V2">V₂</option><option value="T2">T₂</option>
+        </select>
+      </div>
+      <div class="field-row"><label>P₁ (atm)</label><input id="gasP1" type="number" step="any" /></div>
+      <div class="field-row"><label>V₁ (L)</label><input id="gasV1" type="number" step="any" /></div>
+      <div class="field-row"><label>T₁ (K)</label><input id="gasT1" type="number" step="any" /></div>
+      <div class="field-row"><label>P₂ (atm)</label><input id="gasP2" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>V₂ (L)</label><input id="gasV2" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>T₂ (K)</label><input id="gasT2" type="number" step="any" placeholder="—" /></div>`;
+  } else if (t === 'graham') {
+    f.innerHTML = `
+      <div class="field-row"><label>M₁ (g/mol)</label><input id="gasM1" type="number" step="any" /></div>
+      <div class="field-row"><label>M₂ (g/mol)</label><input id="gasM2" type="number" step="any" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Returns rate₁/rate₂ = √(M₂/M₁)</div>`;
+  } else if (t === 'dalton') {
+    f.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Partial pressures (atm)</div>
+      <div class="dynamic-rows" id="daltonRows"></div>
+      <button class="add-row-btn" onclick="addDaltonRow()">+ Add Gas</button>`;
+    addDaltonRow(); addDaltonRow();
+  }
+}
+function addDaltonRow() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `<input class="w-md" placeholder="gas name" />
+    <span class="dyn-label">P (atm)</span>
+    <input class="w-md" type="number" step="any" placeholder="0.0" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('daltonRows').appendChild(row);
+}
+
+/* Module 13 – Acid-Base */
+function updateABFields() {
+  const t = document.getElementById('abType').value;
+  const f = document.getElementById('abFields');
+  const cfgs = {
+    ph_convert: `
+      <div class="field-row"><label>Input type</label>
+        <select id="abConvInput">
+          <option value="H">Enter [H⁺] (mol/L)</option>
+          <option value="OH">Enter [OH⁻] (mol/L)</option>
+          <option value="pH">Enter pH</option>
+          <option value="pOH">Enter pOH</option>
+        </select>
+      </div>
+      <div class="field-row"><label>Value</label><input id="abVal" type="number" step="any" /></div>`,
+    strong_acid: `
+      <div class="field-row"><label>Concentration (mol/L)</label><input id="abConc" type="number" step="any" /></div>`,
+    strong_base: `
+      <div class="field-row"><label>Concentration (mol/L)</label><input id="abConc" type="number" step="any" /></div>`,
+    weak_acid: `
+      <div class="field-row"><label>Ka</label><input id="abKa" type="number" step="any" placeholder="e.g. 1.8e-5" /></div>
+      <div class="field-row"><label>Concentration (mol/L)</label><input id="abConc" type="number" step="any" /></div>`,
+    weak_base: `
+      <div class="field-row"><label>Kb</label><input id="abKb" type="number" step="any" placeholder="e.g. 1.8e-5" /></div>
+      <div class="field-row"><label>Concentration (mol/L)</label><input id="abConc" type="number" step="any" /></div>`,
+    buffer: `
+      <div class="field-row"><label>Ka</label><input id="abKa" type="number" step="any" /></div>
+      <div class="field-row"><label>[Acid] (mol/L)</label><input id="abAcid" type="number" step="any" /></div>
+      <div class="field-row"><label>[Base] (mol/L)</label><input id="abBase" type="number" step="any" /></div>`,
+    identify: `
+      <div class="field-row"><label>Formula</label><input id="abFormula" type="text" placeholder="HCl, NaOH, NaCl..." /></div>`,
+  };
+  f.innerHTML = cfgs[t] || '';
+}
+
+/* Module 14 – Thermodynamics */
+function updateThermoFields() {
+  const t = document.getElementById('thermoType').value;
+  const f = document.getElementById('thermoFields');
+  if (t === 'calorimetry') {
+    f.innerHTML = `
+      <div class="field-row"><label>Solve for</label>
+        <select id="calSolve">
+          <option value="q">q (J)</option>
+          <option value="m">m (g)</option>
+          <option value="c">c (J/g·K)</option>
+          <option value="dT">ΔT (K)</option>
+        </select>
+      </div>
+      <div class="field-row"><label>q (J)</label><input id="calQ" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>m (g)</label><input id="calM" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>c (J/g·K)</label><input id="calC" type="number" step="any" placeholder="e.g. 4.18" /></div>
+      <div class="field-row"><label>ΔT (K)</label><input id="calDT" type="number" step="any" placeholder="—" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Leave the solve-for field blank.</div>`;
+  } else if (t === 'hess') {
+    f.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Reactions: ΔH (kJ) × multiplier (neg. to reverse)</div>
+      <div class="dynamic-rows" id="hessRows"></div>
+      <button class="add-row-btn" onclick="addHessRow()">+ Add Step</button>`;
+    addHessRow(); addHessRow();
+  } else if (t === 'bond') {
+    f.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Bonds broken (reactants side)</div>
+      <div class="dynamic-rows" id="bondBrRows"></div>
+      <button class="add-row-btn" onclick="addBondRow('bondBrRows')">+ Add Bond</button>
+      <hr class="sep">
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Bonds formed (products side)</div>
+      <div class="dynamic-rows" id="bondFmRows"></div>
+      <button class="add-row-btn" onclick="addBondRow('bondFmRows')">+ Add Bond</button>`;
+    addBondRow('bondBrRows'); addBondRow('bondBrRows');
+    addBondRow('bondFmRows'); addBondRow('bondFmRows');
+  } else if (t === 'gibbs') {
+    f.innerHTML = `
+      <div class="field-row"><label>ΔH (kJ/mol)</label><input id="gibbsDH" type="number" step="any" /></div>
+      <div class="field-row"><label>ΔS (J/mol·K)</label><input id="gibbsDS" type="number" step="any" /></div>
+      <div class="field-row"><label>T (K)</label><input id="gibbsT" type="number" step="any" placeholder="298.15" /></div>`;
+  }
+}
+function addHessRow() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `<span class="dyn-label">ΔH(kJ)</span>
+    <input class="w-md" type="number" step="any" placeholder="0.0" />
+    <span class="dyn-label">×</span>
+    <input class="w-sm" type="number" step="any" value="1" title="multiplier (+1 / -1 / 2 etc.)" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('hessRows').appendChild(row);
+}
+function addBondRow(containerId) {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `<input class="w-sm" placeholder="C-H" title="Bond label" />
+    <span class="dyn-label">count</span>
+    <input class="w-sm" type="number" step="1" value="1" />
+    <span class="dyn-label">kJ/mol</span>
+    <input class="w-md" type="number" step="any" placeholder="auto" title="Leave blank to use built-in table" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById(containerId).appendChild(row);
+}
+
+/* Module 15 – ICE Solver */
+function addIceR() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `<input class="w-md" placeholder="name" />
+    <span class="dyn-label">coeff</span><input class="w-sm" type="number" step="any" value="1" />
+    <span class="dyn-label">init(M)</span><input class="w-md" type="number" step="any" value="1" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('iceRRows').appendChild(row);
+}
+function addIceP() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `<input class="w-md" placeholder="name" />
+    <span class="dyn-label">coeff</span><input class="w-sm" type="number" step="any" value="1" />
+    <span class="dyn-label">init(M)</span><input class="w-md" type="number" step="any" value="0" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('icePRows').appendChild(row);
+}
+
+/* Module 16 – Electrochemistry */
+function updateECFields() {
+  const t = document.getElementById('ecType').value;
+  const f = document.getElementById('ecFields');
+  if (t === 'cell') {
+    f.innerHTML = `
+      <div class="field-row"><label>E°cathode (V)</label><input id="ecCat" type="number" step="any" placeholder="higher E°red" /></div>
+      <div class="field-row"><label>E°anode (V)</label><input id="ecAno" type="number" step="any" placeholder="lower E°red" /></div>
+      <div class="field-row"><label>n (electrons)</label><input id="ecN" type="number" step="1" placeholder="e.g. 2" /></div>`;
+  } else if (t === 'faraday') {
+    f.innerHTML = `
+      <div class="field-row"><label>Solve for</label>
+        <select id="farSolve">
+          <option value="mass">Mass deposited (g)</option>
+          <option value="current">Current (A)</option>
+          <option value="time">Time (s)</option>
+          <option value="molar_mass">Molar mass (g/mol)</option>
+        </select>
+      </div>
+      <div class="field-row"><label>Mass (g)</label><input id="farMass" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>Current (A)</label><input id="farI" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>Time (s)</label><input id="farT" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>Molar mass (g/mol)</label><input id="farM" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>n (electrons)</label><input id="farN" type="number" step="1" placeholder="e.g. 2" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Leave the solve-for field blank.</div>`;
+  } else if (t === 'nernst') {
+    f.innerHTML = `
+      <div class="field-row"><label>E°cell (V)</label><input id="nernstE0" type="number" step="any" /></div>
+      <div class="field-row"><label>n (electrons)</label><input id="nernstN" type="number" step="1" placeholder="e.g. 2" /></div>
+      <div class="field-row"><label>Q (reaction quotient)</label><input id="nernstQ" type="number" step="any" placeholder="e.g. 0.5" /></div>
+      <div class="field-row"><label>T (K)</label><input id="nernstT" type="number" step="any" placeholder="298.15" /></div>`;
+  }
+}
+
+/* Module 17 – Kinetics */
+function updateKinFields() {
+  const t = document.getElementById('kinType').value;
+  const f = document.getElementById('kinFields');
+  if (t === 'order') {
+    f.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Experiment 1</div>
+      <div class="field-row"><label>[A]₁ (mol/L)</label><input id="kinC1" type="number" step="any" /></div>
+      <div class="field-row"><label>Rate₁</label><input id="kinR1" type="number" step="any" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin:4px 0 4px">Experiment 2</div>
+      <div class="field-row"><label>[A]₂ (mol/L)</label><input id="kinC2" type="number" step="any" /></div>
+      <div class="field-row"><label>Rate₂</label><input id="kinR2" type="number" step="any" /></div>`;
+  } else if (t === 'arrhenius') {
+    f.innerHTML = `
+      <div class="field-row"><label>Solve for</label>
+        <select id="arrSolve">
+          <option value="Ea">Ea (kJ/mol)</option>
+          <option value="k2">k₂ at T₂</option>
+        </select>
+      </div>
+      <div class="field-row"><label>k₁</label><input id="arrK1" type="number" step="any" /></div>
+      <div class="field-row"><label>T₁ (K)</label><input id="arrT1" type="number" step="any" /></div>
+      <div class="field-row"><label>k₂</label><input id="arrK2" type="number" step="any" placeholder="— if solving for k₂" /></div>
+      <div class="field-row"><label>T₂ (K)</label><input id="arrT2" type="number" step="any" /></div>
+      <div class="field-row"><label>Ea (J/mol)</label><input id="arrEa" type="number" step="any" placeholder="— if solving for Ea" /></div>`;
+  } else if (t === 'halflife') {
+    f.innerHTML = `
+      <div class="field-row"><label>Solve for</label>
+        <select id="hlSolve">
+          <option value="t_half">t½ from k</option>
+          <option value="k">k from t½</option>
+        </select>
+      </div>
+      <div class="field-row"><label>k (s⁻¹)</label><input id="hlK" type="number" step="any" placeholder="— if solving for k" /></div>
+      <div class="field-row"><label>t½ (s)</label><input id="hlT" type="number" step="any" placeholder="— if solving for t½" /></div>`;
+  } else if (t === 'kunits') {
+    f.innerHTML = `
+      <div class="field-row"><label>Overall order</label>
+        <select id="kinOrder">
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </div>`;
+  }
 }
 
 /* ════════════════════════════════════════════════════════
@@ -857,6 +1231,191 @@ const CALCS = {
     showResult(
       `${d.name}  (${d.symbol})\nAtomic number: ${d.number}\nAtomic weight: ${d.atomic_weight} g/mol`
     );
+  },
+
+  /* ── 12. Gas Laws ────────────────────────────────── */
+  async 12() {
+    const t = val('gasType');
+    if (t === 'ideal') {
+      const solve = val('gasIdealSolve');
+      const body = { type: 'ideal', solve,
+        n: val('gasN'), v: val('gasV'), T: val('gasT'), p: val('gasP') };
+      const d = await post('/api/gas_laws', body);
+      if (d.error) { showError(d.error); return; }
+      showResult(`${solve} = ${d.result.toPrecision(5)} ${d.unit}\n(R = 0.08206 L·atm/mol·K)`);
+    } else if (t === 'combined') {
+      const solve = val('gasCombSolve');
+      const body = { type: 'combined', solve,
+        P1: val('gasP1'), V1: val('gasV1'), T1: val('gasT1'),
+        P2: val('gasP2'), V2: val('gasV2'), T2: val('gasT2') };
+      const d = await post('/api/gas_laws', body);
+      if (d.error) { showError(d.error); return; }
+      showResult(`${solve} = ${d.result.toPrecision(5)} ${d.unit}`);
+    } else if (t === 'graham') {
+      const d = await post('/api/gas_laws', { type: 'graham', M1: val('gasM1'), M2: val('gasM2') });
+      if (d.error) { showError(d.error); return; }
+      showResult(`Rate₁/Rate₂ = ${d.result.toPrecision(5)}\nGas 1 effuses ${d.result > 1 ? 'faster' : 'slower'} than Gas 2`);
+    } else if (t === 'dalton') {
+      const rows = document.querySelectorAll('#daltonRows .dyn-row');
+      const gases = [];
+      rows.forEach(r => {
+        const ins = r.querySelectorAll('input');
+        if (ins[1].value.trim()) gases.push({ name: ins[0].value.trim() || '?', p: ins[1].value });
+      });
+      if (!gases.length) { showError('Add at least one gas.'); return; }
+      const d = await post('/api/gas_laws', { type: 'dalton', gases });
+      if (d.error) { showError(d.error); return; }
+      let out = `P_total = ${d.total.toPrecision(5)} atm\n\nPartial pressures:`;
+      d.partials.forEach(g => { out += `\n  ${g.name}: ${Number(g.p).toPrecision(4)} atm`; });
+      showResult(out);
+    }
+  },
+
+  /* ── 13. Acid-Base ───────────────────────────────── */
+  async 13() {
+    const t = val('abType');
+    let body = { type: t };
+    if (t === 'ph_convert') {
+      body.input_type = val('abConvInput');
+      body.value = val('abVal');
+      if (!body.value) { showError('Enter a value.'); return; }
+    } else if (t === 'strong_acid' || t === 'strong_base') {
+      body.conc = val('abConc');
+      if (!body.conc) { showError('Enter concentration.'); return; }
+    } else if (t === 'weak_acid') {
+      body.Ka = val('abKa'); body.conc = val('abConc');
+      if (!body.Ka || !body.conc) { showError('Enter Ka and concentration.'); return; }
+    } else if (t === 'weak_base') {
+      body.Kb = val('abKb'); body.conc = val('abConc');
+      if (!body.Kb || !body.conc) { showError('Enter Kb and concentration.'); return; }
+    } else if (t === 'buffer') {
+      body.Ka = val('abKa'); body.acid = val('abAcid'); body.base = val('abBase');
+      if (!body.Ka || !body.acid || !body.base) { showError('Enter Ka, [acid], and [base].'); return; }
+    } else if (t === 'identify') {
+      body.formula = val('abFormula');
+      if (!body.formula) { showError('Enter a formula.'); return; }
+    }
+    const d = await post('/api/acid_base', body);
+    if (d.error) { showError(d.error); return; }
+    if (t === 'identify') { showResult(`${d.formula} → ${d.identity}`); return; }
+    showResult(`pH  = ${d.pH.toFixed(4)}\npOH = ${d.pOH.toFixed(4)}\n[H⁺] = ${d.H.toExponential(3)} mol/L\n[OH⁻] = ${d.OH.toExponential(3)} mol/L${d.note ? '\n\n' + d.note : ''}`);
+  },
+
+  /* ── 14. Thermodynamics ──────────────────────────── */
+  async 14() {
+    const t = val('thermoType');
+    let body = { type: t };
+    if (t === 'calorimetry') {
+      body.solve = val('calSolve');
+      body.q = val('calQ'); body.m = val('calM'); body.c = val('calC'); body.dT = val('calDT');
+      const d = await post('/api/thermo', body);
+      if (d.error) { showError(d.error); return; }
+      showResult(`${body.solve} = ${d.result.toPrecision(5)} ${d.unit}`);
+    } else if (t === 'hess') {
+      const rows = document.querySelectorAll('#hessRows .dyn-row');
+      const steps = [];
+      rows.forEach(r => {
+        const ins = r.querySelectorAll('input');
+        if (ins[0].value.trim()) steps.push({ dH: ins[0].value, mult: ins[1].value || '1' });
+      });
+      if (!steps.length) { showError('Add at least one step.'); return; }
+      const d = await post('/api/thermo', { type: 'hess', steps });
+      if (d.error) { showError(d.error); return; }
+      showResult(`ΔH_rxn = ${d.result.toPrecision(5)} kJ/mol`);
+    } else if (t === 'bond') {
+      const brRows = document.querySelectorAll('#bondBrRows .dyn-row');
+      const fmRows = document.querySelectorAll('#bondFmRows .dyn-row');
+      const broken = [], formed = [];
+      brRows.forEach(r => {
+        const ins = r.querySelectorAll('input');
+        if (ins[0].value.trim()) broken.push({ bond: ins[0].value.trim(), count: ins[1].value, kJ: ins[2].value });
+      });
+      fmRows.forEach(r => {
+        const ins = r.querySelectorAll('input');
+        if (ins[0].value.trim()) formed.push({ bond: ins[0].value.trim(), count: ins[1].value, kJ: ins[2].value });
+      });
+      if (!broken.length && !formed.length) { showError('Add at least one bond.'); return; }
+      const d = await post('/api/thermo', { type: 'bond', broken, formed });
+      if (d.error) { showError(d.error); return; }
+      showResult(`ΔH = ${d.result.toPrecision(5)} kJ/mol\nBroken: ${d.sum_broken} kJ\nFormed: ${d.sum_formed} kJ`);
+    } else if (t === 'gibbs') {
+      const d = await post('/api/thermo', { type: 'gibbs', dH: val('gibbsDH'), dS: val('gibbsDS'), T: val('gibbsT') || '298.15' });
+      if (d.error) { showError(d.error); return; }
+      showResult(`ΔG = ${d.result.toPrecision(5)} kJ/mol\n${d.spontaneous ? 'Spontaneous (ΔG < 0)' : d.result === 0 ? 'Equilibrium (ΔG = 0)' : 'Non-spontaneous (ΔG > 0)'}`);
+    }
+  },
+
+  /* ── 15. ICE Solver ──────────────────────────────── */
+  async 15() {
+    const rRows = document.querySelectorAll('#iceRRows .dyn-row');
+    const pRows = document.querySelectorAll('#icePRows .dyn-row');
+    const reactants = [], products = [];
+    rRows.forEach(r => {
+      const ins = r.querySelectorAll('input');
+      if (ins[0].value.trim()) reactants.push({ name: ins[0].value.trim(), coeff: ins[1].value, initial: ins[2].value });
+    });
+    pRows.forEach(r => {
+      const ins = r.querySelectorAll('input');
+      if (ins[0].value.trim()) products.push({ name: ins[0].value.trim(), coeff: ins[1].value, initial: ins[2].value });
+    });
+    const Kc = val('iceKc');
+    if (!reactants.length || !products.length) { showError('Need at least 1 reactant and 1 product.'); return; }
+    if (!Kc) { showError('Enter Kc.'); return; }
+    const d = await post('/api/ice', { reactants, products, Kc });
+    if (d.error) { showError(d.error); return; }
+    let out = `x = ${d.x.toExponential(4)}\nKc verified = ${d.Q_final.toPrecision(4)}\n5% check: ${d.approx_pct.toFixed(1)}% ${d.approx_pct < 5 ? '✓ approx. valid' : '✗ use quadratic'}\n\nEquilibrium concentrations:`;
+    d.r_eq.forEach((c, i) => { out += `\n  ${d.r_names[i]}: ${c.toPrecision(5)} M`; });
+    d.p_eq.forEach((c, i) => { out += `\n  ${d.p_names[i]}: ${c.toPrecision(5)} M`; });
+    showResult(out);
+  },
+
+  /* ── 16. Electrochemistry ────────────────────────── */
+  async 16() {
+    const t = val('ecType');
+    if (t === 'cell') {
+      const d = await post('/api/electrochem', { type: 'cell', E_cat: val('ecCat'), E_ano: val('ecAno'), n: val('ecN') });
+      if (d.error) { showError(d.error); return; }
+      showResult(`E°cell = ${d.E_cell.toFixed(4)} V\nΔG° = ${d.dG.toFixed(2)} kJ/mol\n${d.spontaneity} (${d.cell_type})`);
+    } else if (t === 'faraday') {
+      const solve = val('farSolve');
+      const d = await post('/api/electrochem', { type: 'faraday', solve,
+        mass: val('farMass'), I: val('farI'), t: val('farT'), M: val('farM'), n: val('farN') });
+      if (d.error) { showError(d.error); return; }
+      showResult(`${solve} = ${d.result.toPrecision(5)} ${d.unit}`);
+    } else if (t === 'nernst') {
+      const d = await post('/api/electrochem', { type: 'nernst',
+        E0: val('nernstE0'), n: val('nernstN'), Q: val('nernstQ'), T: val('nernstT') || '298.15' });
+      if (d.error) { showError(d.error); return; }
+      showResult(`E = ${d.E.toFixed(4)} V\nE°cell = ${Number(val('nernstE0')).toFixed(4)} V\nQ = ${val('nernstQ')}\nT = ${val('nernstT') || '298.15'} K`);
+    }
+  },
+
+  /* ── 17. Kinetics ────────────────────────────────── */
+  async 17() {
+    const t = val('kinType');
+    if (t === 'order') {
+      const d = await post('/api/kinetics', { type: 'order',
+        c1: val('kinC1'), c2: val('kinC2'), r1: val('kinR1'), r2: val('kinR2') });
+      if (d.error) { showError(d.error); return; }
+      showResult(`Reaction order = ${d.order.toFixed(3)} (≈ ${Math.round(d.order)})\nk = ${d.k.toExponential(4)} ${d.k_units}`);
+    } else if (t === 'arrhenius') {
+      const solve = val('arrSolve');
+      const d = await post('/api/kinetics', { type: 'arrhenius', solve,
+        k1: val('arrK1'), T1: val('arrT1'), k2: val('arrK2'), T2: val('arrT2'), Ea: val('arrEa') });
+      if (d.error) { showError(d.error); return; }
+      if (solve === 'Ea') showResult(`Ea = ${d.Ea_kJ.toFixed(2)} kJ/mol\n   = ${d.Ea_J.toFixed(0)} J/mol`);
+      else               showResult(`k₂ = ${d.k2.toExponential(4)} at T₂ = ${val('arrT2')} K`);
+    } else if (t === 'halflife') {
+      const solve = val('hlSolve');
+      const d = await post('/api/kinetics', { type: 'halflife', solve, k: val('hlK'), t_half: val('hlT') });
+      if (d.error) { showError(d.error); return; }
+      if (solve === 't_half') showResult(`t½ = ${d.t_half.toPrecision(5)} s\n   = ${(d.t_half / 60).toPrecision(4)} min`);
+      else                   showResult(`k = ${d.k.toExponential(4)} s⁻¹`);
+    } else if (t === 'kunits') {
+      const d = await post('/api/kinetics', { type: 'kunits', order: val('kinOrder') });
+      if (d.error) { showError(d.error); return; }
+      showResult(`Order ${d.order}: k units = ${d.units}`);
+    }
   },
 };
 </script>
