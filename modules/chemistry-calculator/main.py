@@ -30,6 +30,7 @@ def show_menu():
     print("11. Periodic Table")
     print("12. Gas Laws Calculator")
     print("13. Acid-Base Chemistry Calculator")
+    print("14. Enthalpy & Thermodynamics")
     print("0. Exit")
 
 
@@ -129,6 +130,17 @@ def percentage_yield_calculator():
         traceback.print_exc()
         return
     percentage_yield_menu()
+
+
+def open_thermodynamics():
+    print("\n[INFO] Opening Enthalpy & Thermodynamics Calculator...", flush=True)
+    try:
+        from thermodynamics import thermodynamics_menu
+    except Exception as e:
+        print(f"[ERROR] Failed to load Thermodynamics Calculator: {e}")
+        traceback.print_exc()
+        return
+    thermodynamics_menu()
 
 
 def open_acid_base():
@@ -259,13 +271,14 @@ def main():
     "11": open_periodic_table,
         "12": open_gas_laws,
         "13": open_acid_base,
+        "14": open_thermodynamics,
         "0": None,
     }
 
     while True:
         show_menu()
         try:
-            choice = input("Select an option (0-13): ").strip()
+            choice = input("Select an option (0-14): ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nExiting the program.")
             break
