@@ -91,7 +91,9 @@ python main.py
 python ui_interface/app.py
 ```
 
-Then open **http://localhost:5000** in your browser. All modules are available through the web interface.
+Then open **http://localhost:5000** in your browser.
+
+The web UI is **CHEMCALC FX-17** — a redesigned single-page app where modules are grouped by IB Chemistry topic (Stoichiometry, Energetics, Kinetics, Equilibrium, Acids & Bases, Electrochemistry, Tools). Clicking a module opens its input form inline; the output box shows the formula used, substituted values, and result. Dark and light themes are supported.
 
 ### Run Diagnostics
 
@@ -109,7 +111,8 @@ Runs the full automated test suite across all modules — no user input needed. 
 |-------|-----------|
 | Language | Python 3 |
 | Equation balancing | sympy |
-| Web interface | Flask + HTML/JS |
+| Web interface | Flask + HTML/JS (CHEMCALC FX-17) |
+| Shared constants | `constants.py` (R, F, Avogadro, reduction potentials, bond enthalpies) |
 | C UI prototype | C (in development) |
 
 ---
