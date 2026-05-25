@@ -44,14 +44,59 @@ def api_mole():
     t, a, b = d.get('type'), d.get('a'), d.get('b')
     try:
         a = float(a)
-        if t == 'mass_to_moles':    result, unit = mass_to_moles(a, float(b)), 'mol'
-        elif t == 'moles_to_mass':  result, unit = moles_to_mass(a, float(b)), 'g'
-        elif t == 'moles_to_particles': result, unit = moles_to_particles(a), 'particles'
-        elif t == 'particles_to_moles': result, unit = particles_to_moles(a), 'mol'
-        elif t == 'moles_to_volume':result, unit = moles_to_volume(a), 'L'
-        elif t == 'volume_to_moles':result, unit = volume_to_moles(a), 'mol'
-        else: return jsonify(error='Unknown conversion type'), 400
-        return jsonify(result=result, unit=unit)
+        if t == 'mass_to_moles':
+            bv = float(b)
+            result, unit = mass_to_moles(a, bv), 'mol'
+            compact = f'Moles = {result:.4g} mol'
+            steps   = [
+                f'Formula:  n = mass / M',
+                f'Values:   n = {a} g / {bv} g·mol⁻¹',
+                f'Result:   n = {result:.6g} mol',
+            ]
+        elif t == 'moles_to_mass':
+            bv = float(b)
+            result, unit = moles_to_mass(a, bv), 'g'
+            compact = f'Mass = {result:.4g} g'
+            steps   = [
+                f'Formula:  m = n × M',
+                f'Values:   m = {a} mol × {bv} g·mol⁻¹',
+                f'Result:   m = {result:.6g} g',
+            ]
+        elif t == 'moles_to_particles':
+            result, unit = moles_to_particles(a), 'particles'
+            compact = f'Particles = {result:.4g}'
+            steps   = [
+                f'Formula:  N = n × Nₐ',
+                f'Values:   N = {a} mol × 6.022 × 10²³',
+                f'Result:   N = {result:.6g} particles',
+            ]
+        elif t == 'particles_to_moles':
+            result, unit = particles_to_moles(a), 'mol'
+            compact = f'Moles = {result:.4g} mol'
+            steps   = [
+                f'Formula:  n = N / Nₐ',
+                f'Values:   n = {a} / 6.022 × 10²³',
+                f'Result:   n = {result:.6g} mol',
+            ]
+        elif t == 'moles_to_volume':
+            result, unit = moles_to_volume(a), 'L'
+            compact = f'Volume = {result:.4g} L'
+            steps   = [
+                f'Formula:  V = n × 22.4 L·mol⁻¹  (STP)',
+                f'Values:   V = {a} mol × 22.4',
+                f'Result:   V = {result:.6g} L',
+            ]
+        elif t == 'volume_to_moles':
+            result, unit = volume_to_moles(a), 'mol'
+            compact = f'Moles = {result:.4g} mol'
+            steps   = [
+                f'Formula:  n = V / 22.4 L·mol⁻¹  (STP)',
+                f'Values:   n = {a} L / 22.4',
+                f'Result:   n = {result:.6g} mol',
+            ]
+        else:
+            return jsonify(error='Unknown conversion type'), 400
+        return jsonify(result=result, unit=unit, compact=compact, steps=steps)
     except Exception as e:
         return jsonify(error=str(e)), 400
 
