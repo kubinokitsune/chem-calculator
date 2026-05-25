@@ -1,6 +1,6 @@
 # Chemistry Calculator
 
-An interactive physical chemistry calculator built for IB Chemistry. Covers 13 core topics through both a command-line interface and a browser-based web UI.
+An interactive physical chemistry calculator built for IB Chemistry. Covers 17 core topics through both a command-line interface and a browser-based web UI.
 
 **Developer:** Felipe "Pipe" Fonseca
 **Project type:** IB Chemistry / personal STEM project
@@ -24,6 +24,10 @@ An interactive physical chemistry calculator built for IB Chemistry. Covers 13 c
 | 11 | **Periodic Table** | Element lookup by name, symbol, or atomic number |
 | 12 | **Gas Laws** | Ideal gas law, combined gas law, Graham's law, Dalton's law, molar volume |
 | 13 | **Acid-Base Chemistry** | pH/pOH conversions, strong/weak acid-base, buffers, Ka/Kb, titration |
+| 14 | **Thermodynamics** | Calorimetry (q=mcΔT), Hess's Law, bond enthalpy, ΔH°rxn, Gibbs free energy (ΔG=ΔH−TΔS) |
+| 15 | **Equilibrium & ICE Solver** | ICE table builder (bisection solver), Kc↔Kp, Q vs K, Le Chatelier's principle |
+| 16 | **Electrochemistry** | Cell potential, ΔG°=−nFE°, Faraday's law, Nernst equation, spontaneity checker |
+| 17 | **Kinetics** | Rate law from initial rates, Arrhenius equation, half-life, integrated rate laws (0/1/2 order) |
 
 ---
 
@@ -74,6 +78,10 @@ python main.py
 11. Periodic Table
 12. Gas Laws Calculator
 13. Acid-Base Chemistry Calculator
+14. Thermodynamics
+15. Equilibrium & ICE Table Solver
+16. Electrochemistry
+17. Kinetics
 0.  Exit
 ```
 
@@ -88,7 +96,7 @@ Then open **http://localhost:5000** in your browser. All modules are available t
 ### Run Diagnostics
 
 ```bash
-python run_diagnostics.py
+python test_files/run_diagnostics.py
 ```
 
 Runs the full automated test suite across all modules — no user input needed. Outputs pass/fail for every test case.
@@ -126,12 +134,20 @@ chem-calculator/
 │   │   ├── Periodic_table.py
 │   │   ├── gas_laws.py
 │   │   ├── acid_base.py
-│   │   ├── run_diagnostics.py       # Automated test suite
+│   │   ├── thermodynamics.py
+│   │   ├── ice_solver.py
+│   │   ├── electrochemistry.py
+│   │   ├── kinetics.py
+│   │   ├── constants.py             # Shared physical/chemical constants
 │   │   ├── ui_interface/            # Flask web app
 │   │   │   ├── app.py               # REST API (one route per module)
 │   │   │   └── index.html           # Front-end
-│   │   ├── tests/
-│   │   │   └── test_calculator.py
+│   │   ├── test_files/              # Automated test suite
+│   │   │   ├── run_diagnostics.py
+│   │   │   ├── stress_test.py
+│   │   │   ├── test_calculator.py
+│   │   │   ├── test_ice_solver.py
+│   │   │   └── test_thermodynamics.py
 │   │   └── requirements.txt
 │   └── user interface/              # C UI (in development)
 │       ├── main_menu.C
