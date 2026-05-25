@@ -1,10 +1,10 @@
-"""
+﻿"""
 Rigorous diagnostic for ice_solver.py
 Tests every solver with known chemistry values.
 """
 import sys, os, math
 sys.stdout.reconfigure(encoding='utf-8')
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ice_solver import (
     reaction_quotient, solve_ice, build_ice_table,
@@ -50,23 +50,23 @@ def check_raises(label, fn, exc=Exception):
     try:
         fn()
         FAIL += 1
-        msg = f"  [FAIL] {label}  — no exception raised"
+        msg = f"  [FAIL] {label}  â€” no exception raised"
         ERRORS.append(msg); print(msg)
     except exc:
         PASS += 1
         print(f"  [PASS] {label}  (raised {exc.__name__})")
     except Exception as e:
         FAIL += 1
-        msg = f"  [FAIL] {label}  — wrong exc {type(e).__name__}: {e}"
+        msg = f"  [FAIL] {label}  â€” wrong exc {type(e).__name__}: {e}"
         ERRORS.append(msg); print(msg)
 
 def section(t):
     print(f"\n{'='*64}\n  {t}\n{'='*64}")
 
 
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 1. REACTION QUOTIENT
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 section("1. REACTION QUOTIENT")
 
 # H2 + I2 <=> 2HI: Q = [HI]^2 / ([H2][I2])
@@ -77,11 +77,11 @@ check("H2+I2->2HI: Q = 1.0^2/(0.5*0.5) = 4.0", Q, 4.0)
 Q2 = reaction_quotient([1],[1.0],[2],[0.2])
 check("N2O4->2NO2: Q = 0.04/1.0 = 0.04", Q2, 0.04)
 
-# All products zero → Q = 0
+# All products zero â†’ Q = 0
 Q3 = reaction_quotient([1],[0.5],[1],[0.0])
 check("Product = 0 -> Q = 0.0", Q3, 0.0)
 
-# Reactant = 0 → Q = 0 (return 0 convention)
+# Reactant = 0 â†’ Q = 0 (return 0 convention)
 Q4 = reaction_quotient([1],[0.0],[1],[0.5])
 check("Reactant = 0 -> Q = 0.0", Q4, 0.0)
 
@@ -91,9 +91,9 @@ Q5 = reaction_quotient([2],[0.4],[1,1],[0.1,0.1])
 check("2A<=>B+C: Q = 0.0625", Q5, 0.0625)
 
 
-# ─────────────────────────────────────────────────────────────
-# 2. ICE TABLE SOLVER — core solve_ice
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# 2. ICE TABLE SOLVER â€” core solve_ice
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 section("2. ICE TABLE SOLVER (solve_ice)")
 
 # --- Test A: Simple A <=> B, Kc=4, [A]0=1.0
@@ -109,11 +109,11 @@ check_approx("A<=>B verify Q=Kc=4", Q_A, 4.0, tol_pct=0.001)
 # --- Test B: N2O4 <=> 2NO2, Kc=0.0059, [N2O4]0=1.0
 # 4x^2/(1-x) = 0.0059
 # 4x^2 + 0.0059x - 0.0059 = 0
-# x = (-0.0059 + sqrt(0.0059^2 + 4*4*0.0059)) / 8 ≈ 0.03767
+# x = (-0.0059 + sqrt(0.0059^2 + 4*4*0.0059)) / 8 â‰ˆ 0.03767
 disc = 0.0059**2 + 4*4*0.0059
 x_expected_B = (-0.0059 + math.sqrt(disc)) / 8
 x_B = solve_ice([1],[1.0],[2],[0.0], Kc=0.0059)
-check_approx("N2O4 decomp: x ≈ 0.03767", x_B, x_expected_B, tol_pct=0.01)
+check_approx("N2O4 decomp: x â‰ˆ 0.03767", x_B, x_expected_B, tol_pct=0.01)
 Q_B = reaction_quotient([1],[1.0-x_B],[2],[2*x_B])
 check_approx("N2O4 verify Q=Kc=0.0059", Q_B, 0.0059, tol_pct=0.1)
 
@@ -132,10 +132,10 @@ check_approx("H2+I2 verify Q=55.64", Q_C, 55.64, tol_pct=0.01)
 # --- Test D: Already at equilibrium
 # A <=> B, Kc=4.0, [A]=0.2, [B]=0.8 (Q=4=Kc)
 x_D = solve_ice([1],[0.2],[1],[0.8], Kc=4.0)
-check_approx("Already at eq: x ≈ 0", x_D, 0.0, tol_pct=0.001)
+check_approx("Already at eq: x â‰ˆ 0", x_D, 0.0, tol_pct=0.001)
 
 # --- Test E: Reverse shift Q > Kc
-# A <=> B, Kc=1.0, [A]=0.1, [B]=0.9 → Q=9 > 1
+# A <=> B, Kc=1.0, [A]=0.1, [B]=0.9 â†’ Q=9 > 1
 # Reverse: products decrease by x, reactants increase by x
 # Eq: (0.9+x)/(0.1-x)... wait, sign convention:
 # In solve_ice, x < 0 means reverse. So r_initial=[A]=0.1, p_initial=[B]=0.9
@@ -151,15 +151,15 @@ check_approx("Reverse verify Q=1.0", Q_E, 1.0, tol_pct=0.01)
 
 # --- Test F: Very small Kc (5% approx should be valid)
 # A <=> B, Kc=1e-4, [A]=1.0
-# x/(1-x) ≈ x ≈ 1e-4  (approx valid: x/[A]=0.01%)
+# x/(1-x) â‰ˆ x â‰ˆ 1e-4  (approx valid: x/[A]=0.01%)
 x_F = solve_ice([1],[1.0],[1],[0.0], Kc=1e-4)
-check_approx("Small Kc=1e-4: x ≈ 9.999e-5", x_F, 1e-4/(1+1e-4), tol_pct=0.01)
+check_approx("Small Kc=1e-4: x â‰ˆ 9.999e-5", x_F, 1e-4/(1+1e-4), tol_pct=0.01)
 r_table = build_ice_table(['A'],  [1], [1.0], ['B'], [1], [0.0], 1e-4)
 check("5% rule: approx_pct < 5%", r_table['approx_pct'] < 5.0, True)
 
 # --- Test G: build_ice_table returns correct structure
 r_tbl = build_ice_table(['H2','I2'],[1,1],[0.5,0.5],['HI'],[2],[0.0], 55.64)
-check_approx("build_ice_table Q_final ≈ 55.64", r_tbl['Q_final'], 55.64, tol_pct=0.01)
+check_approx("build_ice_table Q_final â‰ˆ 55.64", r_tbl['Q_final'], 55.64, tol_pct=0.01)
 check("build_ice_table has x key", 'x' in r_tbl, True)
 check("build_ice_table has r_eq", len(r_tbl['r_eq']), 2)
 check("build_ice_table has p_eq", len(r_tbl['p_eq']), 1)
@@ -172,9 +172,9 @@ x_zero_kc = solve_ice([1],[0.5],[1],[0.0], Kc=0.0)
 check_approx("Kc=0, products=0: already at eq (x=0)", x_zero_kc, 0.0, tol_pct=0.001)
 
 
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 3. Kc / Kp CONVERTER
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 section("3. Kc / Kp CONVERTER")
 
 # N2O4(g) <=> 2NO2(g): delta_n = +1, T=298 K
@@ -209,38 +209,38 @@ for dn_test in [-2, -1, 0, 1, 2]:
     check_approx(f"Roundtrip delta_n={dn_test:+d}", Kc_t, 3.0, tol_pct=0.001)
 
 
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 4. Q vs K COMPARISON
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 section("4. Q vs K COMPARISON")
 
-# Q < K → forward
+# Q < K â†’ forward
 direction, msg = compare_Q_K(1.0, 10.0)
 check("Q<K -> forward", direction, 'forward')
 check("Q<K message has 'RIGHT'", 'RIGHT' in msg.upper(), True)
 
-# Q > K → reverse
+# Q > K â†’ reverse
 direction2, msg2 = compare_Q_K(20.0, 10.0)
 check("Q>K -> reverse", direction2, 'reverse')
 check("Q>K message has 'LEFT'", 'LEFT' in msg2.upper(), True)
 
-# Q = K → equilibrium
+# Q = K â†’ equilibrium
 direction3, msg3 = compare_Q_K(10.0, 10.0)
 check("Q=K -> equilibrium", direction3, 'equilibrium')
 check("Q=K message has 'equilibrium'", 'equilibrium' in msg3.lower(), True)
 
 # Very close to K within tolerance
 direction4, _ = compare_Q_K(10.0 + 1e-9, 10.0)
-check("Q≈K within tol -> equilibrium", direction4, 'equilibrium')
+check("Qâ‰ˆK within tol -> equilibrium", direction4, 'equilibrium')
 
 # Q = 0 (reactants only)
 direction5, _ = compare_Q_K(0.0, 5.0)
 check("Q=0 -> forward", direction5, 'forward')
 
 
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 5. LE CHATELIER PREDICTOR
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 section("5. LE CHATELIER PREDICTOR")
 
 # --- Concentration ---
@@ -313,9 +313,9 @@ check("catalyst -> none (no shift)", d, 'none')
 check("catalyst explanation mentions equilibrium", 'equilibrium' in e.lower(), True)
 check("catalyst explanation mentions K unchanged", 'K' in e, True)
 
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 6. CROSS-CHECKS & EDGE CASES
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 section("6. CROSS-CHECKS & EDGE CASES")
 
 # ICE: 2A <=> B, Kc=0.25, [A]=2.0, [B]=0
@@ -323,8 +323,8 @@ section("6. CROSS-CHECKS & EDGE CASES")
 # Let y = 2x (moles shifted from A): Kc = y/2 / (2-y)^2
 # 0.25*(2-y)^2 = y/2  ... simpler: let [B]=x, [A]=2-2x
 # 0.25 = x / (2-2x)^2 = x / 4(1-x)^2
-# x = 1 - (1-x) → 0.25 * 4 * (1-x)^2 = x → (1-x)^2 = x → 1 - 2x + x^2 = x
-# x^2 - 3x + 1 = 0 → x = (3 - sqrt(5)) / 2 ≈ 0.3820
+# x = 1 - (1-x) â†’ 0.25 * 4 * (1-x)^2 = x â†’ (1-x)^2 = x â†’ 1 - 2x + x^2 = x
+# x^2 - 3x + 1 = 0 â†’ x = (3 - sqrt(5)) / 2 â‰ˆ 0.3820
 x_expected_2A = (3 - math.sqrt(5)) / 2
 x_2A = solve_ice([2],[2.0],[1],[0.0], Kc=0.25)
 check_approx("2A<=>B: x(ice var) gives [B]_eq", 0.0 + 1*x_2A, x_expected_2A, tol_pct=0.01)
@@ -332,18 +332,18 @@ Q_2A = reaction_quotient([2],[2.0 - 2*x_2A],[1],[x_2A])
 check_approx("2A<=>B verify Q=0.25", Q_2A, 0.25, tol_pct=0.01)
 
 # ICE: large Kc (essentially complete reaction)
-# A <=> B, Kc=1e6, [A]=1.0 → x ≈ 1 - 1e-6
+# A <=> B, Kc=1e6, [A]=1.0 â†’ x â‰ˆ 1 - 1e-6
 x_large = solve_ice([1],[1.0],[1],[0.0], Kc=1e6)
-check_approx("Large Kc=1e6: x ≈ 0.999999", x_large, 1e6/(1+1e6), tol_pct=0.001)
+check_approx("Large Kc=1e6: x â‰ˆ 0.999999", x_large, 1e6/(1+1e6), tol_pct=0.001)
 
 # ICE: Kp->Kc->ICE chain
 # N2O4 <=> 2NO2, given Kp=0.144 atm at T=298K
-# Kc = Kp / (RT)^1 = 0.144 / (0.08206*298) = 0.144 / 24.45 ≈ 0.005889
+# Kc = Kp / (RT)^1 = 0.144 / (0.08206*298) = 0.144 / 24.45 â‰ˆ 0.005889
 Kc_from_Kp = kp_to_kc(0.144, 298.0, 1)
 check_approx("Kp->Kc: 0.144 at 298K -> ~0.00589", Kc_from_Kp, 0.00589, tol_pct=1.0)
 x_chain = solve_ice([1],[1.0],[2],[0.0], Kc_from_Kp)
 Q_chain = reaction_quotient([1],[1.0-x_chain],[2],[2*x_chain])
-check_approx("Chain Kp->Kc->ICE: Q ≈ Kc", Q_chain, Kc_from_Kp, tol_pct=0.1)
+check_approx("Chain Kp->Kc->ICE: Q â‰ˆ Kc", Q_chain, Kc_from_Kp, tol_pct=0.1)
 
 # Q=K consistency between compare_Q_K and reaction_quotient
 Q_direct = reaction_quotient([1],[0.2],[1],[0.8])  # = 4.0
@@ -352,7 +352,7 @@ check("Q=K check consistent with reaction_quotient", dir_check, 'equilibrium')
 
 # Le Chatelier + pressure + chemistry sense
 # 2SO2 + O2 <=> 2SO3: dn = 2 - 3 = -1 (more moles reactant side)
-# Increase pressure -> fewer moles -> RIGHT (forward) ✓
+# Increase pressure -> fewer moles -> RIGHT (forward) âœ“
 d_so3, _ = le_chatelier_pressure('increase', -1)
 check("2SO2+O2<=>2SO3: increase P -> right", d_so3, 'right')
 
@@ -361,9 +361,9 @@ check("2SO2+O2<=>2SO3: increase P -> right", d_so3, 'right')
 d_haber, _ = le_chatelier_pressure('decrease', -2)
 check("Haber: decrease P -> left", d_haber, 'left')
 
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # SUMMARY
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 print(f"\n{'='*64}")
 print(f"  ICE SOLVER DIAGNOSTIC COMPLETE")
 print(f"{'='*64}")
@@ -376,3 +376,4 @@ if ERRORS:
         print(e)
 else:
     print("\n  All tests passed!")
+

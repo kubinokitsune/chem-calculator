@@ -32,6 +32,8 @@ def show_menu():
     print("13. Acid-Base Chemistry Calculator")
     print("14. Enthalpy & Thermodynamics")
     print("15. Equilibrium & ICE Table Solver")
+    print("16. Electrochemistry Calculator")
+    print("17. Kinetics Calculator")
     print("0. Exit")
 
 
@@ -142,6 +144,28 @@ def open_ice_solver():
         traceback.print_exc()
         return
     ice_solver_menu()
+
+
+def open_electrochemistry():
+    print("\n[INFO] Opening Electrochemistry Calculator...", flush=True)
+    try:
+        from electrochemistry import electrochemistry_menu
+    except Exception as e:
+        print(f"[ERROR] Failed to load Electrochemistry Calculator: {e}")
+        traceback.print_exc()
+        return
+    electrochemistry_menu()
+
+
+def open_kinetics():
+    print("\n[INFO] Opening Kinetics Calculator...", flush=True)
+    try:
+        from kinetics import kinetics_menu
+    except Exception as e:
+        print(f"[ERROR] Failed to load Kinetics Calculator: {e}")
+        traceback.print_exc()
+        return
+    kinetics_menu()
 
 
 def open_thermodynamics():
@@ -285,13 +309,15 @@ def main():
         "13": open_acid_base,
         "14": open_thermodynamics,
         "15": open_ice_solver,
+        "16": open_electrochemistry,
+        "17": open_kinetics,
         "0": None,
     }
 
     while True:
         show_menu()
         try:
-            choice = input("Select an option (0-15): ").strip()
+            choice = input("Select an option (0-17): ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nExiting the program.")
             break
