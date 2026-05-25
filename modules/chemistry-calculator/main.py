@@ -31,6 +31,7 @@ def show_menu():
     print("12. Gas Laws Calculator")
     print("13. Acid-Base Chemistry Calculator")
     print("14. Enthalpy & Thermodynamics")
+    print("15. Equilibrium & ICE Table Solver")
     print("0. Exit")
 
 
@@ -130,6 +131,17 @@ def percentage_yield_calculator():
         traceback.print_exc()
         return
     percentage_yield_menu()
+
+
+def open_ice_solver():
+    print("\n[INFO] Opening Equilibrium & ICE Table Solver...", flush=True)
+    try:
+        from ice_solver import ice_solver_menu
+    except Exception as e:
+        print(f"[ERROR] Failed to load ICE Solver: {e}")
+        traceback.print_exc()
+        return
+    ice_solver_menu()
 
 
 def open_thermodynamics():
@@ -272,13 +284,14 @@ def main():
         "12": open_gas_laws,
         "13": open_acid_base,
         "14": open_thermodynamics,
+        "15": open_ice_solver,
         "0": None,
     }
 
     while True:
         show_menu()
         try:
-            choice = input("Select an option (0-14): ").strip()
+            choice = input("Select an option (0-15): ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nExiting the program.")
             break
