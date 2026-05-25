@@ -3,6 +3,7 @@
 from sympy import Matrix, lcm
 import re
 from mole_conversions import mole_conversion_menu
+from constants import capitalize_formula
 
 def format_subscript(compound):
     return compound
@@ -50,6 +51,10 @@ def equation_balancer_menu():
         if equation.lower() in ("0", "exit"):
             break
 
+        if not equation:
+            print("[ERROR] Please enter an equation.")
+            continue
+
         # Basic validation
         if "->" not in equation:
             print("[ERROR] Equation must contain '->' to separate reactants and products.")
@@ -57,8 +62,9 @@ def equation_balancer_menu():
 
         try:
             reactants_str, products_str = equation.split("->")
-            reactants = [r.strip() for r in reactants_str.split("+") if r.strip()]
-            products = [p.strip() for p in products_str.split("+") if p.strip()]
+            # Capitalise each compound token before parsing
+            reactants = [capitalize_formula(r.strip()) for r in reactants_str.split("+") if r.strip()]
+            products  = [capitalize_formula(p.strip()) for p in products_str.split("+") if p.strip()]
 
             if not reactants or not products:
                 print("[ERROR] You must provide both reactants and products.")

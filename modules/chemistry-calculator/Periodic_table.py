@@ -178,31 +178,44 @@ def periodic_table_menu():
         if choice == '1':
             show_periodic_table()
         elif choice == '2':
-            q = input("Enter element name (e.g., Oxygen): ")
+            q = input("Enter element name (e.g., Oxygen): ").strip()
+            if not q:
+                print("[ERROR] Please enter an element name.")
+                continue
             res = get_element_by_name(q)
             if res:
                 print(f"Found: {res['number']}: {res['symbol']} - {res['name'].capitalize()} (atomic weight: {res['atomic_weight']})")
             else:
-                print("Element not found. Try a different name or check spelling.")
+                print(f"Element '{q}' not found. Try a different name or check spelling.")
         elif choice == '3':
-            q = input("Enter element symbol (e.g., O): ")
+            from constants import capitalize_formula
+            q = capitalize_formula(input("Enter element symbol (e.g., O): ").strip())
+            if not q:
+                print("[ERROR] Please enter an element symbol.")
+                continue
             res = get_element_by_symbol(q)
             if res:
                 print(f"Found: {res['number']}: {res['symbol']} - {res['name'].capitalize()} (atomic weight: {res['atomic_weight']})")
             else:
-                print("Element not found. Try a different symbol or check spelling.")
+                print(f"Element symbol '{q}' not found. Try a different symbol or check spelling.")
         elif choice == '4':
-            q = input("Enter atomic number (e.g., 8): ")
+            q = input("Enter atomic number (e.g., 8): ").strip()
+            if not q:
+                print("[ERROR] Please enter an atomic number.")
+                continue
             try:
                 num = int(q)
+                if num < 1:
+                    print("[ERROR] Atomic number must be at least 1.")
+                    continue
             except ValueError:
-                print("Invalid number.")
+                print(f"[ERROR] Invalid input: expected a whole number for atomic number, got '{q}'.")
                 continue
             res = get_element_by_number(num)
             if res:
                 print(f"{res['number']}: {res['symbol']} - {res['name'].capitalize()} (atomic weight: {res['atomic_weight']})")
             else:
-                print("No element with that atomic number in this list.")
+                print(f"No element with atomic number {num} in this table.")
         elif choice in ('0', 'exit'):
             break
         else:

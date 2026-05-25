@@ -219,12 +219,28 @@ def spontaneity_analysis(dH_kJ, dS_J_per_K):
 
 # ── Input helper ─────────────────────────────────────────────────────────────
 
-def _get_float(prompt):
+def _get_float(prompt, label=None, positive=False):
+    label = label or prompt.strip().rstrip(':')
     while True:
+        raw = input(prompt).strip()
         try:
-            return float(input(prompt).strip())
+            val = float(raw)
         except ValueError:
-            print("  Please enter a valid number.")
+            print(f"  [ERROR] Invalid input: expected a number for {label}.")
+            continue
+        if positive and val <= 0:
+            print(f"  [ERROR] {label} must be greater than zero.")
+            continue
+        return val
+
+
+def _get_temp_K(prompt):
+    while True:
+        val = _get_float(prompt, "temperature (K)")
+        if val <= 0:
+            print("  [ERROR] Temperature must be above absolute zero (> 0 K).")
+            continue
+        return val
 
 
 # ── Sub-menus ─────────────────────────────────────────────────────────────────
@@ -258,10 +274,14 @@ def menu_calorimetry():
             print(f"  Using c = {c} J/g·K")
             return c
         try:
-            return float(raw)
+            val = float(raw)
+            if val <= 0:
+                print("  [ERROR] Specific heat must be greater than zero.")
+                return _get_float("  c (J/g·K): ", "specific heat", positive=True)
+            return val
         except ValueError:
             print("  Not found in table — enter a numeric value.")
-            return _get_float("  c (J/g·K): ")
+            return _get_float("  c (J/g·K): ", "specific heat", positive=True)
 
     def get_dT():
         mode = input("  Enter (1) ΔT directly  or  (2) T_initial and T_final: ").strip()
@@ -400,9 +420,11 @@ def menu_standard_enthalpy():
         except ValueError:
             print("  Invalid number."); return
         for i in range(n):
-            formula = input(f"    {role.capitalize()} {i+1} formula: ").strip()
-            coeff   = _get_float(f"    Stoichiometric coefficient for {formula}: ")
-            dHf     = _get_float(f"    ΔH°f for {formula} (kJ/mol, 0 for elements): ")
+            from constants import capitalize_formula
+            raw_f   = input(f"    {role.capitalize()} {i+1} formula: ").strip()
+            formula = capitalize_formula(raw_f) if raw_f else f"{role[0].upper()}{i+1}"
+            coeff   = _get_float(f"    Stoichiometric coefficient for {formula}: ", f"coefficient for {formula}", positive=True)
+            dHf     = _get_float(f"    ΔH°f for {formula} (kJ/mol, 0 for elements): ", f"ΔH°f for {formula}")
             species.append({'formula': formula, 'dHf': dHf, 'coeff': coeff, 'role': role})
 
     try:
@@ -439,10 +461,14 @@ def menu_gibbs():
 
     def get_T():
         mode = input("  Temperature in (1) Kelvin  or  (2) Celsius: ").strip()
-        T = _get_float("  T: ")
         if mode == "2":
-            T = celsius_to_kelvin(T)
+            T_C = _get_float("  T (°C): ", "temperature")
+            T = celsius_to_kelvin(T_C)
             print(f"  Converted: T = {T:.2f} K")
+        else:
+            T = _get_float("  T (K): ", "temperature")
+        if T <= 0:
+            print("  [ERROR] Temperature must be above absolute zero (> 0 K).")
         return T
 
     try:

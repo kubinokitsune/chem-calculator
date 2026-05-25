@@ -102,12 +102,20 @@ def oxidation_number_menu():
         choice = input("Select an option (0-2): ").strip()
 
         if choice == '1':
-            formula = input("Enter formula (e.g., KMnO4, H2SO4, Cr2O3, MnO4): ").strip()
+            from constants import capitalize_formula
+            raw = input("Enter formula (e.g., KMnO4, H2SO4, Cr2O3, MnO4): ").strip()
+            if not raw:
+                print("[ERROR] Please enter a formula.")
+                continue
+            formula = capitalize_formula(raw)
             charge_raw = input("Overall ionic charge (0 for neutral, e.g. -1, +2): ").strip()
+            if not charge_raw:
+                print("[ERROR] Please enter the ionic charge (use 0 for neutral).")
+                continue
             try:
                 charge = int(charge_raw.replace('+', ''))
             except ValueError:
-                print("[ERROR] Invalid charge. Enter a whole number like 0, -1, +2.")
+                print("[ERROR] Invalid charge: expected a whole number like 0, -1, +2.")
                 continue
 
             peroxide = formula in PEROXIDES

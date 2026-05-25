@@ -74,12 +74,29 @@ def dalton_mole_fraction(moles_i, total_moles):
 
 # ── Menu helpers ─────────────────────────────────────────────────────────────
 
-def _get_float(prompt):
+def _get_float(prompt, label=None, positive=False):
+    label = label or prompt.strip().rstrip(':')
     while True:
+        raw = input(prompt).strip()
         try:
-            return float(input(prompt))
+            val = float(raw)
         except ValueError:
-            print("Please enter a valid number.")
+            print(f"  [ERROR] Invalid input: expected a number for {label}.")
+            continue
+        if positive and val <= 0:
+            print(f"  [ERROR] {label} must be greater than zero.")
+            continue
+        return val
+
+
+def _get_temp_K(prompt):
+    """Get a temperature in K with absolute-zero check."""
+    while True:
+        val = _get_float(prompt, "temperature (K)")
+        if val <= 0:
+            print("  [ERROR] Temperature must be above absolute zero (> 0 K).")
+            continue
+        return val
 
 
 def ideal_gas_menu():
@@ -91,28 +108,31 @@ def ideal_gas_menu():
     print("4. Temperature (T)")
     choice = input("Select (1-4): ").strip()
 
-    if choice == "1":
-        n = _get_float("Moles (mol): ")
-        V = _get_float("Volume (L): ")
-        T = _get_float("Temperature (K): ")
-        print(f"Pressure = {ideal_gas_find_P(n, V, T):.4f} atm")
-    elif choice == "2":
-        n = _get_float("Moles (mol): ")
-        T = _get_float("Temperature (K): ")
-        P = _get_float("Pressure (atm): ")
-        print(f"Volume = {ideal_gas_find_V(n, T, P):.4f} L")
-    elif choice == "3":
-        P = _get_float("Pressure (atm): ")
-        V = _get_float("Volume (L): ")
-        T = _get_float("Temperature (K): ")
-        print(f"Moles = {ideal_gas_find_n(P, V, T):.4f} mol")
-    elif choice == "4":
-        P = _get_float("Pressure (atm): ")
-        V = _get_float("Volume (L): ")
-        n = _get_float("Moles (mol): ")
-        print(f"Temperature = {ideal_gas_find_T(P, V, n):.4f} K")
-    else:
-        print("Invalid choice.")
+    try:
+        if choice == "1":
+            n = _get_float("Moles (mol): ", "moles", positive=True)
+            V = _get_float("Volume (L): ", "volume", positive=True)
+            T = _get_temp_K("Temperature (K): ")
+            print(f"Pressure = {ideal_gas_find_P(n, V, T):.4f} atm")
+        elif choice == "2":
+            n = _get_float("Moles (mol): ", "moles", positive=True)
+            T = _get_temp_K("Temperature (K): ")
+            P = _get_float("Pressure (atm): ", "pressure", positive=True)
+            print(f"Volume = {ideal_gas_find_V(n, T, P):.4f} L")
+        elif choice == "3":
+            P = _get_float("Pressure (atm): ", "pressure", positive=True)
+            V = _get_float("Volume (L): ", "volume", positive=True)
+            T = _get_temp_K("Temperature (K): ")
+            print(f"Moles = {ideal_gas_find_n(P, V, T):.4f} mol")
+        elif choice == "4":
+            P = _get_float("Pressure (atm): ", "pressure", positive=True)
+            V = _get_float("Volume (L): ", "volume", positive=True)
+            n = _get_float("Moles (mol): ", "moles", positive=True)
+            print(f"Temperature = {ideal_gas_find_T(P, V, n):.4f} K")
+        else:
+            print("Invalid choice.")
+    except (ZeroDivisionError, ValueError) as e:
+        print(f"  [ERROR] {e}")
 
 
 def combined_gas_menu():
@@ -123,29 +143,32 @@ def combined_gas_menu():
     print("3. T2")
     choice = input("Select (1-3): ").strip()
 
-    if choice == "1":
-        P1 = _get_float("P1 (atm): ")
-        V1 = _get_float("V1 (L): ")
-        T1 = _get_float("T1 (K): ")
-        V2 = _get_float("V2 (L): ")
-        T2 = _get_float("T2 (K): ")
-        print(f"P2 = {combined_gas_find_P2(P1, V1, T1, V2, T2):.4f} atm")
-    elif choice == "2":
-        P1 = _get_float("P1 (atm): ")
-        V1 = _get_float("V1 (L): ")
-        T1 = _get_float("T1 (K): ")
-        P2 = _get_float("P2 (atm): ")
-        T2 = _get_float("T2 (K): ")
-        print(f"V2 = {combined_gas_find_V2(P1, V1, T1, P2, T2):.4f} L")
-    elif choice == "3":
-        P1 = _get_float("P1 (atm): ")
-        V1 = _get_float("V1 (L): ")
-        T1 = _get_float("T1 (K): ")
-        P2 = _get_float("P2 (atm): ")
-        V2 = _get_float("V2 (L): ")
-        print(f"T2 = {combined_gas_find_T2(P1, V1, T1, P2, V2):.4f} K")
-    else:
-        print("Invalid choice.")
+    try:
+        if choice == "1":
+            P1 = _get_float("P1 (atm): ", "P1", positive=True)
+            V1 = _get_float("V1 (L): ",  "V1", positive=True)
+            T1 = _get_temp_K("T1 (K): ")
+            V2 = _get_float("V2 (L): ",  "V2", positive=True)
+            T2 = _get_temp_K("T2 (K): ")
+            print(f"P2 = {combined_gas_find_P2(P1, V1, T1, V2, T2):.4f} atm")
+        elif choice == "2":
+            P1 = _get_float("P1 (atm): ", "P1", positive=True)
+            V1 = _get_float("V1 (L): ",  "V1", positive=True)
+            T1 = _get_temp_K("T1 (K): ")
+            P2 = _get_float("P2 (atm): ", "P2", positive=True)
+            T2 = _get_temp_K("T2 (K): ")
+            print(f"V2 = {combined_gas_find_V2(P1, V1, T1, P2, T2):.4f} L")
+        elif choice == "3":
+            P1 = _get_float("P1 (atm): ", "P1", positive=True)
+            V1 = _get_float("V1 (L): ",  "V1", positive=True)
+            T1 = _get_temp_K("T1 (K): ")
+            P2 = _get_float("P2 (atm): ", "P2", positive=True)
+            V2 = _get_float("V2 (L): ",  "V2", positive=True)
+            print(f"T2 = {combined_gas_find_T2(P1, V1, T1, P2, V2):.4f} K")
+        else:
+            print("Invalid choice.")
+    except (ZeroDivisionError, ValueError) as e:
+        print(f"  [ERROR] {e}")
 
 
 def molar_volume_menu():
@@ -155,18 +178,21 @@ def molar_volume_menu():
     print("3. Molar volume at non-standard T and P")
     choice = input("Select (1-3): ").strip()
 
-    if choice == "1":
-        n = _get_float("Moles (mol): ")
-        print(f"Volume at STP = {moles_to_volume_stp(n):.4f} L")
-    elif choice == "2":
-        V = _get_float("Volume at STP (L): ")
-        print(f"Moles = {volume_to_moles_stp(V):.4f} mol")
-    elif choice == "3":
-        T = _get_float("Temperature (K): ")
-        P = _get_float("Pressure (atm): ")
-        print(f"Molar volume = {molar_volume_nonstandard(T, P):.4f} L/mol")
-    else:
-        print("Invalid choice.")
+    try:
+        if choice == "1":
+            n = _get_float("Moles (mol): ", "moles", positive=True)
+            print(f"Volume at STP = {moles_to_volume_stp(n):.4f} L")
+        elif choice == "2":
+            V = _get_float("Volume at STP (L): ", "volume", positive=True)
+            print(f"Moles = {volume_to_moles_stp(V):.4f} mol")
+        elif choice == "3":
+            T = _get_temp_K("Temperature (K): ")
+            P = _get_float("Pressure (atm): ", "pressure", positive=True)
+            print(f"Molar volume = {molar_volume_nonstandard(T, P):.4f} L/mol")
+        else:
+            print("Invalid choice.")
+    except (ZeroDivisionError, ValueError) as e:
+        print(f"  [ERROR] {e}")
 
 
 def graham_menu():
@@ -177,20 +203,23 @@ def graham_menu():
     print("3. Find M1 given M2 and rate ratio")
     choice = input("Select (1-3): ").strip()
 
-    if choice == "1":
-        M1 = _get_float("Molar mass of gas 1 (g/mol): ")
-        M2 = _get_float("Molar mass of gas 2 (g/mol): ")
-        print(f"rate1/rate2 = {graham_rate_ratio(M1, M2):.4f}")
-    elif choice == "2":
-        M1 = _get_float("Molar mass of gas 1 (g/mol): ")
-        ratio = _get_float("rate1/rate2: ")
-        print(f"M2 = {graham_find_M2(M1, ratio):.4f} g/mol")
-    elif choice == "3":
-        M2 = _get_float("Molar mass of gas 2 (g/mol): ")
-        ratio = _get_float("rate1/rate2: ")
-        print(f"M1 = {graham_find_M1(M2, ratio):.4f} g/mol")
-    else:
-        print("Invalid choice.")
+    try:
+        if choice == "1":
+            M1 = _get_float("Molar mass of gas 1 (g/mol): ", "molar mass M1", positive=True)
+            M2 = _get_float("Molar mass of gas 2 (g/mol): ", "molar mass M2", positive=True)
+            print(f"rate1/rate2 = {graham_rate_ratio(M1, M2):.4f}")
+        elif choice == "2":
+            M1    = _get_float("Molar mass of gas 1 (g/mol): ", "molar mass M1", positive=True)
+            ratio = _get_float("rate1/rate2: ", "rate ratio", positive=True)
+            print(f"M2 = {graham_find_M2(M1, ratio):.4f} g/mol")
+        elif choice == "3":
+            M2    = _get_float("Molar mass of gas 2 (g/mol): ", "molar mass M2", positive=True)
+            ratio = _get_float("rate1/rate2: ", "rate ratio", positive=True)
+            print(f"M1 = {graham_find_M1(M2, ratio):.4f} g/mol")
+        else:
+            print("Invalid choice.")
+    except (ZeroDivisionError, ValueError) as e:
+        print(f"  [ERROR] {e}")
 
 
 def dalton_menu():
@@ -200,22 +229,27 @@ def dalton_menu():
     print("3. Mole fraction of a gas")
     choice = input("Select (1-3): ").strip()
 
-    if choice == "1":
-        n = int(_get_float("Number of gases: "))
-        pressures = []
-        for i in range(1, n + 1):
-            pressures.append(_get_float(f"Partial pressure of gas {i} (atm): "))
-        print(f"Total pressure = {dalton_total_pressure(pressures):.4f} atm")
-    elif choice == "2":
-        P_total = _get_float("Total pressure (atm): ")
-        x = _get_float("Mole fraction of gas: ")
-        print(f"Partial pressure = {dalton_partial_pressure(P_total, x):.4f} atm")
-    elif choice == "3":
-        n_i = _get_float("Moles of gas i: ")
-        n_total = _get_float("Total moles: ")
-        print(f"Mole fraction = {dalton_mole_fraction(n_i, n_total):.4f}")
-    else:
-        print("Invalid choice.")
+    try:
+        if choice == "1":
+            n = int(_get_float("Number of gases: ", "number of gases", positive=True))
+            pressures = [_get_float(f"Partial pressure of gas {i} (atm): ", f"pressure {i}", positive=True)
+                         for i in range(1, n + 1)]
+            print(f"Total pressure = {dalton_total_pressure(pressures):.4f} atm")
+        elif choice == "2":
+            P_total = _get_float("Total pressure (atm): ", "total pressure", positive=True)
+            x = _get_float("Mole fraction of gas (0-1): ", "mole fraction")
+            if not 0 <= x <= 1:
+                print("  [ERROR] Mole fraction must be between 0 and 1.")
+                return
+            print(f"Partial pressure = {dalton_partial_pressure(P_total, x):.4f} atm")
+        elif choice == "3":
+            n_i     = _get_float("Moles of gas i: ", "moles of gas i", positive=True)
+            n_total = _get_float("Total moles: ", "total moles", positive=True)
+            print(f"Mole fraction = {dalton_mole_fraction(n_i, n_total):.4f}")
+        else:
+            print("Invalid choice.")
+    except (ZeroDivisionError, ValueError) as e:
+        print(f"  [ERROR] {e}")
 
 
 def gas_laws_menu():

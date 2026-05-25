@@ -16,6 +16,19 @@ def density_from_mv(mass, volume):
     return mass / volume
 
 
+def _get_float(prompt, label, positive=False):
+    raw = input(prompt).strip()
+    try:
+        val = float(raw)
+    except ValueError:
+        print(f"  [ERROR] Invalid input: expected a number for {label}.")
+        return None
+    if positive and val <= 0:
+        print(f"  [ERROR] {label} must be greater than zero.")
+        return None
+    return val
+
+
 def volume_mass_menu():
     while True:
         print("\n--- Volume-to-Mass Conversions ---")
@@ -28,40 +41,28 @@ def volume_mass_menu():
         choice = input("Select an option (0-3): ").strip()
 
         if choice == '1':
-            try:
-                mass = float(input("Enter mass (g): "))
-                density = float(input("Enter density (g/mL): "))
-                if density <= 0:
-                    print("[ERROR] Density must be greater than zero.")
-                    continue
-                vol = mass_to_volume(mass, density)
-                print(f"Volume: {vol:.4f} mL")
-            except ValueError:
-                print("[ERROR] Please enter numeric values.")
+            mass    = _get_float("Enter mass (g): ", "mass")
+            if mass is None: continue
+            density = _get_float("Enter density (g/mL): ", "density", positive=True)
+            if density is None: continue
+            vol = mass_to_volume(mass, density)
+            print(f"Volume: {vol:.4f} mL")
 
         elif choice == '2':
-            try:
-                volume = float(input("Enter volume (mL): "))
-                density = float(input("Enter density (g/mL): "))
-                if density <= 0:
-                    print("[ERROR] Density must be greater than zero.")
-                    continue
-                mass = volume_to_mass(volume, density)
-                print(f"Mass: {mass:.4f} g")
-            except ValueError:
-                print("[ERROR] Please enter numeric values.")
+            volume  = _get_float("Enter volume (mL): ", "volume")
+            if volume is None: continue
+            density = _get_float("Enter density (g/mL): ", "density", positive=True)
+            if density is None: continue
+            mass = volume_to_mass(volume, density)
+            print(f"Mass: {mass:.4f} g")
 
         elif choice == '3':
-            try:
-                mass = float(input("Enter mass (g): "))
-                volume = float(input("Enter volume (mL): "))
-                if volume <= 0:
-                    print("[ERROR] Volume must be greater than zero.")
-                    continue
-                density = density_from_mv(mass, volume)
-                print(f"Density: {density:.4f} g/mL")
-            except ValueError:
-                print("[ERROR] Please enter numeric values.")
+            mass   = _get_float("Enter mass (g): ", "mass")
+            if mass is None: continue
+            volume = _get_float("Enter volume (mL): ", "volume", positive=True)
+            if volume is None: continue
+            density = density_from_mv(mass, volume)
+            print(f"Density: {density:.4f} g/mL")
 
         elif choice == '0':
             break

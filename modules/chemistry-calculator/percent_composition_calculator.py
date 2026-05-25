@@ -160,7 +160,12 @@ def percent_composition_menu():
         if choice in ('0', 'exit'):
             break
         elif choice == '1':
-            formula = input("Enter chemical formula (e.g., C6H12O6, Ca(OH)2, CuSO4*5H2O): ").strip()
+            from constants import capitalize_formula
+            raw = input("Enter chemical formula (e.g., C6H12O6, Ca(OH)2, CuSO4*5H2O): ").strip()
+            if not raw:
+                print("[ERROR] Please enter a formula.")
+                continue
+            formula = capitalize_formula(raw)
             try:
                 molar_mass, percents = compute_percent_composition(formula)
                 print_percent_table(formula, molar_mass, percents)

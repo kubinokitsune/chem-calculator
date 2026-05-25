@@ -5,6 +5,7 @@
 #                         / (sum of MW x coefficient for ALL reactants) x 100%
 
 from percent_composition_calculator import parse_formula, MOLAR_MASS, FormulaError
+from constants import capitalize_formula
 
 
 def get_molar_mass(formula):
@@ -51,9 +52,17 @@ def atom_economy_menu():
             reactants = []
             r_coeffs = []
             for i in range(n):
-                r = input(f"  Reactant #{i+1} formula (e.g., H2, O2, C6H12O6): ").strip()
+                raw_r = input(f"  Reactant #{i+1} formula (e.g., H2, O2, C6H12O6): ").strip()
+                if not raw_r:
+                    print("[ERROR] Formula cannot be empty.")
+                    break
+                r = capitalize_formula(raw_r)
+                raw_c = input(f"  Coefficient for {r}: ").strip()
                 try:
-                    c = float(input(f"  Coefficient for {r}: "))
+                    c = float(raw_c)
+                    if c <= 0:
+                        print(f"[ERROR] Coefficient for {r} must be greater than zero.")
+                        break
                     get_molar_mass(r)   # validate formula now
                     reactants.append(r)
                     r_coeffs.append(c)
@@ -61,12 +70,20 @@ def atom_economy_menu():
                     print(f"[ERROR] Bad formula '{r}': {e}")
                     break
                 except ValueError:
-                    print("[ERROR] Coefficient must be a number.")
+                    print(f"[ERROR] Invalid input: expected a number for coefficient of {r}.")
                     break
             else:
-                desired = input("Enter the desired product formula: ").strip()
+                raw_desired = input("Enter the desired product formula: ").strip()
+                if not raw_desired:
+                    print("[ERROR] Product formula cannot be empty.")
+                    continue
+                desired = capitalize_formula(raw_desired)
+                raw_dc = input(f"Coefficient for {desired}: ").strip()
                 try:
-                    d_coeff = float(input(f"Coefficient for {desired}: "))
+                    d_coeff = float(raw_dc)
+                    if d_coeff <= 0:
+                        print("[ERROR] Coefficient must be greater than zero.")
+                        continue
                     ae, mw_d, mw_r = calculate_atom_economy(reactants, r_coeffs, desired, d_coeff)
 
                     print(f"\nAtom Economy Results")

@@ -124,3 +124,70 @@ def get_reduction_potential(half_cell: str) -> float:
         f"Half-cell '{half_cell}' not found in REDUCTION_POTENTIALS table.\n"
         f"Available half-cells: {available}"
     )
+
+
+# ── Formula Capitalizer ────────────────────────────────────────────────────────
+
+# All valid element symbols (H through Og, 118 elements)
+_ELEMENTS = {
+    "H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S",
+    "Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga",
+    "Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd",
+    "Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm",
+    "Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os",
+    "Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa",
+    "U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg",
+    "Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og",
+}
+
+def capitalize_formula(formula: str) -> str:
+    """Properly capitalise a chemical formula typed in any case.
+
+    Uses element-aware greedy matching: tries a 2-letter symbol first
+    (e.g. 'na' → 'Na'), falls back to single-letter if the 2-letter
+    combination is not a valid element.
+
+    Ambiguity note: some 2-letter sequences are valid elements but may
+    represent two separate elements in common formulas (e.g. 'co' = Co
+    (cobalt) OR C+O as in CaCO3).  If a formula looks wrong, type it
+    with correct capitalisation (e.g. 'CaCO3' instead of 'caco3').
+
+    Non-letter characters (digits, parentheses, *, .) are passed through
+    unchanged.  If *formula* is empty or None, it is returned as-is.
+
+    Examples
+    --------
+    'nacl'      → 'NaCl'
+    'h2so4'     → 'H2SO4'
+    'ca(oh)2'   → 'Ca(OH)2'
+    'kmno4'     → 'KMnO4'
+    'fe2o3'     → 'Fe2O3'
+    'al2(so4)3' → 'Al2(SO4)3'
+    'cuso4*5h2o'→ 'CuSO4*5H2O'
+    """
+    if not formula:
+        return formula
+    s = formula.strip()
+    # If formula already has uppercase letters, treat it as already capitalised
+    # and only fix the first character to be uppercase (trust user's casing).
+    if any(c.isupper() for c in s):
+        return s[0].upper() + s[1:] if s else s
+    result = []
+    i = 0
+    while i < len(s):
+        ch = s[i]
+        if ch.isalpha():
+            # Try 2-letter element first
+            if i + 1 < len(s) and s[i + 1].isalpha():
+                two = s[i].upper() + s[i + 1].lower()
+                if two in _ELEMENTS:
+                    result.append(two)
+                    i += 2
+                    continue
+            # Single-letter element
+            result.append(s[i].upper())
+            i += 1
+        else:
+            result.append(ch)
+            i += 1
+    return "".join(result)

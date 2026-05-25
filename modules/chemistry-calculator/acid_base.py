@@ -176,12 +176,19 @@ def equivalence_point_pH_description(acid_type, base_type):
 
 # ── Input helper ─────────────────────────────────────────────────────────────
 
-def _get_float(prompt):
+def _get_float(prompt, label=None, positive=False):
+    label = label or prompt.strip().rstrip(':')
     while True:
+        raw = input(prompt).strip()
         try:
-            return float(input(prompt))
+            val = float(raw)
         except ValueError:
-            print("  Please enter a valid number.")
+            print(f"  [ERROR] Invalid input: expected a number for {label}.")
+            continue
+        if positive and val <= 0:
+            print(f"  [ERROR] {label} must be greater than zero.")
+            continue
+        return val
 
 
 # ── Sub-menus ────────────────────────────────────────────────────────────────
@@ -231,9 +238,10 @@ def menu_strong():
         print("Invalid choice."); return
 
     if choice == "1":
+        from constants import capitalize_formula
         print("  Common strong acids: HCl, HBr, HI, HNO3, H2SO4, HClO4")
-        formula = input("  Formula (optional, press Enter to skip): ").strip()
-        C = _get_float("  Concentration (mol/L): ")
+        formula = capitalize_formula(input("  Formula (optional, press Enter to skip): ").strip())
+        C = _get_float("  Concentration (mol/L): ", "concentration", positive=True)
         try:
             pH = strong_acid_pH(C)
             _, pOH, H, OH = all_four(pH=pH)
@@ -245,9 +253,10 @@ def menu_strong():
         except ValueError as e:
             print(f"  Error: {e}")
     else:
+        from constants import capitalize_formula
         print("  Common strong bases: NaOH, KOH, Ca(OH)2, Ba(OH)2")
-        formula = input("  Formula (optional, press Enter to skip): ").strip()
-        C = _get_float("  Concentration (mol/L): ")
+        formula = capitalize_formula(input("  Formula (optional, press Enter to skip): ").strip())
+        C = _get_float("  Concentration (mol/L): ", "concentration", positive=True)
         try:
             pH = strong_base_pH(C)
             _, pOH, H, OH = all_four(pH=pH)
@@ -270,8 +279,8 @@ def menu_weak():
         print("Invalid choice."); return
 
     if choice == "1":
-        Ka = _get_float("  Ka (e.g. 1.8e-5): ")
-        C  = _get_float("  Initial concentration (mol/L): ")
+        Ka = _get_float("  Ka (e.g. 1.8e-5): ", "Ka", positive=True)
+        C  = _get_float("  Initial concentration (mol/L): ", "concentration", positive=True)
         try:
             pH, approx, x = weak_acid_pH(Ka, C)
             _, pOH, H, OH = all_four(pH=pH)
@@ -285,8 +294,8 @@ def menu_weak():
         except ValueError as e:
             print(f"  Error: {e}")
     else:
-        Kb = _get_float("  Kb (e.g. 1.8e-5): ")
-        C  = _get_float("  Initial concentration (mol/L): ")
+        Kb = _get_float("  Kb (e.g. 1.8e-5): ", "Kb", positive=True)
+        C  = _get_float("  Initial concentration (mol/L): ", "concentration", positive=True)
         try:
             pH, approx, x = weak_base_pH(Kb, C)
             _, pOH, H, OH = all_four(pH=pH)
@@ -380,10 +389,15 @@ def menu_buffer():
 
 
 def menu_identifier():
+    from constants import capitalize_formula
     print("\n-- Acid/Base Identifier --")
     print("  Strong acids: HCl, HBr, HI, HNO3, H2SO4, HClO4")
     print("  Strong bases: LiOH, NaOH, KOH, RbOH, CsOH, Ca(OH)2, Sr(OH)2, Ba(OH)2")
-    formula = input("  Enter formula: ").strip()
+    raw = input("  Enter formula: ").strip()
+    if not raw:
+        print("  [ERROR] Please enter a formula.")
+        return
+    formula = capitalize_formula(raw)
     result  = identify(formula)
     print(f"\n  {formula}  →  {result}")
 
@@ -397,18 +411,18 @@ def menu_titration():
 
     try:
         if choice == "1":
-            C_titrant  = _get_float("  Concentration of titrant (mol/L): ")
-            V_titrant  = _get_float("  Volume of titrant at equivalence point (mL): ")
-            V_unknown  = _get_float("  Volume of unknown solution (mL): ")
+            C_titrant  = _get_float("  Concentration of titrant (mol/L): ", "titrant concentration", positive=True)
+            V_titrant  = _get_float("  Volume of titrant at equivalence point (mL): ", "titrant volume", positive=True)
+            V_unknown  = _get_float("  Volume of unknown solution (mL): ", "unknown volume", positive=True)
             n          = equivalence_moles(C_titrant, V_titrant / 1000)
             C_unknown  = titration_find_concentration(n, V_unknown / 1000)
             print(f"\n  Moles at equivalence = {n:.4e} mol")
             print(f"  Concentration of unknown = {C_unknown:.4f} mol/L")
 
         elif choice == "2":
-            C_titrant  = _get_float("  Concentration of titrant (mol/L): ")
-            C_unknown  = _get_float("  Concentration of unknown (mol/L): ")
-            V_unknown  = _get_float("  Volume of unknown (mL): ")
+            C_titrant  = _get_float("  Concentration of titrant (mol/L): ", "titrant concentration", positive=True)
+            C_unknown  = _get_float("  Concentration of unknown (mol/L): ", "unknown concentration", positive=True)
+            V_unknown  = _get_float("  Volume of unknown (mL): ", "unknown volume", positive=True)
             n          = equivalence_moles(C_unknown, V_unknown / 1000)
             V_titrant  = titration_find_volume(n, C_titrant) * 1000
             print(f"\n  Moles at equivalence = {n:.4e} mol")

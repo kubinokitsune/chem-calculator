@@ -1,4 +1,5 @@
 # Empirical Formula_Calculator.py
+from constants import capitalize_formula
 
 def calculate_empirical_formula(elements, masses):
     """Calculates the empirical formula from lists of elements and their masses (in grams or %). Returns a dictionary with element symbols as keys and subscripts as values."""
@@ -73,25 +74,47 @@ def empirical_formula_menu():
         print("\n--- Empirical Formula Calculator ---")
         print("1. Calculate Empirical Formula")
         print("0. Return to Main Menu")
-        choice = input("Select an option (0-1): ")
+        choice = input("Select an option (0-1): ").strip()
         if choice == '1':
-            num_elements = int(input("Enter the number of different elements: "))
+            raw_n = input("Enter the number of different elements: ").strip()
+            try:
+                num_elements = int(raw_n)
+                if num_elements < 1:
+                    print("  [ERROR] Number of elements must be at least 1.")
+                    continue
+            except ValueError:
+                print("  [ERROR] Invalid input: expected a whole number for element count.")
+                continue
+
             elements = []
             masses = []
+            valid = True
             for i in range(num_elements):
-                element = input(f"Enter element symbol #{i+1} (e.g., C, H, O): ").capitalize()
-                while True:
-                    mass_input = input(f"Enter mass or percent of {element}: ")
-                    try:
-                        mass = float(mass_input)
-                        break
-                    except ValueError:
-                        print("Invalid input. Please enter a number.")
+                raw_elem = input(f"Enter element symbol #{i+1} (e.g., C, H, O): ").strip()
+                element = capitalize_formula(raw_elem)
+                raw_mass = input(f"Enter mass or percent of {element}: ").strip()
+                try:
+                    mass = float(raw_mass)
+                except ValueError:
+                    print(f"  [ERROR] Invalid input: expected a number for mass of {element}.")
+                    valid = False
+                    break
+                if mass <= 0:
+                    print(f"  [ERROR] Mass/percent of {element} must be greater than zero.")
+                    valid = False
+                    break
                 elements.append(element)
                 masses.append(mass)
-            formula = calculate_empirical_formula(elements, masses)
-            formula_str = display_empirical_formula(formula)
-            print(f"\nEmpirical Formula: {formula_str}")
+
+            if not valid:
+                continue
+
+            try:
+                formula = calculate_empirical_formula(elements, masses)
+                formula_str = display_empirical_formula(formula)
+                print(f"\nEmpirical Formula: {formula_str}")
+            except ValueError as e:
+                print(f"  [ERROR] {e}")
         elif choice == '0':
             break
         else:

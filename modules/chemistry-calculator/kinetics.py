@@ -157,17 +157,19 @@ def irl_time(order: int, A0: float, At: float, k: float) -> float:
 
 # ── Input helpers ──────────────────────────────────────────────────────────────
 
-def _get_float(prompt: str, positive: bool = False) -> float:
+def _get_float(prompt: str, positive: bool = False, label: str = None) -> float:
+    label = label or prompt.strip().rstrip(':')
     while True:
         raw = input(prompt).strip()
         try:
             val = float(raw)
-            if positive and val <= 0:
-                print("  [ERROR] Value must be greater than zero.")
-            else:
-                return val
         except ValueError:
-            print("  [ERROR] Enter a numeric value.")
+            print(f"  [ERROR] Invalid input: expected a number for {label}.")
+            continue
+        if positive and val <= 0:
+            print(f"  [ERROR] {label} must be greater than zero.")
+            continue
+        return val
 
 
 def _get_int(prompt: str, minimum: int = 0) -> int:
@@ -192,10 +194,14 @@ def _get_order(prompt: str = "  Reaction order (0, 1, or 2): ") -> int:
 
 
 def _get_temp_K(prompt: str = "  Temperature (°C): ") -> float:
-    T_C = _get_float(prompt)
-    T_K = celsius_to_kelvin(T_C)
-    print(f"  → {T_C} °C = {T_K:.2f} K")
-    return T_K
+    while True:
+        T_C = _get_float(prompt, label="temperature (°C)")
+        T_K = celsius_to_kelvin(T_C)
+        if T_K <= 0:
+            print(f"  [ERROR] {T_C} °C = {T_K:.2f} K — temperature must be above absolute zero.")
+            continue
+        print(f"  → {T_C} °C = {T_K:.2f} K")
+        return T_K
 
 
 # ── Sub-menus ──────────────────────────────────────────────────────────────────

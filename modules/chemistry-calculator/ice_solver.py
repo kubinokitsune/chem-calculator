@@ -315,23 +315,32 @@ def le_chatelier_catalyst():
 
 # ── Input helper ─────────────────────────────────────────────────────────────
 
-def _get_float(prompt):
+def _get_float(prompt, label=None, positive=False):
+    label = label or prompt.strip().rstrip(':')
     while True:
+        raw = input(prompt).strip()
         try:
-            return float(input(prompt).strip())
+            val = float(raw)
         except ValueError:
-            print("  Please enter a valid number.")
+            print(f"  [ERROR] Invalid input: expected a number for {label}.")
+            continue
+        if positive and val <= 0:
+            print(f"  [ERROR] {label} must be greater than zero.")
+            continue
+        return val
 
 
-def _get_int(prompt):
+def _get_int(prompt, label="value"):
     while True:
+        raw = input(prompt).strip()
         try:
-            v = int(input(prompt).strip())
+            v = int(raw)
             if v < 1:
-                raise ValueError
+                print(f"  [ERROR] {label} must be at least 1.")
+                continue
             return v
         except ValueError:
-            print("  Please enter a positive integer.")
+            print(f"  [ERROR] Invalid input: expected a positive whole number for {label}.")
 
 
 # ── Sub-menus ─────────────────────────────────────────────────────────────────
@@ -342,23 +351,30 @@ def menu_ice_table():
     print("  Reactants decrease by (coeff * x); products increase by (coeff * x).")
     print()
 
-    nr = _get_int("  Number of reactants: ")
+    from constants import capitalize_formula
+    nr = _get_int("  Number of reactants: ", "number of reactants")
     r_names, r_coeffs, r_initial = [], [], []
     for i in range(nr):
-        name  = input(f"    Reactant {i+1} formula: ").strip() or f"R{i+1}"
-        coeff = _get_float(f"    Coefficient for {name}: ")
-        init  = _get_float(f"    Initial concentration of {name} (mol/L): ")
+        name  = capitalize_formula(input(f"    Reactant {i+1} formula: ").strip()) or f"R{i+1}"
+        coeff = _get_float(f"    Coefficient for {name}: ", f"coefficient for {name}", positive=True)
+        init  = _get_float(f"    Initial concentration of {name} (mol/L): ", f"[{name}]₀")
+        if init < 0:
+            print(f"  [ERROR] Concentration of {name} cannot be negative.")
+            return
         r_names.append(name); r_coeffs.append(coeff); r_initial.append(init)
 
-    np_ = _get_int("  Number of products: ")
+    np_ = _get_int("  Number of products: ", "number of products")
     p_names, p_coeffs, p_initial = [], [], []
     for i in range(np_):
-        name  = input(f"    Product {i+1} formula: ").strip() or f"P{i+1}"
-        coeff = _get_float(f"    Coefficient for {name}: ")
-        init  = _get_float(f"    Initial concentration of {name} (mol/L, 0 if none): ")
+        name  = capitalize_formula(input(f"    Product {i+1} formula: ").strip()) or f"P{i+1}"
+        coeff = _get_float(f"    Coefficient for {name}: ", f"coefficient for {name}", positive=True)
+        init  = _get_float(f"    Initial concentration of {name} (mol/L, 0 if none): ", f"[{name}]₀")
+        if init < 0:
+            print(f"  [ERROR] Concentration of {name} cannot be negative.")
+            return
         p_names.append(name); p_coeffs.append(coeff); p_initial.append(init)
 
-    Kc = _get_float("  Kc value: ")
+    Kc = _get_float("  Kc value: ", "Kc", positive=True)
 
     print(f"\n  Equation: {' + '.join(f'{int(c) if c==int(c) else c}{n}' for c,n in zip(r_coeffs,r_names))}"
           f"  <=>  {' + '.join(f'{int(c) if c==int(c) else c}{n}' for c,n in zip(p_coeffs,p_names))}")
@@ -382,10 +398,13 @@ def menu_kc_kp():
     print("2. Kp  -->  Kc")
     choice = input("Select (1-2): ").strip()
 
-    T_input = _get_float("  Temperature (K or °C): ")
+    T_input = _get_float("  Temperature (K or °C): ", "temperature")
     unit = input("  Is that (1) Kelvin or (2) Celsius? ").strip()
     T_K = T_input + 273.15 if unit == "2" else T_input
-    dn  = _get_float("  Delta_n (mol gas products - mol gas reactants): ")
+    if T_K <= 0:
+        print("  [ERROR] Temperature must be above absolute zero (> 0 K).")
+        return
+    dn  = _get_float("  Delta_n (mol gas products - mol gas reactants): ", "delta_n")
 
     try:
         if choice == "1":

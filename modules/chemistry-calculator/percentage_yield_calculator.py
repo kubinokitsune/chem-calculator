@@ -14,6 +14,19 @@ def calc_theoretical_yield(actual, pct_yield):
     return actual / (pct_yield / 100)
 
 
+def _get_float(prompt, label, positive=False):
+    raw = input(prompt).strip()
+    try:
+        val = float(raw)
+    except ValueError:
+        print(f"  [ERROR] Invalid input: expected a number for {label}.")
+        return None
+    if positive and val <= 0:
+        print(f"  [ERROR] {label} must be greater than zero.")
+        return None
+    return val
+
+
 def percentage_yield_menu():
     while True:
         print("\n--- Percentage Yield Calculator ---")
@@ -26,42 +39,36 @@ def percentage_yield_menu():
         choice = input("Select an option (0-3): ").strip()
 
         if choice == '1':
-            try:
-                actual = float(input("Enter actual yield (g): "))
-                theoretical = float(input("Enter theoretical yield (g): "))
-                if theoretical <= 0:
-                    print("[ERROR] Theoretical yield must be greater than zero.")
-                    continue
-                pct = calc_percentage_yield(actual, theoretical)
-                print(f"\nPercentage Yield: {pct:.2f}%")
-                if pct > 100:
-                    print("[NOTE] Yield above 100% suggests impurities or measurement error.")
-            except ValueError:
-                print("[ERROR] Please enter numeric values.")
+            actual      = _get_float("Enter actual yield (g): ", "actual yield")
+            if actual is None: continue
+            if actual < 0:
+                print("  [ERROR] Actual yield cannot be negative.")
+                continue
+            theoretical = _get_float("Enter theoretical yield (g): ", "theoretical yield", positive=True)
+            if theoretical is None: continue
+            pct = calc_percentage_yield(actual, theoretical)
+            print(f"\nPercentage Yield: {pct:.2f}%")
+            if pct > 100:
+                print("[NOTE] Yield above 100% suggests impurities or measurement error.")
 
         elif choice == '2':
-            try:
-                pct = float(input("Enter percentage yield (%): "))
-                theoretical = float(input("Enter theoretical yield (g): "))
-                if pct <= 0 or theoretical <= 0:
-                    print("[ERROR] Values must be greater than zero.")
-                    continue
-                actual = calc_actual_yield(pct, theoretical)
-                print(f"\nActual Yield: {actual:.4f} g")
-            except ValueError:
-                print("[ERROR] Please enter numeric values.")
+            pct         = _get_float("Enter percentage yield (%): ", "percentage yield", positive=True)
+            if pct is None: continue
+            theoretical = _get_float("Enter theoretical yield (g): ", "theoretical yield", positive=True)
+            if theoretical is None: continue
+            actual = calc_actual_yield(pct, theoretical)
+            print(f"\nActual Yield: {actual:.4f} g")
 
         elif choice == '3':
-            try:
-                actual = float(input("Enter actual yield (g): "))
-                pct = float(input("Enter percentage yield (%): "))
-                if pct <= 0:
-                    print("[ERROR] Percentage yield must be greater than zero.")
-                    continue
-                theoretical = calc_theoretical_yield(actual, pct)
-                print(f"\nTheoretical Yield: {theoretical:.4f} g")
-            except ValueError:
-                print("[ERROR] Please enter numeric values.")
+            actual = _get_float("Enter actual yield (g): ", "actual yield")
+            if actual is None: continue
+            if actual < 0:
+                print("  [ERROR] Actual yield cannot be negative.")
+                continue
+            pct = _get_float("Enter percentage yield (%): ", "percentage yield", positive=True)
+            if pct is None: continue
+            theoretical = calc_theoretical_yield(actual, pct)
+            print(f"\nTheoretical Yield: {theoretical:.4f} g")
 
         elif choice == '0':
             break

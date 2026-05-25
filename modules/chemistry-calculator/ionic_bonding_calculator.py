@@ -96,13 +96,14 @@ def ionic_bonding_menu():
         choice = input("Select an option (0-3): ").strip()
 
         if choice == '1':
-            elem1 = input("Enter first element symbol (e.g., Na): ").strip().capitalize()
-            elem2 = input("Enter second element symbol (e.g., Cl): ").strip().capitalize()
-            # Handle two-letter symbols where second char is lowercase
-            if len(elem1) == 2:
-                elem1 = elem1[0].upper() + elem1[1].lower()
-            if len(elem2) == 2:
-                elem2 = elem2[0].upper() + elem2[1].lower()
+            from constants import capitalize_formula
+            raw1 = input("Enter first element symbol (e.g., Na): ").strip()
+            raw2 = input("Enter second element symbol (e.g., Cl): ").strip()
+            if not raw1 or not raw2:
+                print("[ERROR] Please enter both element symbols.")
+                continue
+            elem1 = capitalize_formula(raw1)
+            elem2 = capitalize_formula(raw2)
             try:
                 bond_type, en1, en2, diff = classify_bond(elem1, elem2)
                 print(f"\nBond Analysis: {elem1} - {elem2}")
@@ -119,9 +120,15 @@ def ionic_bonding_menu():
                 print(f"[ERROR] {e}")
 
         elif choice == '2':
+            from constants import capitalize_formula
             print("\nWrite an ionic formula from a cation and an anion.")
-            cation = input("Enter cation element symbol (e.g., Ca): ").strip().capitalize()
-            anion  = input("Enter anion element symbol  (e.g., Cl): ").strip().capitalize()
+            raw_cat = input("Enter cation element symbol (e.g., Ca): ").strip()
+            raw_an  = input("Enter anion element symbol  (e.g., Cl): ").strip()
+            if not raw_cat or not raw_an:
+                print("[ERROR] Please enter both element symbols.")
+                continue
+            cation = capitalize_formula(raw_cat)
+            anion  = capitalize_formula(raw_an)
 
             # Look up known charges or ask
             c_charges = COMMON_ION_CHARGES.get(cation)
@@ -135,7 +142,12 @@ def ionic_bonding_menu():
                     if c_charges:
                         opts = ', '.join(f"{x:+d}" for x in c_charges)
                         print(f"  {cation} has variable charges: {opts}")
-                    c_charge = int(input(f"  Enter charge for {cation} (e.g., +2): ").strip().replace('+',''))
+                    raw_cc = input(f"  Enter charge for {cation} (e.g., +2): ").strip().replace('+', '')
+                    try:
+                        c_charge = int(raw_cc)
+                    except ValueError:
+                        print(f"[ERROR] Invalid input: expected a whole number for charge of {cation}.")
+                        continue
 
                 if a_charges and len(a_charges) == 1:
                     a_charge = a_charges[0]
@@ -144,7 +156,12 @@ def ionic_bonding_menu():
                     if a_charges:
                         opts = ', '.join(f"{x:+d}" for x in a_charges)
                         print(f"  {anion} has variable charges: {opts}")
-                    a_charge = int(input(f"  Enter charge for {anion} (e.g., -1): ").strip().replace('+',''))
+                    raw_ac = input(f"  Enter charge for {anion} (e.g., -1): ").strip().replace('+', '')
+                    try:
+                        a_charge = int(raw_ac)
+                    except ValueError:
+                        print(f"[ERROR] Invalid input: expected a whole number for charge of {anion}.")
+                        continue
 
                 formula = write_ionic_formula(cation, c_charge, anion, a_charge)
                 print(f"\n  Ionic formula: {formula}")
