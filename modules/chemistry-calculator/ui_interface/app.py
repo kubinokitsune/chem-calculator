@@ -92,18 +92,18 @@ def api_mole():
             result = moles_to_volume(a)
             compact  = f'Volume = {result:.4g} L'
             detailed = [
-                f'Given: n = {a} mol  (STP: 0 °C, 1 atm)',
-                'Formula: V = n × 22.4 L/mol',
-                f'V = {a} × 22.4',
+                f'Given: n = {a} mol  (STP: 0 °C, 100 kPa)',
+                'Formula: V = n × 22.7 L/mol',
+                f'V = {a} × 22.7',
                 f'V = {result:.6g} L',
             ]
         elif t == 'volume_to_moles':
             result = volume_to_moles(a)
             compact  = f'Moles = {result:.4g} mol'
             detailed = [
-                f'Given: V = {a} L  (STP: 0 °C, 1 atm)',
-                'Formula: n = V / 22.4 L/mol',
-                f'n = {a} / 22.4',
+                f'Given: V = {a} L  (STP: 0 °C, 100 kPa)',
+                'Formula: n = V / 22.7 L/mol',
+                f'n = {a} / 22.7',
                 f'n = {result:.6g} mol',
             ]
         else:
@@ -420,13 +420,13 @@ def api_yield():
                 f'= {result:.4g} g',
             ]
         elif t == 'theoretical':
-            if a <= 0: return jsonify(error='% yield must be > 0'), 400
-            result = calc_theoretical_yield(b, a)
+            if b <= 0: return jsonify(error='% yield must be > 0'), 400
+            result = calc_theoretical_yield(a, b)
             compact  = f'Theoretical yield = {result:.4g} g'
             detailed = [
-                f'Given: actual yield = {b} g,  % yield = {a}%',
+                f'Given: actual yield = {a} g,  % yield = {b}%',
                 'Formula: theoretical = actual / (% yield / 100)',
-                f'= {b} / ({a} / 100)',
+                f'= {a} / ({b} / 100)',
                 f'= {result:.4g} g',
             ]
         else:
@@ -586,6 +586,74 @@ def api_gas_laws():
                 f'P_total = {parts_str} = {total:.4g} atm',
             ]
             return jsonify(total=total, partials=partials, compact=compact, detailed=detailed, warnings=[])
+
+        elif t == 'mixing':
+            # Two gas samples combined — find final state using ideal gas law for each sample
+            # n_total = P1V1/RT1 + P2V2/RT2 ; then PfVf = n_total * R * Tf
+            solve = d.get('solve')
+            P1, V1, T1 = float(d['P1']), float(d['V1']), float(d['T1'])
+            P2, V2, T2 = float(d['P2']), float(d['V2']), float(d['T2'])
+            n1 = (P1 * V1) / (R * T1)
+            n2 = (P2 * V2) / (R * T2)
+            n_total = n1 + n2
+            step_n = [
+                'Step 1 — Find moles in each sample using n = PV/RT:',
+                f'  n₁ = ({P1} × {V1}) / (0.08206 × {T1}) = {n1:.4g} mol',
+                f'  n₂ = ({P2} × {V2}) / (0.08206 × {T2}) = {n2:.4g} mol',
+                f'  n_total = {n1:.4g} + {n2:.4g} = {n_total:.4g} mol',
+                'Step 2 — Apply ideal gas law to combined sample: PfVf = n_total·R·Tf',
+            ]
+            if solve == 'Pf':
+                Vf = float(d['Vf'])
+                Tf = float(d.get('Tf') or '298.15')
+                result = (n_total * R * Tf) / Vf
+                unit = 'atm'
+                compact = f'P_final = {result:.4g} atm'
+                detailed = [
+                    'Gas Mixing — find final pressure',
+                    f'Gas 1: P={P1} atm, V={V1} L, T={T1} K',
+                    f'Gas 2: P={P2} atm, V={V2} L, T={T2} K',
+                    *step_n,
+                    f'  Given: V_final={Vf} L, T_final={Tf} K',
+                    '  Rearranging: P_f = n_total·R·T_f / V_f',
+                    f'  P_f = ({n_total:.4g} × 0.08206 × {Tf}) / {Vf}',
+                    f'P_final = {result:.4g} atm',
+                ]
+            elif solve == 'Vf':
+                Pf = float(d['Pf'])
+                Tf = float(d.get('Tf') or '298.15')
+                result = (n_total * R * Tf) / Pf
+                unit = 'L'
+                compact = f'V_final = {result:.4g} L'
+                detailed = [
+                    'Gas Mixing — find final volume',
+                    f'Gas 1: P={P1} atm, V={V1} L, T={T1} K',
+                    f'Gas 2: P={P2} atm, V={V2} L, T={T2} K',
+                    *step_n,
+                    f'  Given: P_final={Pf} atm, T_final={Tf} K',
+                    '  Rearranging: V_f = n_total·R·T_f / P_f',
+                    f'  V_f = ({n_total:.4g} × 0.08206 × {Tf}) / {Pf}',
+                    f'V_final = {result:.4g} L',
+                ]
+            elif solve == 'Tf':
+                Pf = float(d['Pf'])
+                Vf = float(d['Vf'])
+                result = (Pf * Vf) / (n_total * R)
+                unit = 'K'
+                compact = f'T_final = {result:.4g} K'
+                detailed = [
+                    'Gas Mixing — find final temperature',
+                    f'Gas 1: P={P1} atm, V={V1} L, T={T1} K',
+                    f'Gas 2: P={P2} atm, V={V2} L, T={T2} K',
+                    *step_n,
+                    f'  Given: P_final={Pf} atm, V_final={Vf} L',
+                    '  Rearranging: T_f = P_f·V_f / (n_total·R)',
+                    f'  T_f = ({Pf} × {Vf}) / ({n_total:.4g} × 0.08206)',
+                    f'T_final = {result:.4g} K',
+                ]
+            else:
+                return jsonify(error='Unknown solve target for mixing'), 400
+            return jsonify(result=result, unit=unit, compact=compact, detailed=detailed, warnings=[])
 
         else:
             return jsonify(error='Unknown gas law type'), 400
@@ -803,15 +871,14 @@ def api_thermo():
             dH = float(d['dH'])
             dS = float(d['dS'])
             T  = float(d.get('T', 298.15))
-            dG = dH - T * dS / 1000
+            dG = dH - T * dS
             spont = 'spontaneous (ΔG < 0)' if dG < 0 else ('at equilibrium (ΔG = 0)' if dG == 0 else 'non-spontaneous (ΔG > 0)')
             compact  = f'ΔG = {dG:.4g} kJ/mol  ({spont})'
             detailed = [
-                'Formula: ΔG = ΔH − TΔS',
-                f'Given: ΔH = {dH} kJ/mol,  ΔS = {dS} J/mol·K,  T = {T} K',
-                f'Convert ΔS to kJ: {dS} ÷ 1000 = {dS/1000:.4g} kJ/mol·K',
-                f'ΔG = {dH} − ({T} × {dS/1000:.4g})',
-                f'ΔG = {dH} − {T*dS/1000:.4g}',
+                'Formula: ΔG = ΔH − TΔS  (all in kJ/mol)',
+                f'Given: ΔH = {dH} kJ/mol,  ΔS = {dS} kJ/mol·K,  T = {T} K',
+                f'TΔS = {T} × {dS} = {T*dS:.4g} kJ/mol',
+                f'ΔG = {dH} − {T*dS:.4g}',
                 f'ΔG = {dG:.4g} kJ/mol',
                 f'Conclusion: reaction is {spont}',
             ]

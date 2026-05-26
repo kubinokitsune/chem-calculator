@@ -15,9 +15,9 @@ FIXED_STATES = {
     'Ag': +1,
     'H':  +1,   # +1 with nonmetals (default; user should note hydrides are -1)
     'O':  -2,   # -2 default; peroxides = -1 (user selects)
-    'Cl': -1,   # -1 when bonded to metals / less electronegative elements
-    'Br': -1,
-    'I':  -1,
+    # Cl, Br, I are NOT pre-fixed so they can be solved as unknowns in oxoacids
+    # (HClO4 → Cl=+7, HBrO3 → Br=+5, etc.). They will still evaluate to -1 in
+    # simple halides where the metal/H fixes the other element(s).
 }
 
 OXIDATION_RULES = [

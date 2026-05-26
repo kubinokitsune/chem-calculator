@@ -2,7 +2,7 @@
 #mole_conversions.py
 
 Avogrado_number = 6.022e23  # particles per mole
-Molar_Volume_At_STP = 22.4  # liters per mole at STP
+Molar_Volume_At_STP = 22.7  # liters per mole at STP (IUPAC: 0 °C, 100 kPa)
 
 
 def mass_to_moles(mass, molar_mass):

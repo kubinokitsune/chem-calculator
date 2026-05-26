@@ -830,6 +830,7 @@ const PANELS = {
           <option value="combined">Combined Gas Law</option>
           <option value="graham">Graham's Effusion</option>
           <option value="dalton">Dalton's Partial Pressure</option>
+          <option value="mixing">Gas Mixing (combine 2 samples)</option>
         </select>
       </div>
       <div id="gasFields"></div>`;
@@ -1082,6 +1083,45 @@ function updateGasFields() {
       <div class="dynamic-rows" id="daltonRows"></div>
       <button class="add-row-btn" onclick="addDaltonRow()">+ Add Gas</button>`;
     addDaltonRow(); addDaltonRow();
+  } else if (t === 'mixing') {
+    f.innerHTML = `
+      <div class="field-row"><label>Solve for</label>
+        <select id="mixSolve" onchange="updateMixFields()">
+          <option value="Pf">Final Pressure P_f (atm)</option>
+          <option value="Vf">Final Volume V_f (L)</option>
+          <option value="Tf">Final Temperature T_f (K)</option>
+        </select>
+      </div>
+      <div style="font-size:9px;color:var(--label-fg);margin:4px 0 2px">Gas Sample 1</div>
+      <div class="field-row"><label>P₁ (atm)</label><input id="mixP1" type="number" step="any" /></div>
+      <div class="field-row"><label>V₁ (L)</label><input id="mixV1" type="number" step="any" /></div>
+      <div class="field-row"><label>T₁ (K)</label><input id="mixT1" type="number" step="any" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin:4px 0 2px">Gas Sample 2</div>
+      <div class="field-row"><label>P₂ (atm)</label><input id="mixP2" type="number" step="any" /></div>
+      <div class="field-row"><label>V₂ (L)</label><input id="mixV2" type="number" step="any" /></div>
+      <div class="field-row"><label>T₂ (K)</label><input id="mixT2" type="number" step="any" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin:4px 0 2px">Final (combined) state</div>
+      <div id="mixFinalFields"></div>`;
+    updateMixFields();
+  }
+}
+
+function updateMixFields() {
+  const solve = document.getElementById('mixSolve') ? document.getElementById('mixSolve').value : 'Pf';
+  const f = document.getElementById('mixFinalFields');
+  if (!f) return;
+  if (solve === 'Pf') {
+    f.innerHTML = `
+      <div class="field-row"><label>V_f (L)</label><input id="mixVf" type="number" step="any" /></div>
+      <div class="field-row"><label>T_f (K)</label><input id="mixTf" type="number" step="any" placeholder="298.15" /></div>`;
+  } else if (solve === 'Vf') {
+    f.innerHTML = `
+      <div class="field-row"><label>P_f (atm)</label><input id="mixPf" type="number" step="any" /></div>
+      <div class="field-row"><label>T_f (K)</label><input id="mixTf" type="number" step="any" placeholder="298.15" /></div>`;
+  } else if (solve === 'Tf') {
+    f.innerHTML = `
+      <div class="field-row"><label>P_f (atm)</label><input id="mixPf" type="number" step="any" /></div>
+      <div class="field-row"><label>V_f (L)</label><input id="mixVf" type="number" step="any" /></div>`;
   }
 }
 function addDaltonRow() {
@@ -1168,7 +1208,7 @@ function updateThermoFields() {
   } else if (t === 'gibbs') {
     f.innerHTML = `
       <div class="field-row"><label>ΔH (kJ/mol)</label><input id="gibbsDH" type="number" step="any" /></div>
-      <div class="field-row"><label>ΔS (J/mol·K)</label><input id="gibbsDS" type="number" step="any" /></div>
+      <div class="field-row"><label>ΔS (kJ/mol·K)</label><input id="gibbsDS" type="number" step="any" /></div>
       <div class="field-row"><label>T (K)</label><input id="gibbsT" type="number" step="any" placeholder="298.15" /></div>`;
   }
 }
@@ -1502,9 +1542,23 @@ const CALCS = {
       if (!gases.length) { showError('Add at least one gas.'); return; }
       const d = await post('/api/gas_laws', { type: 'dalton', gases });
       if (d.error) { showError(d.error); return; }
-      let out = `P_total = ${d.total.toPrecision(5)} atm\n\nPartial pressures:`;
-      d.partials.forEach(g => { out += `\n  ${g.name}: ${Number(g.p).toPrecision(4)} atm`; });
-      showResult(out);
+      showOutput(d.compact, d.detailed, d.warnings || []);
+    } else if (t === 'mixing') {
+      const solve = val('mixSolve');
+      const body = {
+        type: 'mixing', solve,
+        P1: val('mixP1'), V1: val('mixV1'), T1: val('mixT1'),
+        P2: val('mixP2'), V2: val('mixV2'), T2: val('mixT2'),
+      };
+      if (solve === 'Pf') { body.Vf = val('mixVf'); body.Tf = val('mixTf') || '298.15'; }
+      if (solve === 'Vf') { body.Pf = val('mixPf'); body.Tf = val('mixTf') || '298.15'; }
+      if (solve === 'Tf') { body.Pf = val('mixPf'); body.Vf = val('mixVf'); }
+      if (!body.P1 || !body.V1 || !body.T1 || !body.P2 || !body.V2 || !body.T2) {
+        showError('Enter all values for both gas samples.'); return;
+      }
+      const d = await post('/api/gas_laws', body);
+      if (d.error) { showError(d.error); return; }
+      showOutput(d.compact, d.detailed, d.warnings || []);
     }
   },
 
