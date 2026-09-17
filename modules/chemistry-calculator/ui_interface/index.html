@@ -569,7 +569,11 @@ function checkButtonState() {
   // Check all text/number inputs inside .field-row (primary required inputs).
   // Selects always have a value. Dynamic rows (.dyn-row) are not required.
   const primary = document.querySelectorAll('#panelBody .field-row input[type="text"], #panelBody .field-row input[type="number"], #panelBody .field-row input:not([type])');
-  const allFilled = Array.from(primary).every(el => el.value.trim() !== '');
+  // "—" placeholders mark solve-for / optional fields, data-optional marks
+  // fields with a default (e.g. T = 298.15); the server reports anything missing.
+  const required = Array.from(primary).filter(el =>
+    !el.hasAttribute('data-optional') && !(el.placeholder || '').startsWith('—'));
+  const allFilled = required.every(el => el.value.trim() !== '');
   _setReady(allFilled);
 }
 
@@ -701,15 +705,31 @@ const PANELS = {
         <label>Equation</label>
         <input id="eqInput" type="text" placeholder="H2 + O2 -> H2O" />
       </div>
+      <div class="field-row">
+        <label>Solution</label>
+        <select id="eqMedium">
+          <option value="">None (as written)</option>
+          <option value="acidic">Acidic (add H⁺ / H₂O)</option>
+          <option value="basic">Basic (add OH⁻ / H₂O)</option>
+        </select>
+      </div>
       <div style="font-size:9px;color:var(--label-fg);margin-top:2px">
-        Use -> to separate reactants and products. Use + between compounds.
+        Use -> between sides and " + " between species. Charges: Fe^3+, MnO4^-, SO4^2-; electrons: e-.<br>
+        Example: MnO4^- + Fe^2+ -> Mn^2+ + Fe^3+ (acidic)
       </div>`;
   },
 
   /* ── 4. Limiting Reactant ────────────────────────── */
   4(body) {
     body.innerHTML = `
-      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Reactants (name, coefficient, moles)</div>
+      <div class="field-row">
+        <label>Amounts in</label>
+        <select id="limUnit" onchange="document.querySelectorAll('.lim-unit').forEach(s => s.textContent = this.value)">
+          <option value="mol">mol</option>
+          <option value="g">g</option>
+        </select>
+      </div>
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Reactants (formula, coefficient, amount) — leave all coefficients blank to auto-balance</div>
       <div class="dynamic-rows" id="limRRows"></div>
       <button class="add-row-btn" onclick="addLimR()">+ Reactant</button>
       <hr class="sep">
@@ -831,6 +851,19 @@ const PANELS = {
           <option value="graham">Graham's Effusion</option>
           <option value="dalton">Dalton's Partial Pressure</option>
           <option value="mixing">Gas Mixing (combine 2 samples)</option>
+        </select>
+      </div>
+      <div class="field-row" id="gasUnitRow"><label>Units</label>
+        <select id="gasPU" onchange="refreshGasUnits()" title="Pressure unit">
+          <option value="atm">atm</option><option value="kPa">kPa</option><option value="Pa">Pa</option>
+          <option value="bar">bar</option><option value="mmHg">mmHg</option>
+        </select>
+        <select id="gasVU" onchange="refreshGasUnits()" title="Volume unit">
+          <option value="L">L</option><option value="dm3">dm³</option><option value="mL">mL</option>
+          <option value="cm3">cm³</option><option value="m3">m³</option>
+        </select>
+        <select id="gasTU" onchange="refreshGasUnits()" title="Temperature unit">
+          <option value="K">K</option><option value="C">°C</option>
         </select>
       </div>
       <div id="gasFields"></div>`;
@@ -966,8 +999,8 @@ function addLimR() {
   row.className = 'dyn-row';
   row.innerHTML = `
     <input class="w-md" placeholder="reactant" />
-    <span class="dyn-label">coeff</span><input class="w-sm" type="number" step="any" value="1" />
-    <span class="dyn-label">mol</span><input class="w-sm" type="number" step="any" value="1" />
+    <span class="dyn-label">coeff</span><input class="w-sm" type="number" step="any" placeholder="auto" />
+    <span class="dyn-label lim-unit">${document.getElementById('limUnit') ? document.getElementById('limUnit').value : 'mol'}</span><input class="w-sm" type="number" step="any" placeholder="0" />
     <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
   document.getElementById('limRRows').appendChild(row);
 }
@@ -976,7 +1009,7 @@ function addLimP() {
   row.className = 'dyn-row';
   row.innerHTML = `
     <input class="w-md" placeholder="product" />
-    <span class="dyn-label">coeff</span><input class="w-sm" type="number" step="any" value="1" />
+    <span class="dyn-label">coeff</span><input class="w-sm" type="number" step="any" placeholder="auto" />
     <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
   document.getElementById('limPRows').appendChild(row);
 }
@@ -1041,24 +1074,39 @@ function updateYieldFields() {
 ════════════════════════════════════════════════════════ */
 
 /* Module 12 – Gas Laws */
+const GAS_UNIT_LABEL = { dm3: 'dm³', cm3: 'cm³', m3: 'm³', C: '°C' };
+function gasUnit(kind) {
+  const el = document.getElementById({ p: 'gasPU', v: 'gasVU', t: 'gasTU' }[kind]);
+  const v = el ? el.value : { p: 'atm', v: 'L', t: 'K' }[kind];
+  return GAS_UNIT_LABEL[v] || v;
+}
+function U(kind) { return `<span class="gas-u-${kind}">${gasUnit(kind)}</span>`; }
+function refreshGasUnits() {
+  ['p', 'v', 't'].forEach(k =>
+    document.querySelectorAll('.gas-u-' + k).forEach(s => s.textContent = gasUnit(k)));
+}
+
 function updateGasFields() {
   const t = document.getElementById('gasType').value;
   const f = document.getElementById('gasFields');
+  const unitRow = document.getElementById('gasUnitRow');
+  unitRow.style.display = (t === 'graham') ? 'none' : '';
+  ['gasVU', 'gasTU'].forEach(id => document.getElementById(id).style.display = (t === 'dalton') ? 'none' : '');
   if (t === 'ideal') {
     f.innerHTML = `
       <div class="field-row"><label>Solve for</label>
         <select id="gasIdealSolve">
-          <option value="P">Pressure P (atm)</option>
-          <option value="V">Volume V (L)</option>
-          <option value="n">Moles n (mol)</option>
-          <option value="T">Temperature T (K)</option>
+          <option value="P">Pressure P</option>
+          <option value="V">Volume V</option>
+          <option value="n">Moles n</option>
+          <option value="T">Temperature T</option>
         </select>
       </div>
       <div class="field-row"><label>n (mol)</label><input id="gasN" type="number" step="any" placeholder="—" /></div>
-      <div class="field-row"><label>V (L)</label><input id="gasV" type="number" step="any" placeholder="—" /></div>
-      <div class="field-row"><label>T (K)</label><input id="gasT" type="number" step="any" placeholder="—" /></div>
-      <div class="field-row"><label>P (atm)</label><input id="gasP" type="number" step="any" placeholder="—" /></div>
-      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Leave the solve-for field blank.</div>`;
+      <div class="field-row"><label>V (${U('v')})</label><input id="gasV" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>T (${U('t')})</label><input id="gasT" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>P (${U('p')})</label><input id="gasP" type="number" step="any" placeholder="—" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Leave the solve-for field blank. R = 8.314 J/(mol·K); units are converted to SI.</div>`;
   } else if (t === 'combined') {
     f.innerHTML = `
       <div class="field-row"><label>Solve for</label>
@@ -1066,12 +1114,12 @@ function updateGasFields() {
           <option value="P2">P₂</option><option value="V2">V₂</option><option value="T2">T₂</option>
         </select>
       </div>
-      <div class="field-row"><label>P₁ (atm)</label><input id="gasP1" type="number" step="any" /></div>
-      <div class="field-row"><label>V₁ (L)</label><input id="gasV1" type="number" step="any" /></div>
-      <div class="field-row"><label>T₁ (K)</label><input id="gasT1" type="number" step="any" /></div>
-      <div class="field-row"><label>P₂ (atm)</label><input id="gasP2" type="number" step="any" placeholder="—" /></div>
-      <div class="field-row"><label>V₂ (L)</label><input id="gasV2" type="number" step="any" placeholder="—" /></div>
-      <div class="field-row"><label>T₂ (K)</label><input id="gasT2" type="number" step="any" placeholder="—" /></div>`;
+      <div class="field-row"><label>P₁ (${U('p')})</label><input id="gasP1" type="number" step="any" /></div>
+      <div class="field-row"><label>V₁ (${U('v')})</label><input id="gasV1" type="number" step="any" /></div>
+      <div class="field-row"><label>T₁ (${U('t')})</label><input id="gasT1" type="number" step="any" /></div>
+      <div class="field-row"><label>P₂ (${U('p')})</label><input id="gasP2" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>V₂ (${U('v')})</label><input id="gasV2" type="number" step="any" placeholder="—" /></div>
+      <div class="field-row"><label>T₂ (${U('t')})</label><input id="gasT2" type="number" step="any" placeholder="—" /></div>`;
   } else if (t === 'graham') {
     f.innerHTML = `
       <div class="field-row"><label>M₁ (g/mol)</label><input id="gasM1" type="number" step="any" /></div>
@@ -1079,7 +1127,7 @@ function updateGasFields() {
       <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Returns rate₁/rate₂ = √(M₂/M₁)</div>`;
   } else if (t === 'dalton') {
     f.innerHTML = `
-      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Partial pressures (atm)</div>
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Partial pressures (${U('p')})</div>
       <div class="dynamic-rows" id="daltonRows"></div>
       <button class="add-row-btn" onclick="addDaltonRow()">+ Add Gas</button>`;
     addDaltonRow(); addDaltonRow();
@@ -1087,19 +1135,19 @@ function updateGasFields() {
     f.innerHTML = `
       <div class="field-row"><label>Solve for</label>
         <select id="mixSolve" onchange="updateMixFields()">
-          <option value="Pf">Final Pressure P_f (atm)</option>
-          <option value="Vf">Final Volume V_f (L)</option>
-          <option value="Tf">Final Temperature T_f (K)</option>
+          <option value="Pf">Final Pressure P_f</option>
+          <option value="Vf">Final Volume V_f</option>
+          <option value="Tf">Final Temperature T_f</option>
         </select>
       </div>
       <div style="font-size:9px;color:var(--label-fg);margin:4px 0 2px">Gas Sample 1</div>
-      <div class="field-row"><label>P₁ (atm)</label><input id="mixP1" type="number" step="any" /></div>
-      <div class="field-row"><label>V₁ (L)</label><input id="mixV1" type="number" step="any" /></div>
-      <div class="field-row"><label>T₁ (K)</label><input id="mixT1" type="number" step="any" /></div>
+      <div class="field-row"><label>P₁ (${U('p')})</label><input id="mixP1" type="number" step="any" /></div>
+      <div class="field-row"><label>V₁ (${U('v')})</label><input id="mixV1" type="number" step="any" /></div>
+      <div class="field-row"><label>T₁ (${U('t')})</label><input id="mixT1" type="number" step="any" /></div>
       <div style="font-size:9px;color:var(--label-fg);margin:4px 0 2px">Gas Sample 2</div>
-      <div class="field-row"><label>P₂ (atm)</label><input id="mixP2" type="number" step="any" /></div>
-      <div class="field-row"><label>V₂ (L)</label><input id="mixV2" type="number" step="any" /></div>
-      <div class="field-row"><label>T₂ (K)</label><input id="mixT2" type="number" step="any" /></div>
+      <div class="field-row"><label>P₂ (${U('p')})</label><input id="mixP2" type="number" step="any" /></div>
+      <div class="field-row"><label>V₂ (${U('v')})</label><input id="mixV2" type="number" step="any" /></div>
+      <div class="field-row"><label>T₂ (${U('t')})</label><input id="mixT2" type="number" step="any" /></div>
       <div style="font-size:9px;color:var(--label-fg);margin:4px 0 2px">Final (combined) state</div>
       <div id="mixFinalFields"></div>`;
     updateMixFields();
@@ -1110,25 +1158,26 @@ function updateMixFields() {
   const solve = document.getElementById('mixSolve') ? document.getElementById('mixSolve').value : 'Pf';
   const f = document.getElementById('mixFinalFields');
   if (!f) return;
+  const tDefault = gasUnit('t') === '°C' ? '25' : '298.15';
   if (solve === 'Pf') {
     f.innerHTML = `
-      <div class="field-row"><label>V_f (L)</label><input id="mixVf" type="number" step="any" /></div>
-      <div class="field-row"><label>T_f (K)</label><input id="mixTf" type="number" step="any" placeholder="298.15" /></div>`;
+      <div class="field-row"><label>V_f (${U('v')})</label><input id="mixVf" type="number" step="any" /></div>
+      <div class="field-row"><label>T_f (${U('t')})</label><input id="mixTf" type="number" step="any" placeholder="${tDefault}" data-optional /></div>`;
   } else if (solve === 'Vf') {
     f.innerHTML = `
-      <div class="field-row"><label>P_f (atm)</label><input id="mixPf" type="number" step="any" /></div>
-      <div class="field-row"><label>T_f (K)</label><input id="mixTf" type="number" step="any" placeholder="298.15" /></div>`;
+      <div class="field-row"><label>P_f (${U('p')})</label><input id="mixPf" type="number" step="any" /></div>
+      <div class="field-row"><label>T_f (${U('t')})</label><input id="mixTf" type="number" step="any" placeholder="${tDefault}" data-optional /></div>`;
   } else if (solve === 'Tf') {
     f.innerHTML = `
-      <div class="field-row"><label>P_f (atm)</label><input id="mixPf" type="number" step="any" /></div>
-      <div class="field-row"><label>V_f (L)</label><input id="mixVf" type="number" step="any" /></div>`;
+      <div class="field-row"><label>P_f (${U('p')})</label><input id="mixPf" type="number" step="any" /></div>
+      <div class="field-row"><label>V_f (${U('v')})</label><input id="mixVf" type="number" step="any" /></div>`;
   }
 }
 function addDaltonRow() {
   const row = document.createElement('div');
   row.className = 'dyn-row';
   row.innerHTML = `<input class="w-md" placeholder="gas name" />
-    <span class="dyn-label">P (atm)</span>
+    <span class="dyn-label">P (${U('p')})</span>
     <input class="w-md" type="number" step="any" placeholder="0.0" />
     <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
   document.getElementById('daltonRows').appendChild(row);
@@ -1208,8 +1257,8 @@ function updateThermoFields() {
   } else if (t === 'gibbs') {
     f.innerHTML = `
       <div class="field-row"><label>ΔH (kJ/mol)</label><input id="gibbsDH" type="number" step="any" /></div>
-      <div class="field-row"><label>ΔS (kJ/mol·K)</label><input id="gibbsDS" type="number" step="any" /></div>
-      <div class="field-row"><label>T (K)</label><input id="gibbsT" type="number" step="any" placeholder="298.15" /></div>`;
+      <div class="field-row"><label>ΔS (J/mol·K)</label><input id="gibbsDS" type="number" step="any" placeholder="e.g. -199" /></div>
+      <div class="field-row"><label>T (K)</label><input id="gibbsT" type="number" step="any" placeholder="298.15" data-optional /></div>`;
   }
 }
 function addHessRow() {
@@ -1284,7 +1333,7 @@ function updateECFields() {
       <div class="field-row"><label>E°cell (V)</label><input id="nernstE0" type="number" step="any" /></div>
       <div class="field-row"><label>n (electrons)</label><input id="nernstN" type="number" step="1" placeholder="e.g. 2" /></div>
       <div class="field-row"><label>Q (reaction quotient)</label><input id="nernstQ" type="number" step="any" placeholder="e.g. 0.5" /></div>
-      <div class="field-row"><label>T (K)</label><input id="nernstT" type="number" step="any" placeholder="298.15" /></div>`;
+      <div class="field-row"><label>T (K)</label><input id="nernstT" type="number" step="any" placeholder="298.15" data-optional /></div>`;
   }
 }
 
@@ -1405,7 +1454,7 @@ const CALCS = {
   async 3() {
     const eq = val('eqInput');
     if (!eq) { showError('Enter an equation.'); return; }
-    const d = await post('/api/equation', { equation: eq });
+    const d = await post('/api/equation', { equation: eq, medium: val('eqMedium') });
     if (d.error) { showError(d.error); return; }
     showOutput(d.compact, d.detailed, d.warnings || []);
   },
@@ -1417,14 +1466,14 @@ const CALCS = {
     const reactants = [], products = [];
     rRows.forEach(r => {
       const ins = r.querySelectorAll('input');
-      if (ins[0].value.trim()) reactants.push({ name: ins[0].value.trim(), coeff: ins[1].value, moles: ins[2].value });
+      if (ins[0].value.trim()) reactants.push({ name: ins[0].value.trim(), coeff: ins[1].value, amount: ins[2].value });
     });
     pRows.forEach(r => {
       const ins = r.querySelectorAll('input');
       if (ins[0].value.trim()) products.push({ name: ins[0].value.trim(), coeff: ins[1].value });
     });
     if (!reactants.length || !products.length) { showError('Need at least 1 reactant and 1 product.'); return; }
-    const d = await post('/api/limiting', { reactants, products });
+    const d = await post('/api/limiting', { reactants, products, unit: val('limUnit') });
     if (d.error) { showError(d.error); return; }
     showOutput(d.compact, d.detailed, d.warnings || []);
   },
@@ -1513,21 +1562,22 @@ const CALCS = {
   /* ── 12. Gas Laws ────────────────────────────────── */
   async 12() {
     const t = val('gasType');
+    const units = { p_unit: val('gasPU'), v_unit: val('gasVU'), t_unit: val('gasTU') };
     if (t === 'ideal') {
       const solve = val('gasIdealSolve');
-      const body = { type: 'ideal', solve,
+      const body = { type: 'ideal', solve, ...units,
         n: val('gasN'), v: val('gasV'), T: val('gasT'), p: val('gasP') };
       const d = await post('/api/gas_laws', body);
       if (d.error) { showError(d.error); return; }
-      showResult(`${solve} = ${d.result.toPrecision(5)} ${d.unit}\n(R = 0.08206 L·atm/mol·K)`);
+      showOutput(d.compact, d.detailed, d.warnings || []);
     } else if (t === 'combined') {
       const solve = val('gasCombSolve');
-      const body = { type: 'combined', solve,
+      const body = { type: 'combined', solve, ...units,
         P1: val('gasP1'), V1: val('gasV1'), T1: val('gasT1'),
         P2: val('gasP2'), V2: val('gasV2'), T2: val('gasT2') };
       const d = await post('/api/gas_laws', body);
       if (d.error) { showError(d.error); return; }
-      showResult(`${solve} = ${d.result.toPrecision(5)} ${d.unit}`);
+      showOutput(d.compact, d.detailed, d.warnings || []);
     } else if (t === 'graham') {
       const d = await post('/api/gas_laws', { type: 'graham', M1: val('gasM1'), M2: val('gasM2') });
       if (d.error) { showError(d.error); return; }
@@ -1540,18 +1590,18 @@ const CALCS = {
         if (ins[1].value.trim()) gases.push({ name: ins[0].value.trim() || '?', p: ins[1].value });
       });
       if (!gases.length) { showError('Add at least one gas.'); return; }
-      const d = await post('/api/gas_laws', { type: 'dalton', gases });
+      const d = await post('/api/gas_laws', { type: 'dalton', gases, ...units });
       if (d.error) { showError(d.error); return; }
       showOutput(d.compact, d.detailed, d.warnings || []);
     } else if (t === 'mixing') {
       const solve = val('mixSolve');
       const body = {
-        type: 'mixing', solve,
+        type: 'mixing', solve, ...units,
         P1: val('mixP1'), V1: val('mixV1'), T1: val('mixT1'),
         P2: val('mixP2'), V2: val('mixV2'), T2: val('mixT2'),
       };
-      if (solve === 'Pf') { body.Vf = val('mixVf'); body.Tf = val('mixTf') || '298.15'; }
-      if (solve === 'Vf') { body.Pf = val('mixPf'); body.Tf = val('mixTf') || '298.15'; }
+      if (solve === 'Pf') { body.Vf = val('mixVf'); body.Tf = val('mixTf'); }
+      if (solve === 'Vf') { body.Pf = val('mixPf'); body.Tf = val('mixTf'); }
       if (solve === 'Tf') { body.Pf = val('mixPf'); body.Vf = val('mixVf'); }
       if (!body.P1 || !body.V1 || !body.T1 || !body.P2 || !body.V2 || !body.T2) {
         showError('Enter all values for both gas samples.'); return;

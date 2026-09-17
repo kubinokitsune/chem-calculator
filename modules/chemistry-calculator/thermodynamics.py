@@ -4,17 +4,22 @@
 # Covers: calorimetry, Hess's law, bond enthalpy, standard enthalpy of
 # reaction (ΔH°rxn), entropy, and Gibbs free energy.
 
+import math
+import re
+
+from constants import R
+
 # ── IB data-booklet bond enthalpies (kJ/mol) ────────────────────────────────
 # Keys are canonical: always put the lighter/more common element first,
 # separated by "-" for single bonds and "=" / "#" for double/triple.
 BOND_ENTHALPIES = {
     # C bonds
-    "C-H":  413,
-    "C-C":  347,
+    "C-H":  414,
+    "C-C":  346,
     "C=C":  614,
     "C#C":  839,
     "C-O":  358,
-    "C=O":  805,   # as in CO2 / aldehydes (IB uses 743 for C=O in ketones; 805 for CO2)
+    "C=O":  804,
     "C-N":  305,
     "C=N":  615,
     "C#N":  887,
@@ -136,6 +141,8 @@ def lookup_bond(bond_label):
     Returns None if not found.
     """
     key = bond_label.strip()
+    # Normalise case per atom so 'c-h' / 'CL-CL' match 'C-H' / 'Cl-Cl'
+    key = re.sub(r"[A-Za-z]+", lambda m: m.group(0).capitalize(), key)
     if key in BOND_ENTHALPIES:
         return BOND_ENTHALPIES[key]
     # Try reversing around the bond-order symbol
@@ -193,6 +200,20 @@ def gibbs_dS(dH_kJ, dG_kJ, T_K):
     if T_K == 0:
         raise ValueError("T cannot be 0 K when solving for ΔS.")
     return ((dH_kJ - dG_kJ) / T_K) * 1000.0
+
+def gibbs_from_K(K, T_K):
+    """ΔG° = −RT ln K  (kJ/mol)."""
+    if K <= 0:
+        raise ValueError("K must be positive.")
+    if T_K <= 0:
+        raise ValueError("Temperature must be above 0 K.")
+    return -R * T_K * math.log(K) / 1000
+
+def K_from_gibbs(dG_kJ, T_K):
+    """K = e^(−ΔG°/RT)."""
+    if T_K <= 0:
+        raise ValueError("Temperature must be above 0 K.")
+    return math.exp(-dG_kJ * 1000 / (R * T_K))
 
 def spontaneity(dG_kJ, tol=1e-6):
     if dG_kJ < -tol:

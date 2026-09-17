@@ -52,6 +52,12 @@ def solve_oxidation_numbers(formula, charge=0, peroxide=False):
     if peroxide:
         states['O'] = -1
 
+    # Metal hydrides (NaH, CaH2, LiAlH4): H is -1 when every other element
+    # is a metal with a fixed positive state.
+    if 'H' in counts and len(counts) > 1 and all(
+            e == 'H' or (e in states and states[e] > 0) for e in counts):
+        states['H'] = -1
+
     known_sum = 0
     unknowns = []
 

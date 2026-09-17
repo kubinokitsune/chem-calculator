@@ -13,7 +13,8 @@ R_ATM = 0.08206  # L·atm / (mol·K)
 def reaction_quotient(r_coeffs, r_concs, p_coeffs, p_concs):
     """
     Q = product of [products]^coeff / product of [reactants]^coeff.
-    Returns 0.0 if any reactant is 0, inf if denominator collapses to 0.
+    If a reactant is 0, returns inf when products are present (Q is
+    unbounded) and 0.0 when products are also absent.
     """
     num = 1.0
     for c, conc in zip(p_coeffs, p_concs):
@@ -21,12 +22,10 @@ def reaction_quotient(r_coeffs, r_concs, p_coeffs, p_concs):
 
     den = 1.0
     for c, conc in zip(r_coeffs, r_concs):
-        if conc == 0.0:
-            return 0.0
         den *= conc ** c
 
     if den == 0.0:
-        return math.inf
+        return math.inf if num > 0.0 else 0.0
     return num / den
 
 
@@ -37,63 +36,66 @@ def _ice_Q(x, r_coeffs, r_initial, p_coeffs, p_initial):
     return reaction_quotient(r_coeffs, r_concs, p_coeffs, p_concs)
 
 
-def solve_ice(r_coeffs, r_initial, p_coeffs, p_initial, Kc, tol=1e-12, max_iter=400):
+def solve_ice(r_coeffs, r_initial, p_coeffs, p_initial, Kc, tol=1e-12, max_iter=1100):
     """
     Returns x such that Q(x) = Kc using bisection.
       x > 0  forward shift (reactants decrease, products increase)
       x < 0  reverse shift
       x = 0  already at equilibrium
     Raises ValueError if conditions are inconsistent.
+
+    Q(x) rises monotonically from 0 (at x_min, a product used up) to inf
+    (at x_max, a reactant used up), so the root is always bracketed and
+    bisection works even for extremely small or large Kc.
     """
     if Kc < 0:
         raise ValueError("Kc must be non-negative.")
 
     # --- valid range for x ---
     x_max = min(r0 / c for c, r0 in zip(r_coeffs, r_initial) if c > 0)
-    neg_lims = [-p0 / c for c, p0 in zip(p_coeffs, p_initial) if c > 0 and p0 > 0]
-    x_min = max(neg_lims) if neg_lims else 0.0
+    x_min = max(-p0 / c for c, p0 in zip(p_coeffs, p_initial) if c > 0)
+
+    if x_max <= 0.0 and x_min >= 0.0:
+        raise ValueError(
+            "No shift is possible: at least one reactant and one product "
+            "start at zero. Check your inputs."
+        )
 
     Q0 = _ice_Q(0, r_coeffs, r_initial, p_coeffs, p_initial)
 
     # Already at equilibrium?
-    rel_err = abs(Q0 - Kc) / (Kc + 1e-30)
-    if rel_err < 1e-9:
+    if Q0 == Kc or abs(Q0 - Kc) / (Kc + 1e-30) < 1e-9:
         return 0.0
 
-    eps = x_max * 1e-11 + 1e-15
-
     if Q0 < Kc:
-        # Forward: x in (0, x_max)
-        lo, hi = eps, x_max - eps
+        if x_max <= 0.0:
+            raise ValueError(
+                "Reaction quotient Q < Kc, but a reactant starts at zero, "
+                "so no forward shift is possible. Check your inputs."
+            )
+        lo, hi = 0.0, x_max
     else:
-        # Reverse: x in (x_min, 0)
         if x_min >= 0.0:
             raise ValueError(
                 "Reaction quotient Q > Kc, but no products have initial "
                 "concentration, so no reverse shift is possible. "
                 "Check your inputs."
             )
-        lo, hi = x_min + eps, -eps
-
-    flo = _ice_Q(lo, r_coeffs, r_initial, p_coeffs, p_initial) - Kc
-    fhi = _ice_Q(hi, r_coeffs, r_initial, p_coeffs, p_initial) - Kc
-
-    if flo * fhi > 0:
-        raise ValueError(
-            f"Cannot bracket equilibrium root "
-            f"(flo={flo:.4e}, fhi={fhi:.4e}). "
-            "Verify Kc and initial concentrations."
-        )
+        if Kc == 0:
+            return x_min
+        lo, hi = x_min, 0.0
 
     for _ in range(max_iter):
         mid = (lo + hi) / 2.0
-        fmid = _ice_Q(mid, r_coeffs, r_initial, p_coeffs, p_initial) - Kc
-        if abs(fmid) < tol or (hi - lo) < tol:
+        if mid == lo or mid == hi or (hi - lo) <= tol * max(abs(lo), abs(hi)):
+            break
+        q = _ice_Q(mid, r_coeffs, r_initial, p_coeffs, p_initial)
+        if q == Kc:
             return mid
-        if flo * fmid <= 0.0:
-            hi, fhi = mid, fmid
+        if q < Kc:
+            lo = mid
         else:
-            lo, flo = mid, fmid
+            hi = mid
 
     return (lo + hi) / 2.0
 

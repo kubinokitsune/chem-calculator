@@ -81,9 +81,16 @@ def write_ionic_formula(cation_sym, cation_charge, anion_sym, anion_charge):
     g = math.gcd(cation_charge, abs(anion_charge))
     c_sub = abs(anion_charge) // g
     a_sub = cation_charge // g
-    formula = cation_sym + (str(c_sub) if c_sub > 1 else '')
-    formula += anion_sym + (str(a_sub) if a_sub > 1 else '')
-    return formula
+    return _ion_part(cation_sym, c_sub) + _ion_part(anion_sym, a_sub)
+
+
+def _ion_part(sym, sub):
+    """Ion symbol with its subscript; polyatomic ions get parentheses when
+    subscripted (SO4 x3 -> (SO4)3, NH4 x2 -> (NH4)2)."""
+    if sub == 1:
+        return sym
+    polyatomic = sum(1 for c in sym if c.isupper()) > 1 or any(c.isdigit() for c in sym)
+    return f"({sym}){sub}" if polyatomic else f"{sym}{sub}"
 
 
 def ionic_bonding_menu():

@@ -1,14 +1,14 @@
-﻿"""
-STRESS TEST â€” Chemistry Calculator
+"""
+STRESS TEST — Chemistry Calculator
 Covers every module, every function, every branch, every edge case.
-Runs fully automatically â€” no user input required.
+Runs fully automatically — no user input required.
 """
 
 import sys, os, math, traceback as _tb
 sys.stdout.reconfigure(encoding='utf-8')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# â”€â”€ Harness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Harness ───────────────────────────────────────────────────────────────────
 PASS = FAIL = 0
 ERRORS = []
 
@@ -33,14 +33,14 @@ def ok_raises(label, fn, exc=Exception):
     try:
         fn()
         FAIL += 1
-        m = f"  [FAIL] {label}  â€” no exception raised"
+        m = f"  [FAIL] {label}  — no exception raised"
         ERRORS.append(m); print(m)
     except exc:
         PASS += 1
         print(f"  [PASS] {label}  ({exc.__name__} raised)")
     except Exception as e:
         FAIL += 1
-        m = f"  [FAIL] {label}  â€” wrong exc {type(e).__name__}: {e}"
+        m = f"  [FAIL] {label}  — wrong exc {type(e).__name__}: {e}"
         ERRORS.append(m); print(m)
 
 def ok_close(label, got, expected, pct=0.1):
@@ -61,9 +61,9 @@ def sub(t):
     print(f"\n  --- {t} ---")
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 1 â€” MOLE CONVERSIONS
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 1 — MOLE CONVERSIONS
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 1: MOLE CONVERSIONS")
 from mole_conversions import (
     mass_to_moles, moles_to_mass, moles_to_particles,
@@ -72,50 +72,50 @@ from mole_conversions import (
 )
 
 sub("Normal operation")
-ok("massâ†’moles: 18g/18 = 1",      mass_to_moles(18, 18),    1.0)
-ok("massâ†’moles: 44g/44 = 1",      mass_to_moles(44, 44),    1.0)
-ok("massâ†’moles: 1g/1 = 1",        mass_to_moles(1, 1),      1.0)
-ok("molesâ†’mass: 2*18 = 36",       moles_to_mass(2, 18),     36.0)
-ok("molesâ†’particles: 1mol",       moles_to_particles(1),    Avogrado_number)
-ok("molesâ†’particles: 0.5mol",     moles_to_particles(0.5),  0.5*Avogrado_number)
-ok("particlesâ†’moles: 1 Av",       particles_to_moles(Avogrado_number), 1.0)
-ok("molesâ†’volume: 2mol STP",      moles_to_volume(2),       44.8)
-ok("volumeâ†’moles: 11.2L STP",     volume_to_moles(11.2),    0.5)
+ok("mass→moles: 18g/18 = 1",      mass_to_moles(18, 18),    1.0)
+ok("mass→moles: 44g/44 = 1",      mass_to_moles(44, 44),    1.0)
+ok("mass→moles: 1g/1 = 1",        mass_to_moles(1, 1),      1.0)
+ok("moles→mass: 2*18 = 36",       moles_to_mass(2, 18),     36.0)
+ok("moles→particles: 1mol",       moles_to_particles(1),    Avogrado_number)
+ok("moles→particles: 0.5mol",     moles_to_particles(0.5),  0.5*Avogrado_number)
+ok("particles→moles: 1 Av",       particles_to_moles(Avogrado_number), 1.0)
+ok("moles→volume: 2mol STP",      moles_to_volume(2),       45.4)
+ok("volume→moles: 11.35L STP",    volume_to_moles(11.35),   0.5)
 
-sub("Edge cases â€” zeros")
-ok("massâ†’moles: 0g = 0",          mass_to_moles(0, 18),     0.0)
-ok("molesâ†’mass: 0mol = 0",        moles_to_mass(0, 18),     0.0)
-ok("molesâ†’particles: 0 = 0",      moles_to_particles(0),    0.0)
-ok("particlesâ†’moles: 0 = 0",      particles_to_moles(0),    0.0)
-ok("molesâ†’volume: 0 = 0",         moles_to_volume(0),       0.0)
-ok("volumeâ†’moles: 0 = 0",         volume_to_moles(0),       0.0)
+sub("Edge cases — zeros")
+ok("mass→moles: 0g = 0",          mass_to_moles(0, 18),     0.0)
+ok("moles→mass: 0mol = 0",        moles_to_mass(0, 18),     0.0)
+ok("moles→particles: 0 = 0",      moles_to_particles(0),    0.0)
+ok("particles→moles: 0 = 0",      particles_to_moles(0),    0.0)
+ok("moles→volume: 0 = 0",         moles_to_volume(0),       0.0)
+ok("volume→moles: 0 = 0",         volume_to_moles(0),       0.0)
 
-sub("Edge cases â€” negative (math still valid)")
-ok("massâ†’moles: -18g = -1",       mass_to_moles(-18, 18),   -1.0)
-ok("molesâ†’mass: -2 = -36",        moles_to_mass(-2, 18),    -36.0)
+sub("Edge cases — negative (math still valid)")
+ok("mass→moles: -18g = -1",       mass_to_moles(-18, 18),   -1.0)
+ok("moles→mass: -2 = -36",        moles_to_mass(-2, 18),    -36.0)
 
-sub("Edge cases â€” zero denominator (ZeroDivisionError)")
-ok_raises("massâ†’moles: MM=0",     lambda: mass_to_moles(18, 0),    ZeroDivisionError)
-ok_raises("volumeâ†’moles: V=0 base", lambda: 1/0,                   ZeroDivisionError)
+sub("Edge cases — zero denominator (ZeroDivisionError)")
+ok_raises("mass→moles: MM=0",     lambda: mass_to_moles(18, 0),    ZeroDivisionError)
+ok_raises("volume→moles: V=0 base", lambda: 1/0,                   ZeroDivisionError)
 
 sub("Very large / very small")
-ok("molesâ†’particles: 1e6 mol",    moles_to_particles(1e6),  1e6 * Avogrado_number)
-ok("massâ†’moles: tiny",            mass_to_moles(1e-10, 1),  1e-10)
-ok("massâ†’moles: huge",            mass_to_moles(1e12, 1),   1e12)
+ok("moles→particles: 1e6 mol",    moles_to_particles(1e6),  1e6 * Avogrado_number)
+ok("mass→moles: tiny",            mass_to_moles(1e-10, 1),  1e-10)
+ok("mass→moles: huge",            mass_to_moles(1e12, 1),   1e12)
 
 sub("Roundtrips")
 for m_test in [0.001, 1.0, 100.0, 1e6]:
-    ok(f"massâ†’molesâ†’mass: {m_test}g",
+    ok(f"mass→moles→mass: {m_test}g",
        moles_to_mass(mass_to_moles(m_test, 58.44), 58.44), m_test, tol=1e-9)
-ok("molesâ†’particlesâ†’moles roundtrip",
+ok("moles→particles→moles roundtrip",
    particles_to_moles(moles_to_particles(2.5)), 2.5, tol=1e-9)
-ok("molesâ†’volumeâ†’moles roundtrip",
+ok("moles→volume→moles roundtrip",
    volume_to_moles(moles_to_volume(3.7)), 3.7, tol=1e-9)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 2 â€” EMPIRICAL FORMULA
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 2 — EMPIRICAL FORMULA
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 2: EMPIRICAL FORMULA CALCULATOR")
 from Empirical_Formula_Calculator import calculate_empirical_formula, display_empirical_formula
 
@@ -135,14 +135,14 @@ ef = calculate_empirical_formula(['Na','Cl'], [22.99, 35.45])
 ok("NaCl: Na=1", ef['Na'], 1); ok("NaCl: Cl=1", ef['Cl'], 1)
 
 sub("Subscript display")
-ok("display C1H4 â†’ CH4",  display_empirical_formula({'C':1,'H':4}), "CH4")
-ok("display Na1Cl1 â†’ NaCl", display_empirical_formula({'Na':1,'Cl':1}), "NaCl")
-ok("display H2O â†’ H2O",  display_empirical_formula({'H':2,'O':1}), "H2O")
+ok("display C1H4 → CH4",  display_empirical_formula({'C':1,'H':4}), "CH4")
+ok("display Na1Cl1 → NaCl", display_empirical_formula({'Na':1,'Cl':1}), "NaCl")
+ok("display H2O → H2O",  display_empirical_formula({'H':2,'O':1}), "H2O")
 ok("display subscript=1 suppressed", display_empirical_formula({'C':1}), "C")
 ok("display subscript=3",  display_empirical_formula({'Al':2,'O':3}), "Al2O3")
 
-sub("Fractional ratio compounds â€” need LCM scaling")
-# FeO: Fe:O = 55.845:16 â†’ ratio â‰ˆ 1:1
+sub("Fractional ratio compounds — need LCM scaling")
+# FeO: Fe:O = 55.845:16 → ratio ≈ 1:1
 ef_feo = calculate_empirical_formula(['Fe','O'], [55.845, 16.0])
 ok("FeO: Fe=1", ef_feo['Fe'], 1); ok("FeO: O=1", ef_feo['O'], 1)
 
@@ -155,9 +155,9 @@ ef_s = calculate_empirical_formula(['C'], [12.0])
 ok("Single C: C=1", ef_s['C'], 1)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 3 â€” PERCENT COMPOSITION
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 3 — PERCENT COMPOSITION
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 3: PERCENT COMPOSITION CALCULATOR")
 from percent_composition_calculator import (
     compute_percent_composition, parse_formula, FormulaError
@@ -165,25 +165,25 @@ from percent_composition_calculator import (
 
 sub("Molar masses & percentages")
 mm, p = compute_percent_composition("H2O")
-ok("H2O MMâ‰ˆ18.015", mm, 18.015, tol=0.01)
+ok("H2O MM≈18.015", mm, 18.015, tol=0.01)
 ok("H2O %H sum+%O=100", sum(p.values()), 100.0, tol=0.01)
 ok("H2O %O>%H", p['O'] > p['H'], True)
 
 mm2, p2 = compute_percent_composition("NaCl")
-ok("NaCl MMâ‰ˆ58.44", mm2, 58.44, tol=0.01)
-ok("NaCl %Naâ‰ˆ39.34", p2['Na'], 39.34, tol=0.1)
-ok("NaCl %Clâ‰ˆ60.66", p2['Cl'], 60.66, tol=0.1)
+ok("NaCl MM≈58.44", mm2, 58.44, tol=0.01)
+ok("NaCl %Na≈39.34", p2['Na'], 39.34, tol=0.1)
+ok("NaCl %Cl≈60.66", p2['Cl'], 60.66, tol=0.1)
 
 mm3, _ = compute_percent_composition("Ca(OH)2")
-ok("Ca(OH)2 MMâ‰ˆ74.093", mm3, 74.093, tol=0.01)
+ok("Ca(OH)2 MM≈74.093", mm3, 74.093, tol=0.01)
 
 mm4, _ = compute_percent_composition("Al2(SO4)3")
-ok("Al2(SO4)3 MMâ‰ˆ342.15", mm4, 342.15, tol=0.1)
+ok("Al2(SO4)3 MM≈342.15", mm4, 342.15, tol=0.1)
 
 mm5, _ = compute_percent_composition("Fe2O3")
-ok("Fe2O3 MMâ‰ˆ159.69", mm5, 159.69, tol=0.1)
+ok("Fe2O3 MM≈159.69", mm5, 159.69, tol=0.1)
 
-sub("Formula parser â€” elements and counts")
+sub("Formula parser — elements and counts")
 a = parse_formula("C6H12O6")
 ok("C6H12O6 C=6", a['C'], 6); ok("C6H12O6 H=12", a['H'], 12); ok("C6H12O6 O=6", a['O'], 6)
 
@@ -217,30 +217,30 @@ mm_fe, p_fe = compute_percent_composition("Fe")
 ok("Fe alone 100% Fe", p_fe['Fe'], 100.0, tol=0.001)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 4 â€” VOLUME-MASS CONVERSIONS
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 4 — VOLUME-MASS CONVERSIONS
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 4: VOLUME-MASS CONVERSIONS")
 from volume_mass_conversions import mass_to_volume, volume_to_mass, density_from_mv
 
 sub("Normal operation")
-ok("V=m/d: 100g,2g/mLâ†’50mL",  mass_to_volume(100, 2), 50.0)
-ok("m=V*d: 50mL,2g/mLâ†’100g",  volume_to_mass(50, 2), 100.0)
-ok("d=m/V: 200g,100mLâ†’2g/mL", density_from_mv(200, 100), 2.0)
+ok("V=m/d: 100g,2g/mL→50mL",  mass_to_volume(100, 2), 50.0)
+ok("m=V*d: 50mL,2g/mL→100g",  volume_to_mass(50, 2), 100.0)
+ok("d=m/V: 200g,100mL→2g/mL", density_from_mv(200, 100), 2.0)
 ok("water: 1g/mL",             density_from_mv(1000, 1000), 1.0)
 
 sub("Zero inputs")
-ok("V: 0g,any d â†’ 0",  mass_to_volume(0, 2), 0.0)
-ok("m: 0mL,any d â†’ 0", volume_to_mass(0, 3), 0.0)
-ok("d: 0g,any V â†’ 0",  density_from_mv(0, 5), 0.0)
+ok("V: 0g,any d → 0",  mass_to_volume(0, 2), 0.0)
+ok("m: 0mL,any d → 0", volume_to_mass(0, 3), 0.0)
+ok("d: 0g,any V → 0",  density_from_mv(0, 5), 0.0)
 
 sub("Division by zero")
-ok_raises("V: d=0 â†’ ZeroDivisionError", lambda: mass_to_volume(100, 0), ZeroDivisionError)
-ok_raises("d: V=0 â†’ ZeroDivisionError", lambda: density_from_mv(100, 0), ZeroDivisionError)
+ok_raises("V: d=0 → ZeroDivisionError", lambda: mass_to_volume(100, 0), ZeroDivisionError)
+ok_raises("d: V=0 → ZeroDivisionError", lambda: density_from_mv(100, 0), ZeroDivisionError)
 
 sub("Negative values (algebraically valid)")
-ok("negative mass â†’ negative volume", mass_to_volume(-50, 2), -25.0)
-ok("negative density â†’ negative volume", mass_to_volume(50, -2), -25.0)
+ok("negative mass → negative volume", mass_to_volume(-50, 2), -25.0)
+ok("negative density → negative volume", mass_to_volume(50, -2), -25.0)
 
 sub("Very large and very small")
 ok("huge mass",   mass_to_volume(1e12, 1e6), 1e6)
@@ -248,17 +248,17 @@ ok("tiny mass",   mass_to_volume(1e-9, 1),   1e-9)
 
 sub("Roundtrips")
 for m, d in [(100, 2.5), (0.001, 1.0), (1e6, 13.6)]:
-    ok(f"massâ†’volâ†’mass: {m}g,{d}g/mL",
+    ok(f"mass→vol→mass: {m}g,{d}g/mL",
        volume_to_mass(mass_to_volume(m, d), d), m, tol=1e-9)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 5 â€” OXIDATION NUMBER CALCULATOR
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 5 — OXIDATION NUMBER CALCULATOR
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 5: OXIDATION NUMBER CALCULATOR")
 from oxidation_number_calculator import solve_oxidation_numbers
 
-sub("Pure elements â†’ 0")
+sub("Pure elements → 0")
 for formula in ["O2","H2","N2","Fe","Cl2","Na","Cu","S8"]:
     res = solve_oxidation_numbers(formula)
     elem = list(res.keys())[0]
@@ -271,7 +271,7 @@ ok("MgO Mg=+2",  solve_oxidation_numbers("MgO")['Mg'],  2)
 ok("MgO O=-2",   solve_oxidation_numbers("MgO")['O'],   -2)
 ok("AlCl3 Al=+3",solve_oxidation_numbers("AlCl3")['Al'], 3)
 
-sub("Polyatomic compounds â€” solving unknown element")
+sub("Polyatomic compounds — solving unknown element")
 ok("H2O H=+1",   solve_oxidation_numbers("H2O")['H'],   1)
 ok("H2O O=-2",   solve_oxidation_numbers("H2O")['O'],   -2)
 ok("KMnO4 Mn=+7",solve_oxidation_numbers("KMnO4")['Mn'], 7)
@@ -292,7 +292,7 @@ sub("Peroxides (O = -1)")
 ok("H2O2 peroxide O=-1", solve_oxidation_numbers("H2O2", peroxide=True)['O'], -1)
 ok("H2O2 peroxide H=+1", solve_oxidation_numbers("H2O2", peroxide=True)['H'], 1)
 
-sub("Verification: sum of (ox Ã— count) = charge")
+sub("Verification: sum of (ox × count) = charge")
 for formula, charge in [("KMnO4",0),("H2SO4",0),("SO4",-2),("NH4",1)]:
     res = solve_oxidation_numbers(formula, charge=charge)
     counts = parse_formula(formula)
@@ -303,33 +303,33 @@ sub("Error: multiple unknown elements")
 ok_raises(">1 unknown elem raises", lambda: solve_oxidation_numbers("FeCr2O4"), ValueError)
 
 sub("Fractional oxidation states")
-# Fe3O4 = FeOÂ·Fe2O3: Fe avg = +8/3
+# Fe3O4 = FeO·Fe2O3: Fe avg = +8/3
 res_fe3o4 = solve_oxidation_numbers("Fe3O4")
 ok("Fe3O4 Fe ox = +8/3", res_fe3o4['Fe'], 8/3, tol=0.01)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 6 â€” ATOM ECONOMY
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 6 — ATOM ECONOMY
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 6: ATOM ECONOMY CALCULATOR")
 from atom_economy_calculator import calculate_atom_economy, get_molar_mass
 
 sub("Molar mass correctness")
-ok("H2O MMâ‰ˆ18.015",  get_molar_mass("H2O"),  18.015, tol=0.01)
-ok("CO2 MMâ‰ˆ44.01",   get_molar_mass("CO2"),  44.01,  tol=0.01)
-ok("NaCl MMâ‰ˆ58.44",  get_molar_mass("NaCl"), 58.44,  tol=0.01)
-ok("Fe2O3 MMâ‰ˆ159.69",get_molar_mass("Fe2O3"),159.69, tol=0.1)
-ok("C6H12O6 MMâ‰ˆ180.16",get_molar_mass("C6H12O6"),180.16,tol=0.1)
+ok("H2O MM≈18.015",  get_molar_mass("H2O"),  18.015, tol=0.01)
+ok("CO2 MM≈44.01",   get_molar_mass("CO2"),  44.01,  tol=0.01)
+ok("NaCl MM≈58.44",  get_molar_mass("NaCl"), 58.44,  tol=0.01)
+ok("Fe2O3 MM≈159.69",get_molar_mass("Fe2O3"),159.69, tol=0.1)
+ok("C6H12O6 MM≈180.16",get_molar_mass("C6H12O6"),180.16,tol=0.1)
 
 sub("Atom economy calculations")
-# H2 + Cl2 â†’ 2HCl: AE = 2*36.46 / (2.016+70.9) = 100%
+# H2 + Cl2 → 2HCl: AE = 2*36.46 / (2.016+70.9) = 100%
 ae, mwd, mwr = calculate_atom_economy(['H2','Cl2'],[1,1],'HCl',2)
-ok("H2+Cl2â†’2HCl: AE=100%", ae, 100.0, tol=0.1)
+ok("H2+Cl2→2HCl: AE=100%", ae, 100.0, tol=0.1)
 
-# CH4+2O2â†’CO2+2H2O: desired CO2
-# MW CO2*1 = 44.01; total reactants = 16.043+64.0 = 80.043; AE = 44.01/80.043*100 â‰ˆ 54.98%
+# CH4+2O2→CO2+2H2O: desired CO2
+# MW CO2*1 = 44.01; total reactants = 16.043+64.0 = 80.043; AE = 44.01/80.043*100 ≈ 54.98%
 ae2, _, _ = calculate_atom_economy(['CH4','O2'],[1,2],'CO2',1)
-ok_close("CH4+O2â†’CO2: AEâ‰ˆ54.98%", ae2, 44.01/80.043*100, pct=0.5)
+ok_close("CH4+O2→CO2: AE≈54.98%", ae2, 44.01/80.043*100, pct=0.5)
 
 # 100% AE must satisfy mwd == mwr
 ae_100, mwd_100, mwr_100 = calculate_atom_economy(['H2','Cl2'],[1,1],'HCl',2)
@@ -339,9 +339,9 @@ sub("Zero / error cases")
 ok_raises("reactant MW=0 raises", lambda: calculate_atom_economy([],[],  'H2O',1), Exception)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 7 â€” IONIC BONDING CALCULATOR
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 7 — IONIC BONDING CALCULATOR
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 7: IONIC BONDING CALCULATOR")
 from ionic_bonding_calculator import classify_bond, write_ionic_formula, ELECTRONEGATIVITIES
 
@@ -349,7 +349,7 @@ sub("Bond classification thresholds")
 # Ionic: diff >= 1.7
 bt, en1, en2, diff = classify_bond('Na', 'Cl')
 ok("Na-Cl: Ionic",        bt, "Ionic")
-ok("Na-Cl diffâ‰ˆ2.23",     diff, 2.23, tol=0.01)
+ok("Na-Cl diff≈2.23",     diff, 2.23, tol=0.01)
 
 bt2, _, _, diff2 = classify_bond('K', 'F')
 ok("K-F: Ionic",          bt2, "Ionic")
@@ -358,7 +358,7 @@ ok("K-F diff>1.7",        diff2 > 1.7, True)
 # Polar Covalent: 0.4 <= diff < 1.7
 bt3, _, _, diff3 = classify_bond('H', 'O')
 ok("H-O: Polar Covalent", bt3, "Polar Covalent")
-ok("H-O diffâ‰ˆ1.24",       diff3, 1.24, tol=0.01)
+ok("H-O diff≈1.24",       diff3, 1.24, tol=0.01)
 
 bt4, _, _, diff4 = classify_bond('H', 'N')
 ok("H-N: Polar Covalent", bt4, "Polar Covalent")
@@ -374,13 +374,13 @@ ok("Cl-Cl: Nonpolar Covalent", bt6, "Nonpolar Covalent")
 ok("Cl-Cl: diff = 0",          diff6, 0.0, tol=1e-9)
 
 sub("Exactly at threshold")
-# diff = 0.4 exactly â†’ Polar Covalent
-# diff = 1.7 exactly â†’ Ionic
+# diff = 0.4 exactly → Polar Covalent
+# diff = 1.7 exactly → Ionic
 # Hard to hit exactly, but test near-boundary
 bt7, _, _, d7 = classify_bond('S', 'H')
 ok("S-H: diff computed", d7, abs(ELECTRONEGATIVITIES['S'] - ELECTRONEGATIVITIES['H']), tol=1e-9)
 
-sub("Ionic formula writer â€” cross multiplication")
+sub("Ionic formula writer — cross multiplication")
 ok("Na+Cl = NaCl",   write_ionic_formula('Na', 1, 'Cl', -1), "NaCl")
 ok("Ca+Cl = CaCl2",  write_ionic_formula('Ca', 2, 'Cl', -1), "CaCl2")
 ok("Al+O = Al2O3",   write_ionic_formula('Al', 3, 'O',  -2), "Al2O3")
@@ -401,9 +401,9 @@ ok_raises("unknown elem1", lambda: classify_bond('Xx','Cl'), ValueError)
 ok_raises("unknown elem2", lambda: classify_bond('Na','Yy'), ValueError)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 8 â€” PERCENTAGE YIELD
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 8 — PERCENTAGE YIELD
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 8: PERCENTAGE YIELD CALCULATOR")
 from percentage_yield_calculator import (
     calc_percentage_yield, calc_actual_yield, calc_theoretical_yield
@@ -439,9 +439,9 @@ for act, theo in [(7.3,12.5),(0.001,0.005),(500,600)]:
        calc_theoretical_yield(act, pct), theo, tol=1e-9)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 9 â€” GAS LAWS
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 9 — GAS LAWS
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 9: GAS LAWS")
 from gas_laws import (
     ideal_gas_find_P, ideal_gas_find_V, ideal_gas_find_n, ideal_gas_find_T,
@@ -451,54 +451,54 @@ from gas_laws import (
     dalton_total_pressure, dalton_partial_pressure, dalton_mole_fraction, R
 )
 
-sub("Ideal Gas Law â€” all four variables")
-# STP: 1 mol, 273.15 K, 1 atm â†’ V = nRT/P â‰ˆ 22.41 L
+sub("Ideal Gas Law — all four variables")
+# STP: 1 mol, 273.15 K, 1 atm → V = nRT/P ≈ 22.41 L
 V_stp = ideal_gas_find_V(1, 273.15, 1.0)
-ok("Ideal: V of 1mol STP â‰ˆ22.41", V_stp, R*273.15, tol=0.01)
+ok("Ideal: V of 1mol STP ≈22.41", V_stp, R*273.15, tol=0.01)
 ok("Ideal: P = nRT/V",    ideal_gas_find_P(2,10,300),  2*R*300/10,   tol=1e-9)
 ok("Ideal: n = PV/RT",    ideal_gas_find_n(1, V_stp, 273.15), 1.0,   tol=0.001)
 ok("Ideal: T = PV/nR",    ideal_gas_find_T(1, V_stp, 1), 273.15,     tol=0.01)
 
-sub("Ideal Gas Law â€” zero/division")
+sub("Ideal Gas Law — zero/division")
 ok_raises("P: V=0", lambda: ideal_gas_find_P(1, 0, 300),  ZeroDivisionError)
 ok_raises("V: P=0", lambda: ideal_gas_find_V(1, 300, 0),  ZeroDivisionError)
 ok_raises("n: T=0", lambda: ideal_gas_find_n(1, 10, 0),   ZeroDivisionError)
 ok_raises("T: n=0", lambda: ideal_gas_find_T(1, 10, 0),   ZeroDivisionError)
 
-sub("Ideal Gas Law â€” self-consistency roundtrips")
+sub("Ideal Gas Law — self-consistency roundtrips")
 for n,V,T in [(1,22.4,273),(2,5,350),(0.5,100,400)]:
     P = ideal_gas_find_P(n, V, T)
-    ok(f"nVTâ†’Pâ†’n roundtrip ({n},{V},{T})",
+    ok(f"nVT→P→n roundtrip ({n},{V},{T})",
        ideal_gas_find_n(P, V, T), n, tol=1e-6)
 
 sub("Combined Gas Law")
 ok("Combined: P2=2",  combined_gas_find_P2(1,10,300,5,300),  2.0, tol=1e-9)
 ok("Combined: V2=10", combined_gas_find_V2(2,5,300,1,300),  10.0, tol=1e-9)
 ok("Combined: T2=600",combined_gas_find_T2(1,10,300,2,10),  600.0,tol=1e-9)
-# Boyle's law: T constant â†’ P1V1 = P2V2
+# Boyle's law: T constant → P1V1 = P2V2
 ok("Boyle: P1V1=P2V2", combined_gas_find_P2(2,5,300,10,300), 1.0, tol=1e-9)
-# Charles' law: P constant â†’ V1/T1 = V2/T2
+# Charles' law: P constant → V1/T1 = V2/T2
 ok("Charles: V2=V1*T2/T1", combined_gas_find_V2(1,10,300,1,600), 20.0, tol=1e-9)
-# Gay-Lussac: V constant â†’ P1/T1 = P2/T2
+# Gay-Lussac: V constant → P1/T1 = P2/T2
 ok("Gay-Lussac: T2=T1*P2/P1", combined_gas_find_T2(1,10,300,2,10), 600.0, tol=1e-9)
 
-sub("Combined Gas Law â€” zero denominator")
+sub("Combined Gas Law — zero denominator")
 ok_raises("Combined P2: V2=0", lambda: combined_gas_find_P2(1,10,300,0,300), ZeroDivisionError)
 ok_raises("Combined V2: P2=0", lambda: combined_gas_find_V2(1,10,300,0,300), ZeroDivisionError)
 ok_raises("Combined T2: P1=0", lambda: combined_gas_find_T2(0,10,300,2,10),  ZeroDivisionError)
 
 sub("Molar volume")
-ok("STP: 2molâ†’44.8L",  moles_to_volume_stp(2),    44.8)
-ok("STP: 11.2Lâ†’0.5mol",volume_to_moles_stp(11.2),  0.5)
-ok("STP: 0molâ†’0L",     moles_to_volume_stp(0),      0.0)
-ok("Non-std molar vol: T=273.15,P=1â†’22.41", molar_volume_nonstandard(273.15,1.0), R*273.15, tol=0.01)
+ok("STP: 2mol→45.4L",  moles_to_volume_stp(2),    45.4)
+ok("STP: 11.35L→0.5mol",volume_to_moles_stp(11.35), 0.5)
+ok("STP: 0mol→0L",     moles_to_volume_stp(0),      0.0)
+ok("Non-std molar vol: T=273.15,P=1→22.41", molar_volume_nonstandard(273.15,1.0), R*273.15, tol=0.01)
 ok_raises("Non-std: P=0", lambda: molar_volume_nonstandard(300,0), ZeroDivisionError)
 
 sub("Graham's Law of Effusion")
 ok("H2/O2 ratio=4.0",   graham_rate_ratio(2, 32),    4.0, tol=1e-9)
 ok("rate ratio=1 (same)",graham_rate_ratio(28, 28),  1.0, tol=1e-9)
-ok("Find M2: M1=2,r=4â†’32", graham_find_M2(2, 4),    32.0, tol=1e-9)
-ok("Find M1: M2=32,r=4â†’2", graham_find_M1(32, 4),    2.0, tol=1e-9)
+ok("Find M2: M1=2,r=4→32", graham_find_M2(2, 4),    32.0, tol=1e-9)
+ok("Find M1: M2=32,r=4→2", graham_find_M1(32, 4),    2.0, tol=1e-9)
 ok("Graham roundtrip M2", graham_find_M1(graham_find_M2(4, 3.0), 3.0), 4.0, tol=1e-9)
 ok("Graham roundtrip M1", graham_find_M2(graham_find_M1(16, 2.0), 2.0), 16.0, tol=1e-9)
 ok_raises("Graham M1=0", lambda: graham_rate_ratio(0, 32), ZeroDivisionError)
@@ -508,9 +508,9 @@ sub("Dalton's Law of Partial Pressures")
 ok("Total: [0.3,0.5,0.2]=1.0", dalton_total_pressure([0.3,0.5,0.2]), 1.0, tol=1e-9)
 ok("Total: empty list=0",       dalton_total_pressure([]), 0.0)
 ok("Total: single=0.8",         dalton_total_pressure([0.8]), 0.8)
-ok("Partial: P=1, x=0.3â†’0.3",  dalton_partial_pressure(1.0, 0.3), 0.3, tol=1e-9)
-ok("Partial: x=0â†’0",            dalton_partial_pressure(5.0, 0.0), 0.0)
-ok("Partial: x=1â†’P_total",      dalton_partial_pressure(3.0, 1.0), 3.0)
+ok("Partial: P=1, x=0.3→0.3",  dalton_partial_pressure(1.0, 0.3), 0.3, tol=1e-9)
+ok("Partial: x=0→0",            dalton_partial_pressure(5.0, 0.0), 0.0)
+ok("Partial: x=1→P_total",      dalton_partial_pressure(3.0, 1.0), 3.0)
 ok("Mole frac: 0.5/2=0.25",     dalton_mole_fraction(0.5, 2.0), 0.25, tol=1e-9)
 ok("Mole frac: all one gas=1",  dalton_mole_fraction(5.0, 5.0), 1.0, tol=1e-9)
 ok_raises("Mole frac: n_total=0", lambda: dalton_mole_fraction(1, 0), ZeroDivisionError)
@@ -520,9 +520,9 @@ fracs = [dalton_mole_fraction(n, 10.0) for n in [1,2,3,4]]
 ok("Mole fractions sum to 1", sum(fracs), 1.0, tol=1e-9)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 10 â€” ACID-BASE
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 10 — ACID-BASE
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 10: ACID-BASE CALCULATOR")
 from acid_base import (
     all_four, strong_acid_pH, strong_base_pH,
@@ -533,7 +533,7 @@ from acid_base import (
     equivalence_point_pH_description, pH_from_H, H_from_pH
 )
 
-sub("all_four â€” each entry point")
+sub("all_four — each entry point")
 for val, key, expected_pH in [(7.0,'pH',7.0),(4.0,'pOH',10.0),(1e-3,'H',3.0),(1e-5,'OH',9.0)]:
     kwargs = {key: val}
     pH, pOH, H, OH = all_four(**kwargs)
@@ -550,7 +550,7 @@ sub("pH = -log[H+] consistency")
 for h in [1.0, 0.1, 0.01, 1e-7, 1e-14]:
     pH_calc = pH_from_H(h)
     H_back  = H_from_pH(pH_calc)
-    ok(f"H={h}: pHâ†’H roundtrip", H_back, h, tol=h*1e-9)
+    ok(f"H={h}: pH→H roundtrip", H_back, h, tol=h*1e-9)
 
 sub("Strong acid pH")
 ok("HCl 0.1M: pH=1",    strong_acid_pH(0.1),  1.0, tol=1e-9)
@@ -567,10 +567,10 @@ ok("NaOH 1.0M: pH=14",  strong_base_pH(1.0),  14.0, tol=1e-9)
 ok_raises("SB: C=0 raises",  lambda: strong_base_pH(0),   ValueError)
 ok_raises("SB: C<0 raises",  lambda: strong_base_pH(-0.1),ValueError)
 
-sub("Weak acid pH â€” approximation vs quadratic")
-# Acetic acid: Ka=1.8e-5, C=0.1 â†’ approx valid (x/C < 5%)
+sub("Weak acid pH — approximation vs quadratic")
+# Acetic acid: Ka=1.8e-5, C=0.1 → approx valid (x/C < 5%)
 ph_wa, approx, x_wa = weak_acid_pH(1.8e-5, 0.1)
-ok("Acetic: pHâ‰ˆ2.872", ph_wa, 2.872, tol=0.005)
+ok("Acetic: pH≈2.872", ph_wa, 2.872, tol=0.005)
 ok("Acetic: approx used", approx, True)
 ok("Acetic: 5% rule ok", x_wa/0.1 < 0.05, True)
 
@@ -584,7 +584,7 @@ ok("Large Ka: x exact", x_waq, x_exp, tol=1e-10)
 # Very small Ka (very weak acid)
 ph_vw, approx_vw, _ = weak_acid_pH(1e-10, 1.0)
 ok("Very weak Ka=1e-10: approx valid", approx_vw, True)
-ok("Very weak Ka: pHâ‰ˆ5.0", ph_vw, 5.0, tol=0.01)  # x=sqrt(1e-10*1)=1e-5 â†’ pH=5
+ok("Very weak Ka: pH≈5.0", ph_vw, 5.0, tol=0.01)  # x=sqrt(1e-10*1)=1e-5 → pH=5
 
 ok_raises("WA: Ka=0 raises",  lambda: weak_acid_pH(0, 0.1),   ValueError)
 ok_raises("WA: Ka<0 raises",  lambda: weak_acid_pH(-1e-5,0.1),ValueError)
@@ -592,16 +592,16 @@ ok_raises("WA: C=0 raises",   lambda: weak_acid_pH(1.8e-5,0), ValueError)
 
 sub("Weak base pH")
 ph_wb, approx_wb, x_wb = weak_base_pH(1.8e-5, 0.1)
-ok("Ammonia: pHâ‰ˆ11.128", ph_wb, 11.128, tol=0.005)
+ok("Ammonia: pH≈11.128", ph_wb, 11.128, tol=0.005)
 ok("Ammonia: approx used", approx_wb, True)
 ok_raises("WB: Kb=0 raises",  lambda: weak_base_pH(0, 0.1),   ValueError)
 ok_raises("WB: C=0 raises",   lambda: weak_base_pH(1.8e-5, 0),ValueError)
 
 sub("Ka/Kb/pKa/pKb conversions")
-ok("Kaâ†’pKa: 1.8e-5â‰ˆ4.745", Ka_to_pKa(1.8e-5), 4.745, tol=0.001)
-ok("pKaâ†’Ka roundtrip",      pKa_to_Ka(Ka_to_pKa(1.8e-5)), 1.8e-5, tol=1e-8)
+ok("Ka→pKa: 1.8e-5≈4.745", Ka_to_pKa(1.8e-5), 4.745, tol=0.001)
+ok("pKa→Ka roundtrip",      pKa_to_Ka(Ka_to_pKa(1.8e-5)), 1.8e-5, tol=1e-8)
 ok("Ka*Kb=Kw",              1.8e-5 * Ka_to_Kb(1.8e-5), Kw, tol=1e-20)
-ok("Kbâ†’Ka roundtrip",       Kb_to_Ka(Ka_to_Kb(1.8e-5)), 1.8e-5, tol=1e-20)
+ok("Kb→Ka roundtrip",       Kb_to_Ka(Ka_to_Kb(1.8e-5)), 1.8e-5, tol=1e-20)
 ok("pKa+pKb=14",            Ka_to_pKa(1.8e-5) + Kb_to_pKb(Ka_to_Kb(1.8e-5)), 14.0, tol=0.001)
 # Multiple Ka values
 for Ka_test in [1e-14, 1e-7, 1e-2, 1.0]:
@@ -638,9 +638,9 @@ desc_sw = equivalence_point_pH_description("strong acid","weak base")
 ok("sw eq point <7", "<" in desc_sw, True)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 11 â€” THERMODYNAMICS
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 11 — THERMODYNAMICS
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 11: THERMODYNAMICS")
 from thermodynamics import (
     cal_q, cal_m, cal_c, cal_dT, celsius_to_kelvin,
@@ -651,18 +651,18 @@ from thermodynamics import (
     spontaneity, spontaneity_analysis, SPECIFIC_HEATS
 )
 
-sub("Calorimetry q=mcÎ”T â€” all four solvers")
+sub("Calorimetry q=mcΔT — all four solvers")
 ok("q=200*4.18*10=8360",   cal_q(200, 4.18, 10),  8360.0)
 ok("q negative (cooling)", cal_q(100, 4.18, -5),  -2090.0)
-ok("q=0 when Î”T=0",        cal_q(100, 4.18, 0),    0.0)
+ok("q=0 when ΔT=0",        cal_q(100, 4.18, 0),    0.0)
 ok("m=8360/(4.18*10)=200", cal_m(8360, 4.18, 10),  200.0)
 ok("c=8360/(200*10)=4.18", cal_c(8360, 200, 10),   4.18)
-ok("Î”T=8360/(200*4.18)=10",cal_dT(8360, 200, 4.18),10.0)
+ok("ΔT=8360/(200*4.18)=10",cal_dT(8360, 200, 4.18),10.0)
 
 ok_raises("cal_m: c=0",  lambda: cal_m(100, 0, 10),   ValueError)
-ok_raises("cal_m: Î”T=0", lambda: cal_m(100, 4.18, 0), ValueError)
+ok_raises("cal_m: ΔT=0", lambda: cal_m(100, 4.18, 0), ValueError)
 ok_raises("cal_c: m=0",  lambda: cal_c(100, 0, 10),   ValueError)
-ok_raises("cal_c: Î”T=0", lambda: cal_c(100, 100, 0),  ValueError)
+ok_raises("cal_c: ΔT=0", lambda: cal_c(100, 100, 0),  ValueError)
 ok_raises("cal_dT: m=0", lambda: cal_dT(100, 0, 4.18),ValueError)
 ok_raises("cal_dT: c=0", lambda: cal_dT(100, 100, 0), ValueError)
 
@@ -670,17 +670,17 @@ ok_raises("cal_dT: c=0", lambda: cal_dT(100, 100, 0), ValueError)
 for name, expected_c in [("water",4.18),("iron",0.449),("copper",0.385),("aluminum",0.897)]:
     ok(f"SPECIFIC_HEATS[{name}]={expected_c}", SPECIFIC_HEATS[name], expected_c)
 
-# Celsius â†’ Kelvin
-ok("0Â°C = 273.15 K",    celsius_to_kelvin(0),      273.15)
-ok("100Â°C = 373.15 K",  celsius_to_kelvin(100),    373.15)
-ok("-273.15Â°C = 0 K",   celsius_to_kelvin(-273.15),  0.0)
+# Celsius → Kelvin
+ok("0°C = 273.15 K",    celsius_to_kelvin(0),      273.15)
+ok("100°C = 373.15 K",  celsius_to_kelvin(100),    373.15)
+ok("-273.15°C = 0 K",   celsius_to_kelvin(-273.15),  0.0)
 
 sub("Calorimetry roundtrips")
 for m,c,dt in [(100,4.18,15),(50,0.449,30),(200,2.44,8)]:
     q = cal_q(m,c,dt)
-    ok(f"qâ†’m roundtrip ({m},{c},{dt})", cal_m(q,c,dt), m, tol=1e-9)
-    ok(f"qâ†’c roundtrip",               cal_c(q,m,dt), c, tol=1e-9)
-    ok(f"qâ†’Î”T roundtrip",              cal_dT(q,m,c), dt, tol=1e-9)
+    ok(f"q→m roundtrip ({m},{c},{dt})", cal_m(q,c,dt), m, tol=1e-9)
+    ok(f"q→c roundtrip",               cal_c(q,m,dt), c, tol=1e-9)
+    ok(f"q→ΔT roundtrip",              cal_dT(q,m,c), dt, tol=1e-9)
 
 sub("Hess's Law")
 ok("2 steps summed",       hess_law([-110.5,-283.0],[1,1]),  -393.5, tol=1e-9)
@@ -693,7 +693,7 @@ ok("3-step arithmetic",    hess_law([-393.5,-285.8,2220],[3,4,-1]),
 ok_raises("mismatched lengths", lambda: hess_law([1,2],[1]), ValueError)
 
 sub("Bond Enthalpy")
-# CH4 + 2O2 â†’ CO2 + 2H2O
+# CH4 + 2O2 → CO2 + 2H2O
 broken = [("C-H",4,413),("O=O",2,498)]
 formed = [("C=O",2,805),("O-H",4,463)]
 dH, sb, sf = bond_enthalpy_dH(broken, formed)
@@ -701,7 +701,7 @@ ok("CH4+O2: sb=2648", sb, 2648.0, tol=1e-9)
 ok("CH4+O2: sf=3462", sf, 3462.0, tol=1e-9)
 ok("CH4+O2: dH=-814", dH, -814.0, tol=1e-9)
 
-# H2 + Cl2 â†’ 2HCl
+# H2 + Cl2 → 2HCl
 dH2, sb2, sf2 = bond_enthalpy_dH([("H-H",1,436),("Cl-Cl",1,242)],[("H-Cl",2,431)])
 ok("H2+Cl2: dH=-184", dH2, -184.0, tol=1e-9)
 
@@ -709,9 +709,9 @@ ok("H2+Cl2: dH=-184", dH2, -184.0, tol=1e-9)
 dH0, sb0, sf0 = bond_enthalpy_dH([], [])
 ok("Empty: dH=0", dH0, 0.0); ok("Empty: sb=0", sb0, 0.0); ok("Empty: sf=0", sf0, 0.0)
 
-# Bond lookup â€” canonical and reversed
-ok("lookup C-H=413",   lookup_bond("C-H"), 413)
-ok("lookup H-C=413",   lookup_bond("H-C"), 413)
+# Bond lookup — canonical and reversed
+ok("lookup C-H=414",   lookup_bond("C-H"), 414)
+ok("lookup H-C=414",   lookup_bond("H-C"), 414)
 ok("lookup O=O=498",   lookup_bond("O=O"), 498)
 ok("lookup N#N=945",   lookup_bond("N#N"), 945)
 ok("lookup O-H=463",   lookup_bond("O-H"), 463)
@@ -719,7 +719,7 @@ ok("lookup Xx-Yy=None",lookup_bond("Xx-Yy"), None)
 ok("table keys unique", len(BOND_ENTHALPIES), len(set(BOND_ENTHALPIES.keys())))
 
 sub("Standard Enthalpy of Reaction")
-# CH4 + 2O2 â†’ CO2 + 2H2O: dH = -890.3 kJ
+# CH4 + 2O2 → CO2 + 2H2O: dH = -890.3 kJ
 species = [
     {'formula':'CH4','dHf':-74.8,  'coeff':1,'role':'reactant'},
     {'formula':'O2', 'dHf':  0.0,  'coeff':2,'role':'reactant'},
@@ -738,14 +738,14 @@ ok("H2O decomp dH=+571.6", standard_enthalpy_rxn(species_d), 571.6, tol=0.01)
 ok_raises("bad role raises", lambda: standard_enthalpy_rxn(
     [{'formula':'X','dHf':0,'coeff':1,'role':'byproduct'}]), ValueError)
 
-sub("Gibbs Free Energy Î”G = Î”H - TÎ”S")
-ok("Î”G = -100-300*(-0.2) = -40", gibbs_dG(-100,300,-200), -40.0, tol=1e-9)
-ok("Î”G = 0 when Î”H=TÎ”S",        gibbs_dG(60,300,200),      0.0,  tol=1e-9)
-ok("Î”H from Î”G=-40,T=300,Î”S=-200", gibbs_dH(-40,300,-200),-100.0,tol=1e-9)
-ok("Î”S from Î”H=-100,Î”G=-40,T=300",gibbs_dS(-100,-40,300),-200.0, tol=1e-9)
-ok("T crossover: Î”H=-100,Î”S=-200â†’500K", gibbs_T(-100,0,-200), 500.0, tol=1e-9)
+sub("Gibbs Free Energy ΔG = ΔH - TΔS")
+ok("ΔG = -100-300*(-0.2) = -40", gibbs_dG(-100,300,-200), -40.0, tol=1e-9)
+ok("ΔG = 0 when ΔH=TΔS",        gibbs_dG(60,300,200),      0.0,  tol=1e-9)
+ok("ΔH from ΔG=-40,T=300,ΔS=-200", gibbs_dH(-40,300,-200),-100.0,tol=1e-9)
+ok("ΔS from ΔH=-100,ΔG=-40,T=300",gibbs_dS(-100,-40,300),-200.0, tol=1e-9)
+ok("T crossover: ΔH=-100,ΔS=-200→500K", gibbs_T(-100,0,-200), 500.0, tol=1e-9)
 
-ok_raises("gibbs_T: Î”S=0 raises",  lambda: gibbs_T(-100, 0, 0),  ValueError)
+ok_raises("gibbs_T: ΔS=0 raises",  lambda: gibbs_T(-100, 0, 0),  ValueError)
 ok_raises("gibbs_dS: T=0 raises",  lambda: gibbs_dS(-100,-40,0), ValueError)
 
 # Roundtrips
@@ -755,25 +755,25 @@ for dh, T_k, ds in [(-200,350,50),(-100,298,-200),(0,300,100)]:
     ok(f"Gibbs dS roundtrip", gibbs_dS(dh, dg, T_k), ds, tol=1e-9)
 
 sub("Spontaneity labels")
-ok("Î”G=-1: spontaneous",    spontaneity(-1.0), "Spontaneous (Î”G < 0)")
-ok("Î”G=+1: non-spontaneous",spontaneity(+1.0), "Non-spontaneous (Î”G > 0)")
-ok("Î”G=0: equilibrium",     spontaneity(0.0),  "At equilibrium (Î”G = 0)")
-ok("Î”G=-0.5e-6: near-zeroâ†’eq",spontaneity(-5e-7),"At equilibrium (Î”G = 0)")
-ok("Î”G=-1e-5: spontaneous", spontaneity(-1e-5),"Spontaneous (Î”G < 0)")
+ok("ΔG=-1: spontaneous",    spontaneity(-1.0), "Spontaneous (ΔG < 0)")
+ok("ΔG=+1: non-spontaneous",spontaneity(+1.0), "Non-spontaneous (ΔG > 0)")
+ok("ΔG=0: equilibrium",     spontaneity(0.0),  "At equilibrium (ΔG = 0)")
+ok("ΔG=-0.5e-6: near-zero→eq",spontaneity(-5e-7),"At equilibrium (ΔG = 0)")
+ok("ΔG=-1e-5: spontaneous", spontaneity(-1e-5),"Spontaneous (ΔG < 0)")
 
 ok("dH<0,dS>0: always spont",
-   spontaneity_analysis(-1,1), "Always spontaneous at all temperatures (Î”H<0, Î”S>0)")
+   spontaneity_analysis(-1,1), "Always spontaneous at all temperatures (ΔH<0, ΔS>0)")
 ok("dH>0,dS<0: never spont",
-   spontaneity_analysis(1,-1), "Never spontaneous at any temperature (Î”H>0, Î”S<0)")
+   spontaneity_analysis(1,-1), "Never spontaneous at any temperature (ΔH>0, ΔS<0)")
 ok("dH<0,dS<0: low T spont",
-   spontaneity_analysis(-1,-1),"Spontaneous at low T only (Î”H<0, Î”S<0 â€” enthalpy driven)")
+   spontaneity_analysis(-1,-1),"Spontaneous at low T only (ΔH<0, ΔS<0 — enthalpy driven)")
 ok("dH>0,dS>0: high T spont",
-   spontaneity_analysis(1,1),  "Spontaneous at high T only (Î”H>0, Î”S>0 â€” entropy driven)")
+   spontaneity_analysis(1,1),  "Spontaneous at high T only (ΔH>0, ΔS>0 — entropy driven)")
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MODULE 12 â€” ICE SOLVER
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
+# MODULE 12 — ICE SOLVER
+# ══════════════════════════════════════════════════════════════════════════════
 section("MODULE 12: ICE SOLVER")
 from ice_solver import (
     reaction_quotient, solve_ice, build_ice_table,
@@ -784,36 +784,37 @@ from ice_solver import (
 )
 
 sub("Reaction Quotient")
-ok("H2+I2â†’2HI Q=4",    reaction_quotient([1,1],[0.5,0.5],[2],[1.0]),  4.0)
-ok("N2O4â†’2NO2 Q=0.04", reaction_quotient([1],[1.0],[2],[0.2]),         0.04)
+ok("H2+I2→2HI Q=4",    reaction_quotient([1,1],[0.5,0.5],[2],[1.0]),  4.0)
+ok("N2O4→2NO2 Q=0.04", reaction_quotient([1],[1.0],[2],[0.2]),         0.04)
 ok("Products=0: Q=0",   reaction_quotient([1],[0.5],[1],[0.0]),         0.0)
-ok("Reactant=0: Q=0",   reaction_quotient([1],[0.0],[1],[0.5]),         0.0)
-ok("2Aâ†’B+C Q=0.0625",   reaction_quotient([2],[0.4],[1,1],[0.1,0.1]),  0.0625)
+ok("Reactant=0: Q=inf", math.isinf(reaction_quotient([1],[0.0],[1],[0.5])), True)
+ok("All zero: Q=0",    reaction_quotient([1],[0.0],[1],[0.0]),         0.0)
+ok("2A→B+C Q=0.0625",   reaction_quotient([2],[0.4],[1,1],[0.1,0.1]),  0.0625)
 
-sub("ICE Solver â€” standard cases")
+sub("ICE Solver — standard cases")
 def check_ice(r_coeffs,r_init,p_coeffs,p_init,Kc,label,x_expected=None,tol_pct=0.01):
     x = solve_ice(r_coeffs,r_init,p_coeffs,p_init,Kc)
     r_eq = [r0-c*x for c,r0 in zip(r_coeffs,r_init)]
     p_eq = [p0+c*x for c,p0 in zip(p_coeffs,p_init)]
     Q_final = reaction_quotient(r_coeffs,r_eq,p_coeffs,p_eq)
-    ok_close(f"{label}: Q_finalâ‰ˆKc", Q_final, Kc, pct=0.01)
+    ok_close(f"{label}: Q_final≈Kc", Q_final, Kc, pct=0.01)
     if x_expected is not None:
-        ok_close(f"{label}: xâ‰ˆ{x_expected}", x, x_expected, pct=tol_pct)
+        ok_close(f"{label}: x≈{x_expected}", x, x_expected, pct=tol_pct)
     return x
 
-# A â‡Œ B, Kc=4: x=0.8
+# A ⇌ B, Kc=4: x=0.8
 check_ice([1],[1.0],[1],[0.0],4.0,"A<=>B Kc=4",x_expected=0.8)
-# N2O4 â‡Œ 2NO2, Kc=0.0059
+# N2O4 ⇌ 2NO2, Kc=0.0059
 disc = 0.0059**2+16*0.0059
 x_n2o4 = (-0.0059+math.sqrt(disc))/8
 check_ice([1],[1.0],[2],[0.0],0.0059,"N2O4 Kc=0.0059",x_expected=x_n2o4)
-# H2+I2 â‡Œ 2HI
+# H2+I2 ⇌ 2HI
 sqK = math.sqrt(55.64)
 check_ice([1,1],[0.5,0.5],[2],[0.0],55.64,"H2+I2 Kc=55.64",x_expected=0.5*sqK/(2+sqK))
 # Already at equilibrium (reverse case: Q>K)
 x_rev = solve_ice([1],[0.1],[1],[0.9],1.0)
 ok_close("Reverse shift x=-0.4", x_rev, -0.4, pct=0.001)
-# 2A â‡Œ B, Kc=0.25
+# 2A ⇌ B, Kc=0.25
 x_2A = (3-math.sqrt(5))/2
 check_ice([2],[2.0],[1],[0.0],0.25,"2A<=>B Kc=0.25",x_expected=x_2A)
 # Large Kc
@@ -822,46 +823,46 @@ check_ice([1],[1.0],[1],[0.0],1e6,"A<=>B Kc=1e6",x_expected=1e6/(1+1e6))
 r = build_ice_table(['A'],[1],[1.0],['B'],[1],[0.0],1e-5)
 ok("Small Kc: 5% rule valid",r['approx_pct']<5.0,True)
 
-sub("ICE Solver â€” error cases")
+sub("ICE Solver — error cases")
 ok_raises("Kc<0 raises", lambda: solve_ice([1],[1.0],[1],[0.0],-1.0), ValueError)
 
 sub("Kc / Kp conversion")
 T298 = 298.0
 RT = R_ATM * T298
-ok("Kcâ†’Kp: dn=0",  kc_to_kp(5.0, T298, 0),  5.0,      tol=1e-9)
-ok("Kcâ†’Kp: dn=+1", kc_to_kp(1.0, T298, 1),  RT,       tol=1e-6)
-ok("Kcâ†’Kp: dn=-1", kc_to_kp(1.0, T298,-1),  1/RT,     tol=1e-9)
-ok("Kcâ†’Kp: dn=+2", kc_to_kp(1.0, T298, 2),  RT**2,    tol=1e-6)
+ok("Kc→Kp: dn=0",  kc_to_kp(5.0, T298, 0),  5.0,      tol=1e-9)
+ok("Kc→Kp: dn=+1", kc_to_kp(1.0, T298, 1),  RT,       tol=1e-6)
+ok("Kc→Kp: dn=-1", kc_to_kp(1.0, T298,-1),  1/RT,     tol=1e-9)
+ok("Kc→Kp: dn=+2", kc_to_kp(1.0, T298, 2),  RT**2,    tol=1e-6)
 for dn in [-2,-1,0,1,2]:
     Kp_t = kc_to_kp(3.0, T298, dn)
-    ok(f"Kpâ†’Kc roundtrip dn={dn:+}", kp_to_kc(Kp_t, T298, dn), 3.0, tol=1e-9)
+    ok(f"Kp→Kc roundtrip dn={dn:+}", kp_to_kc(Kp_t, T298, dn), 3.0, tol=1e-9)
 
 sub("Q vs K")
-ok("Q<K â†’ forward",    compare_Q_K(1.0, 10.0)[0], 'forward')
-ok("Q>K â†’ reverse",    compare_Q_K(20.0,10.0)[0], 'reverse')
-ok("Q=K â†’ equilibrium",compare_Q_K(10.0,10.0)[0], 'equilibrium')
-ok("Q=0 â†’ forward",    compare_Q_K(0.0, 5.0)[0],  'forward')
-ok("Qâ‰ˆK â†’ equilibrium",compare_Q_K(10+1e-9,10.0)[0],'equilibrium')
+ok("Q<K → forward",    compare_Q_K(1.0, 10.0)[0], 'forward')
+ok("Q>K → reverse",    compare_Q_K(20.0,10.0)[0], 'reverse')
+ok("Q=K → equilibrium",compare_Q_K(10.0,10.0)[0], 'equilibrium')
+ok("Q=0 → forward",    compare_Q_K(0.0, 5.0)[0],  'forward')
+ok("Q≈K → equilibrium",compare_Q_K(10+1e-9,10.0)[0],'equilibrium')
 
-sub("Le Chatelier â€” concentration")
-ok("+reactant â†’ right", le_chatelier_concentration('reactant','increase')[0],'right')
-ok("-reactant â†’ left",  le_chatelier_concentration('reactant','decrease')[0],'left')
-ok("+product â†’ left",   le_chatelier_concentration('product', 'increase')[0],'left')
-ok("-product â†’ right",  le_chatelier_concentration('product', 'decrease')[0],'right')
+sub("Le Chatelier — concentration")
+ok("+reactant → right", le_chatelier_concentration('reactant','increase')[0],'right')
+ok("-reactant → left",  le_chatelier_concentration('reactant','decrease')[0],'left')
+ok("+product → left",   le_chatelier_concentration('product', 'increase')[0],'left')
+ok("-product → right",  le_chatelier_concentration('product', 'decrease')[0],'right')
 ok_raises("bad role",   lambda: le_chatelier_concentration('solvent','increase'), ValueError)
 ok_raises("bad change", lambda: le_chatelier_concentration('reactant','add'),     ValueError)
 
-sub("Le Chatelier â€” pressure")
-ok("â†‘P, dn=+1 â†’ left",  le_chatelier_pressure('increase', 1)[0], 'left')
-ok("â†‘P, dn=-1 â†’ right", le_chatelier_pressure('increase',-1)[0], 'right')
-ok("â†“P, dn=+1 â†’ right", le_chatelier_pressure('decrease', 1)[0], 'right')
-ok("â†“P, dn=-1 â†’ left",  le_chatelier_pressure('decrease',-1)[0], 'left')
-ok("dn=0 â†’ none",        le_chatelier_pressure('increase', 0)[0], 'none')
-# Real chemistry: SO2+O2â†’SO3: dn=-1 â†’ increase P â†’ right
-ok("2SO2+O2â†’2SO3: â†‘Pâ†’right", le_chatelier_pressure('increase',-1)[0],'right')
+sub("Le Chatelier — pressure")
+ok("↑P, dn=+1 → left",  le_chatelier_pressure('increase', 1)[0], 'left')
+ok("↑P, dn=-1 → right", le_chatelier_pressure('increase',-1)[0], 'right')
+ok("↓P, dn=+1 → right", le_chatelier_pressure('decrease', 1)[0], 'right')
+ok("↓P, dn=-1 → left",  le_chatelier_pressure('decrease',-1)[0], 'left')
+ok("dn=0 → none",        le_chatelier_pressure('increase', 0)[0], 'none')
+# Real chemistry: SO2+O2→SO3: dn=-1 → increase P → right
+ok("2SO2+O2→2SO3: ↑P→right", le_chatelier_pressure('increase',-1)[0],'right')
 ok_raises("bad pressure", lambda: le_chatelier_pressure('neutral',1), ValueError)
 
-sub("Le Chatelier â€” temperature")
+sub("Le Chatelier — temperature")
 for tc, rxn, exp_dir, exp_K in [
     ('increase','exothermic','left','decreases'),
     ('decrease','exothermic','right','increases'),
@@ -873,42 +874,42 @@ for tc, rxn, exp_dir, exp_K in [
     ok(f"T {tc} {rxn}: K {exp_K}", k, exp_K)
 ok_raises("bad rxn_type", lambda: le_chatelier_temperature('increase','neutral'), ValueError)
 
-sub("Le Chatelier â€” catalyst")
+sub("Le Chatelier — catalyst")
 d, e = le_chatelier_catalyst()
 ok("catalyst: no shift",         d, 'none')
 ok("catalyst: mentions equilib", 'equilibrium' in e.lower(), True)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 # CROSS-MODULE CONSISTENCY
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 section("CROSS-MODULE CONSISTENCY CHECKS")
 
-sub("Mole conversions â†” gas laws (STP)")
+sub("Mole conversions ↔ gas laws (STP)")
 from mole_conversions import moles_to_volume as m2v_old
 from gas_laws import moles_to_volume_stp as m2v_gas
 ok("Both agree at STP: 1mol", m2v_old(1), m2v_gas(1))
 ok("Both agree at STP: 3mol", m2v_old(3), m2v_gas(3))
 
-sub("Percent composition â†” empirical formula (circular)")
+sub("Percent composition ↔ empirical formula (circular)")
 # If we compute % composition of CH2O and feed into empirical formula, we should get CH2O back
 mm_ch2o, pcts_ch2o = compute_percent_composition("CH2O")
 masses = [pcts_ch2o[e] for e in ['C','H','O']]
 ef_back = calculate_empirical_formula(['C','H','O'], masses)
-ok("CH2O â†’ pct â†’ empirical: C=1", ef_back['C'], 1)
-ok("CH2O â†’ pct â†’ empirical: H=2", ef_back['H'], 2)
-ok("CH2O â†’ pct â†’ empirical: O=1", ef_back['O'], 1)
+ok("CH2O → pct → empirical: C=1", ef_back['C'], 1)
+ok("CH2O → pct → empirical: H=2", ef_back['H'], 2)
+ok("CH2O → pct → empirical: O=1", ef_back['O'], 1)
 
 sub("Acid-base: strong acid then neutralise with strong base")
-# 100 mL of 0.1M HCl + 100 mL of 0.1M NaOH â†’ neutral
+# 100 mL of 0.1M HCl + 100 mL of 0.1M NaOH → neutral
 from acid_base import equivalence_moles
 mol_acid = equivalence_moles(0.1, 0.1)
 mol_base = equivalence_moles(0.1, 0.1)
 ok("SA neutralises SB: moles equal", mol_acid, mol_base)
 
 sub("Thermodynamics: Hess vs standard enthalpy (CO2 formation)")
-# Standard: C + O2 â†’ CO2, Î”HÂ°f(CO2)=-393.5 kJ
-# Hess via: C+Â½O2â†’CO (-110.5), CO+Â½O2â†’CO2 (-283.0): sum=-393.5
+# Standard: C + O2 → CO2, ΔH°f(CO2)=-393.5 kJ
+# Hess via: C+½O2→CO (-110.5), CO+½O2→CO2 (-283.0): sum=-393.5
 hess_result = hess_law([-110.5,-283.0],[1,1])
 std_species = [
     {'formula':'C', 'dHf':0.0,   'coeff':1,'role':'reactant'},
@@ -918,26 +919,26 @@ std_species = [
 std_result = standard_enthalpy_rxn(std_species)
 ok("Hess vs standard enthalpy agree", hess_result, std_result, tol=0.01)
 
-sub("ICE: Kpâ†’Kcâ†’solve chain produces physically valid concentrations")
+sub("ICE: Kp→Kc→solve chain produces physically valid concentrations")
 Kp_given = 0.144
 Kc_calc = kp_to_kc(Kp_given, 298.0, 1)
 tbl = build_ice_table(['N2O4'],[1],[1.0],['NO2'],[2],[0.0],Kc_calc)
 ok("ICE chain: all r_eq >= 0", all(c >= 0 for c in tbl['r_eq']), True)
 ok("ICE chain: all p_eq >= 0", all(c >= 0 for c in tbl['p_eq']), True)
-ok_close("ICE chain: Qâ‰ˆKc",    tbl['Q_final'], Kc_calc, pct=0.01)
+ok_close("ICE chain: Q≈Kc",    tbl['Q_final'], Kc_calc, pct=0.01)
 
-sub("Calorimetry â†” mole conversions (moles of water heated)")
-# 1 mol water = 18.015 g; heat 10Â°C â†’ q = 18.015 * 4.18 * 10 â‰ˆ 753.0 J
+sub("Calorimetry ↔ mole conversions (moles of water heated)")
+# 1 mol water = 18.015 g; heat 10°C → q = 18.015 * 4.18 * 10 ≈ 753.0 J
 m_water = moles_to_mass(1.0, 18.015)
 q_water = cal_q(m_water, 4.18, 10.0)
 ok("1mol water mass", m_water, 18.015, tol=0.001)
-ok_close("1mol water q â‰ˆ753J", q_water, 18.015*4.18*10, pct=0.001)
+ok_close("1mol water q ≈753J", q_water, 18.015*4.18*10, pct=0.001)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# MAIN.PY â€” importability & menu structure
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-section("MAIN.PY â€” STRUCTURE AND IMPORTS")
+# ══════════════════════════════════════════════════════════════════════════════
+# MAIN.PY — importability & menu structure
+# ══════════════════════════════════════════════════════════════════════════════
+section("MAIN.PY — STRUCTURE AND IMPORTS")
 import importlib, io
 
 sub("All module imports succeed")
@@ -985,9 +986,9 @@ for fn_name in [
     ok(f"main.{fn_name} exists", hasattr(_main, fn_name), True)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 # SUMMARY
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════════════════════
 print(f"\n{'='*66}")
 print(f"  STRESS TEST COMPLETE")
 print(f"{'='*66}")
@@ -995,10 +996,10 @@ print(f"  Total  : {PASS+FAIL}")
 print(f"  Passed : {PASS}")
 print(f"  Failed : {FAIL}")
 if ERRORS:
-    print(f"\n  {'â”€'*60}")
+    print(f"\n  {'─'*60}")
     print(f"  FAILURES ({len(ERRORS)}):")
     for e in ERRORS:
         print(e)
 else:
-    print("\n  ALL TESTS PASSED â€” no failures detected.")
+    print("\n  ALL TESTS PASSED — no failures detected.")
 

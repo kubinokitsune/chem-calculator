@@ -11,6 +11,7 @@ Kw = 1.0e-14  # at 25°C
 STRONG_ACIDS = {"HCl", "HBr", "HI", "HNO3", "H2SO4", "HClO4"}
 STRONG_BASES = {"LiOH", "NaOH", "KOH", "RbOH", "CsOH", "Ca(OH)2", "Sr(OH)2", "Ba(OH)2"}
 AMPHOTERIC   = {"H2O", "HCO3-", "HSO4-", "H2PO4-", "HPO4(2-)"}
+WEAK_BASES   = {"NH3", "CH3NH2", "C5H5N", "C6H5NH2", "N2H4", "NH2OH"}
 NEUTRAL      = {"NaCl", "KNO3", "KBr", "NaBr", "NaI", "KI"}
 
 
@@ -134,7 +135,8 @@ def buffer_ratio(Ka, target_pH):
 # ── Acid/Base identifier ─────────────────────────────────────────────────────
 
 def identify(formula):
-    f = formula.strip()
+    from constants import capitalize_formula
+    f = capitalize_formula(formula.strip())
     if f in STRONG_ACIDS:
         return "Strong acid"
     if f in STRONG_BASES:
@@ -143,7 +145,11 @@ def identify(formula):
         return "Amphoteric"
     if f in NEUTRAL:
         return "Neutral salt"
-    # Heuristic fallback
+    if f in WEAK_BASES:
+        return "Weak base"
+    # Heuristic fallback (carboxylic acids like CH3COOH end in OH but are acids)
+    if f.endswith("COOH"):
+        return "Likely weak acid (carboxylic acid)"
     if f.startswith("H") and f not in {"H2O"}:
         return "Likely weak acid (not in strong-acid list)"
     if f.endswith("OH"):

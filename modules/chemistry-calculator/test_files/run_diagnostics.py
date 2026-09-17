@@ -1,6 +1,6 @@
-﻿"""
+"""
 Rigorous diagnostic test suite for all chemistry calculator modules.
-Runs fully automatically â€” no user input needed.
+Runs fully automatically — no user input needed.
 """
 
 import sys, os, math, traceback
@@ -33,7 +33,7 @@ def check_raises(label, fn, exc_type=Exception):
     try:
         fn()
         FAIL += 1
-        msg = f"  [FAIL] {label}  â€” expected {exc_type.__name__} but no exception raised"
+        msg = f"  [FAIL] {label}  — expected {exc_type.__name__} but no exception raised"
         ERRORS.append(msg)
         print(msg)
     except exc_type:
@@ -41,7 +41,7 @@ def check_raises(label, fn, exc_type=Exception):
         print(f"  [PASS] {label}  (raised {exc_type.__name__} as expected)")
     except Exception as e:
         FAIL += 1
-        msg = f"  [FAIL] {label}  â€” raised {type(e).__name__}: {e}"
+        msg = f"  [FAIL] {label}  — raised {type(e).__name__}: {e}"
         ERRORS.append(msg)
         print(msg)
 
@@ -50,9 +50,9 @@ def section(title):
     print(f"  {title}")
     print(f"{'='*60}")
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 # 1. MOLE CONVERSIONS
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 section("1. MOLE CONVERSIONS")
 from mole_conversions import (
     mass_to_moles, moles_to_mass, moles_to_particles,
@@ -62,29 +62,29 @@ from mole_conversions import (
 
 check("mass_to_moles: 18g water (MM=18)",   mass_to_moles(18, 18),    1.0)
 check("mass_to_moles: 44g CO2 (MM=44)",     mass_to_moles(44, 44),    1.0)
-check("moles_to_mass: 2 mol Ã— 18 g/mol",    moles_to_mass(2, 18),     36.0)
+check("moles_to_mass: 2 mol × 18 g/mol",    moles_to_mass(2, 18),     36.0)
 check("moles_to_particles: 1 mol",          moles_to_particles(1),    6.022e23)
 check("particles_to_moles: Avogadro num",   particles_to_moles(6.022e23), 1.0)
-check("moles_to_volume: 1 mol at STP",      moles_to_volume(1),       22.4)
-check("moles_to_volume: 2 mol at STP",      moles_to_volume(2),       44.8)
-check("volume_to_moles: 22.4 L at STP",     volume_to_moles(22.4),    1.0)
-check("volume_to_moles: 11.2 L at STP",     volume_to_moles(11.2),    0.5)
+check("moles_to_volume: 1 mol at STP",      moles_to_volume(1),       22.7)
+check("moles_to_volume: 2 mol at STP",      moles_to_volume(2),       45.4)
+check("volume_to_moles: 22.7 L at STP",     volume_to_moles(22.7),    1.0)
+check("volume_to_moles: 11.35 L at STP",    volume_to_moles(11.35),   0.5)
 # roundtrip
-check("roundtrip massâ†’molesâ†’mass",
+check("roundtrip mass→moles→mass",
       moles_to_mass(mass_to_moles(100, 58.44), 58.44), 100.0, tol=1e-9)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 # 2. EMPIRICAL FORMULA
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 section("2. EMPIRICAL FORMULA CALCULATOR")
 from Empirical_Formula_Calculator import calculate_empirical_formula, display_empirical_formula
 
-# Water H2O: H=2g, O=16g â†’ ratio H:O = 2:1
+# Water H2O: H=2g, O=16g → ratio H:O = 2:1
 ef = calculate_empirical_formula(['H', 'O'], [2.0, 16.0])
 check("H2O empirical formula H count", ef['H'], 2)
 check("H2O empirical formula O count", ef['O'], 1)
 
-# CH4: C=12, H=4 â†’ C1H4
+# CH4: C=12, H=4 → C1H4
 ef2 = calculate_empirical_formula(['C', 'H'], [12.0, 4.0])
 check("CH4 empirical formula C count", ef2['C'], 1)
 check("CH4 empirical formula H count", ef2['H'], 4)
@@ -103,31 +103,31 @@ check("display NaCl", display_empirical_formula({'Na':1,'Cl':1}), "NaCl")
 check_raises("Unknown element raises ValueError",
              lambda: calculate_empirical_formula(['X'], [10.0]), ValueError)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 # 3. PERCENT COMPOSITION
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 section("3. PERCENT COMPOSITION CALCULATOR")
 from percent_composition_calculator import compute_percent_composition, parse_formula
 
 # H2O: H~11.19%, O~88.81%
 mm, pcts = compute_percent_composition("H2O")
-check("H2O molar mass â‰ˆ18.015", mm, 18.015, tol=0.01)
-check("H2O %H â‰ˆ11.19", pcts['H'], 11.19, tol=0.1)
-check("H2O %O â‰ˆ88.81", pcts['O'], 88.81, tol=0.1)
+check("H2O molar mass ≈18.015", mm, 18.015, tol=0.01)
+check("H2O %H ≈11.19", pcts['H'], 11.19, tol=0.1)
+check("H2O %O ≈88.81", pcts['O'], 88.81, tol=0.1)
 
 # NaCl: Na~39.34%, Cl~60.66%
 mm2, pcts2 = compute_percent_composition("NaCl")
-check("NaCl molar mass â‰ˆ58.44", mm2, 58.44, tol=0.01)
-check("NaCl %Na â‰ˆ39.34", pcts2['Na'], 39.34, tol=0.1)
-check("NaCl %Cl â‰ˆ60.66", pcts2['Cl'], 60.66, tol=0.1)
+check("NaCl molar mass ≈58.44", mm2, 58.44, tol=0.01)
+check("NaCl %Na ≈39.34", pcts2['Na'], 39.34, tol=0.1)
+check("NaCl %Cl ≈60.66", pcts2['Cl'], 60.66, tol=0.1)
 
 # Ca(OH)2
 mm3, pcts3 = compute_percent_composition("Ca(OH)2")
-check("Ca(OH)2 molar mass â‰ˆ74.093", mm3, 74.093, tol=0.01)
+check("Ca(OH)2 molar mass ≈74.093", mm3, 74.093, tol=0.01)
 
 # Nested parens: Al2(SO4)3
 mm4, pcts4 = compute_percent_composition("Al2(SO4)3")
-check("Al2(SO4)3 molar mass â‰ˆ342.15", mm4, 342.15, tol=0.1)
+check("Al2(SO4)3 molar mass ≈342.15", mm4, 342.15, tol=0.1)
 
 # Percents sum to 100
 pct_sum = sum(pcts.values())
@@ -143,29 +143,29 @@ check("C6H12O6 O count", atoms['O'], 6)
 check_raises("Bad formula raises FormulaError",
              lambda: parse_formula("Xy3"), Exception)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 # 4. VOLUME-MASS CONVERSIONS
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 section("4. VOLUME-MASS CONVERSIONS")
 from volume_mass_conversions import mass_to_volume, volume_to_mass, density_from_mv
 
-check("mass_to_volume: 100g, d=2 g/mL â†’ 50 mL",  mass_to_volume(100, 2),   50.0)
-check("volume_to_mass: 50 mL, d=2 g/mL â†’ 100 g", volume_to_mass(50, 2),    100.0)
-check("density_from_mv: 200g, 100 mL â†’ 2 g/mL",  density_from_mv(200, 100), 2.0)
-check("density_from_mv: water 18g/18mL â†’ 1 g/mL", density_from_mv(18, 18),  1.0)
+check("mass_to_volume: 100g, d=2 g/mL → 50 mL",  mass_to_volume(100, 2),   50.0)
+check("volume_to_mass: 50 mL, d=2 g/mL → 100 g", volume_to_mass(50, 2),    100.0)
+check("density_from_mv: 200g, 100 mL → 2 g/mL",  density_from_mv(200, 100), 2.0)
+check("density_from_mv: water 18g/18mL → 1 g/mL", density_from_mv(18, 18),  1.0)
 # roundtrip
-check("roundtrip massâ†’volâ†’mass",
+check("roundtrip mass→vol→mass",
       volume_to_mass(mass_to_volume(150, 3.5), 3.5), 150.0, tol=1e-9)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 # 5. OXIDATION NUMBER CALCULATOR
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 section("5. OXIDATION NUMBER CALCULATOR")
 from oxidation_number_calculator import solve_oxidation_numbers
 
 # Pure element: O2
 res = solve_oxidation_numbers("O2")
-check("O2 pure element â†’ 0", res['O'], 0)
+check("O2 pure element → 0", res['O'], 0)
 
 # NaCl: Na=+1, Cl=-1
 res = solve_oxidation_numbers("NaCl")
@@ -199,52 +199,52 @@ check("H2O2 peroxide O=-1", res['O'], -1)
 res = solve_oxidation_numbers("MnO4", charge=-1)
 check("MnO4- Mn=+7", res['Mn'], 7)
 
-# Verification: sum of (ox Ã— count) must equal charge
+# Verification: sum of (ox × count) must equal charge
 from percent_composition_calculator import parse_formula as _pf
 res = solve_oxidation_numbers("H2SO4")
 counts = _pf("H2SO4")
 total = sum(res[e] * counts[e] for e in counts)
 check("H2SO4 oxidation sum = 0", total, 0, tol=0.01)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 # 6. ATOM ECONOMY
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 section("6. ATOM ECONOMY (ELEMENT ECONOMY) CALCULATOR")
 from atom_economy_calculator import calculate_atom_economy, get_molar_mass
 
 # CH4 + 2 O2 -> CO2 + 2 H2O  (desired: H2O)
 # Reactants: CH4(1) + O2(2) = 16.043 + 64.000 = 80.043
-# H2O desired: 18.015 Ã— 2 = 36.030
-# AE = 36.030/80.043 Ã— 100 â‰ˆ 45.01%
+# H2O desired: 18.015 × 2 = 36.030
+# AE = 36.030/80.043 × 100 ≈ 45.01%
 ae, mw_d, mw_r = calculate_atom_economy(['CH4','O2'], [1,2], 'H2O', 2)
-check("CH4+O2â†’H2O atom economy â‰ˆ45%", ae, 45.01, tol=0.5)
+check("CH4+O2→H2O atom economy ≈45%", ae, 45.01, tol=0.5)
 
-# H2 + Cl2 -> 2 HCl  (desired: HCl) â€” 100% AE (only one product)
+# H2 + Cl2 -> 2 HCl  (desired: HCl) — 100% AE (only one product)
 ae2, _, _ = calculate_atom_economy(['H2','Cl2'], [1,1], 'HCl', 2)
-check("H2+Cl2â†’HCl atom economy =100%", ae2, 100.0, tol=0.1)
+check("H2+Cl2→HCl atom economy =100%", ae2, 100.0, tol=0.1)
 
 # Molar mass checks
-check("get_molar_mass H2O â‰ˆ18.015", get_molar_mass("H2O"), 18.015, tol=0.01)
-check("get_molar_mass NaCl â‰ˆ58.44", get_molar_mass("NaCl"), 58.44, tol=0.01)
-check("get_molar_mass CO2 â‰ˆ44.01",  get_molar_mass("CO2"),  44.01,  tol=0.01)
+check("get_molar_mass H2O ≈18.015", get_molar_mass("H2O"), 18.015, tol=0.01)
+check("get_molar_mass NaCl ≈58.44", get_molar_mass("NaCl"), 58.44, tol=0.01)
+check("get_molar_mass CO2 ≈44.01",  get_molar_mass("CO2"),  44.01,  tol=0.01)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 # 7. IONIC BONDING CALCULATOR
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 section("7. IONIC BONDING CALCULATOR")
 from ionic_bonding_calculator import classify_bond, write_ionic_formula
 
-# Na-Cl: EN diff = 3.16-0.93 = 2.23 â†’ Ionic
+# Na-Cl: EN diff = 3.16-0.93 = 2.23 → Ionic
 bt, en1, en2, diff = classify_bond('Na', 'Cl')
 check("Na-Cl bond type = Ionic", bt, "Ionic")
-check("Na-Cl EN diff â‰ˆ2.23", diff, 2.23, tol=0.01)
+check("Na-Cl EN diff ≈2.23", diff, 2.23, tol=0.01)
 
-# H-O: EN diff = 3.44-2.20 = 1.24 â†’ Polar Covalent
+# H-O: EN diff = 3.44-2.20 = 1.24 → Polar Covalent
 bt2, _, _, diff2 = classify_bond('H', 'O')
 check("H-O bond type = Polar Covalent", bt2, "Polar Covalent")
-check("H-O EN diff â‰ˆ1.24", diff2, 1.24, tol=0.01)
+check("H-O EN diff ≈1.24", diff2, 1.24, tol=0.01)
 
-# C-H: EN diff = 2.55-2.20 = 0.35 â†’ Nonpolar Covalent
+# C-H: EN diff = 2.55-2.20 = 0.35 → Nonpolar Covalent
 bt3, _, _, diff3 = classify_bond('C', 'H')
 check("C-H bond type = Nonpolar Covalent", bt3, "Nonpolar Covalent")
 
@@ -259,9 +259,9 @@ check("Fe2O3 formula", write_ionic_formula('Fe', 3, 'O',  -2), "Fe2O3")
 check_raises("write_ionic_formula bad cation charge raises",
              lambda: write_ionic_formula('Na', -1, 'Cl', -1), ValueError)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 # 8. PERCENTAGE YIELD
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 section("8. PERCENTAGE YIELD CALCULATOR")
 from percentage_yield_calculator import (
     calc_percentage_yield, calc_actual_yield, calc_theoretical_yield
@@ -271,19 +271,19 @@ check("% yield: 18/20 = 90%",  calc_percentage_yield(18, 20), 90.0)
 check("% yield: 20/20 = 100%", calc_percentage_yield(20, 20), 100.0)
 check("% yield: 25/20 = 125%", calc_percentage_yield(25, 20), 125.0)
 
-check("actual yield: 90%, 20g theoretical â†’ 18g",
+check("actual yield: 90%, 20g theoretical → 18g",
       calc_actual_yield(90, 20), 18.0)
-check("theoretical yield: 18g actual, 90% â†’ 20g",
+check("theoretical yield: 18g actual, 90% → 20g",
       calc_theoretical_yield(18, 90), 20.0)
 
 # roundtrip
 pct = calc_percentage_yield(7.3, 12.5)
-check("roundtrip % yield â†’ theoretical",
+check("roundtrip % yield → theoretical",
       calc_theoretical_yield(7.3, pct), 12.5, tol=1e-9)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 # 9. GAS LAWS
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 section("9. GAS LAWS")
 from gas_laws import (
     ideal_gas_find_P, ideal_gas_find_V, ideal_gas_find_n, ideal_gas_find_T,
@@ -294,64 +294,64 @@ from gas_laws import (
 )
 
 # Ideal gas: PV = nRT
-# 1 mol at STP: P=1 atm, T=273.15 K â†’ V â‰ˆ 22.41 L
+# 1 mol at STP: P=1 atm, T=273.15 K → V ≈ 22.41 L
 V_stp = ideal_gas_find_V(1, 273.15, 1.0)
-check("Ideal gas: V of 1 mol at STP â‰ˆ22.41 L", V_stp, 22.41, tol=0.02)
+check("Ideal gas: V of 1 mol at STP ≈22.41 L", V_stp, 22.41, tol=0.02)
 
-# Find P: n=2, V=10, T=300 â†’ P = 2*R*300/10
+# Find P: n=2, V=10, T=300 → P = 2*R*300/10
 P_calc = ideal_gas_find_P(2, 10, 300)
 check("Ideal gas find P", P_calc, 2*R*300/10, tol=1e-8)
 
-# Find n: P=1, V=22.41, T=273.15 â†’ n â‰ˆ 1
+# Find n: P=1, V=22.41, T=273.15 → n ≈ 1
 n_calc = ideal_gas_find_n(1.0, V_stp, 273.15)
-check("Ideal gas find n â‰ˆ 1 mol", n_calc, 1.0, tol=0.001)
+check("Ideal gas find n ≈ 1 mol", n_calc, 1.0, tol=0.001)
 
-# Find T: P=1, V=22.41, n=1 â†’ T â‰ˆ 273.15
+# Find T: P=1, V=22.41, n=1 → T ≈ 273.15
 T_calc = ideal_gas_find_T(1.0, V_stp, 1.0)
-check("Ideal gas find T â‰ˆ 273.15 K", T_calc, 273.15, tol=0.01)
+check("Ideal gas find T ≈ 273.15 K", T_calc, 273.15, tol=0.01)
 
 # Combined gas law: P1V1/T1 = P2V2/T2
-# P1=1, V1=10, T1=300, V2=5, T2=300 â†’ P2 = 2
+# P1=1, V1=10, T1=300, V2=5, T2=300 → P2 = 2
 P2 = combined_gas_find_P2(1, 10, 300, 5, 300)
 check("Combined gas: P2 = 2 atm", P2, 2.0, tol=1e-9)
 
-# V2: P1=2, V1=5, T1=300, P2=1, T2=300 â†’ V2 = 10
+# V2: P1=2, V1=5, T1=300, P2=1, T2=300 → V2 = 10
 V2 = combined_gas_find_V2(2, 5, 300, 1, 300)
 check("Combined gas: V2 = 10 L", V2, 10.0, tol=1e-9)
 
-# T2: P1=1, V1=10, T1=300, P2=2, V2=10 â†’ T2 = 600
+# T2: P1=1, V1=10, T1=300, P2=2, V2=10 → T2 = 600
 T2 = combined_gas_find_T2(1, 10, 300, 2, 10)
 check("Combined gas: T2 = 600 K", T2, 600.0, tol=1e-9)
 
 # Molar volume
-check("moles_to_volume_stp: 2 mol â†’ 44.8 L", moles_to_volume_stp(2), 44.8)
-check("volume_to_moles_stp: 11.2 L â†’ 0.5 mol", volume_to_moles_stp(11.2), 0.5)
-check("molar_volume_nonstandard: T=273.15, P=1 â‰ˆ22.41",
+check("moles_to_volume_stp: 2 mol → 45.4 L", moles_to_volume_stp(2), 45.4)
+check("volume_to_moles_stp: 11.35 L → 0.5 mol", volume_to_moles_stp(11.35), 0.5)
+check("molar_volume_nonstandard: T=273.15, P=1 ≈22.41",
       molar_volume_nonstandard(273.15, 1.0), 22.41, tol=0.02)
 
-# Graham's law: H2 (M=2) vs O2 (M=32) â†’ ratio = sqrt(32/2) = 4
+# Graham's law: H2 (M=2) vs O2 (M=32) → ratio = sqrt(32/2) = 4
 ratio = graham_rate_ratio(2, 32)
 check("Graham H2/O2 rate ratio = 4.0", ratio, 4.0, tol=1e-9)
 
-# Find M2 given M1=2, ratio=4 â†’ M2 = 2*16 = 32
+# Find M2 given M1=2, ratio=4 → M2 = 2*16 = 32
 M2 = graham_find_M2(2, 4)
 check("Graham find M2 = 32", M2, 32.0, tol=1e-9)
 
-# Find M1 given M2=32, ratio=4 â†’ M1 = 32/16 = 2
+# Find M1 given M2=32, ratio=4 → M1 = 32/16 = 2
 M1 = graham_find_M1(32, 4)
 check("Graham find M1 = 2", M1, 2.0, tol=1e-9)
 
 # Dalton's law
 check("Dalton total: [0.3, 0.5, 0.2] = 1.0 atm",
       dalton_total_pressure([0.3, 0.5, 0.2]), 1.0, tol=1e-9)
-check("Dalton partial: P=1, x=0.3 â†’ 0.3 atm",
+check("Dalton partial: P=1, x=0.3 → 0.3 atm",
       dalton_partial_pressure(1.0, 0.3), 0.3, tol=1e-9)
 check("Dalton mole fraction: 0.5 mol / 2 mol = 0.25",
       dalton_mole_fraction(0.5, 2.0), 0.25, tol=1e-9)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 # 10. ACID-BASE
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 section("10. ACID-BASE CALCULATOR")
 from acid_base import (
     all_four, strong_acid_pH, strong_base_pH,
@@ -385,39 +385,39 @@ for test_pH in [0.0, 3.5, 7.0, 10.2, 14.0]:
     check(f"pH+pOH=14 at pH={test_pH}", ph_ + poh_, 14.0, tol=1e-9)
 
 # Strong acid
-check("Strong acid 0.1 mol/L HCl â†’ pH=1", strong_acid_pH(0.1), 1.0, tol=1e-9)
-check("Strong acid 0.01 mol/L â†’ pH=2",    strong_acid_pH(0.01), 2.0, tol=1e-9)
+check("Strong acid 0.1 mol/L HCl → pH=1", strong_acid_pH(0.1), 1.0, tol=1e-9)
+check("Strong acid 0.01 mol/L → pH=2",    strong_acid_pH(0.01), 2.0, tol=1e-9)
 check_raises("Strong acid C<=0 raises",    lambda: strong_acid_pH(0), ValueError)
 
 # Strong base
-check("Strong base 0.1 mol/L NaOH â†’ pH=13", strong_base_pH(0.1), 13.0, tol=1e-9)
-check("Strong base 0.01 mol/L â†’ pH=12",     strong_base_pH(0.01), 12.0, tol=1e-9)
+check("Strong base 0.1 mol/L NaOH → pH=13", strong_base_pH(0.1), 13.0, tol=1e-9)
+check("Strong base 0.01 mol/L → pH=12",     strong_base_pH(0.01), 12.0, tol=1e-9)
 
 # Weak acid: acetic acid Ka=1.8e-5, C=0.1 mol/L
-# [H+] = sqrt(1.8e-5 * 0.1) = sqrt(1.8e-6) â‰ˆ 1.342e-3
-# pH â‰ˆ 2.872
-# x/C = 1.342e-3/0.1 = 1.34% < 5% â†’ approximation valid
+# [H+] = sqrt(1.8e-5 * 0.1) = sqrt(1.8e-6) ≈ 1.342e-3
+# pH ≈ 2.872
+# x/C = 1.342e-3/0.1 = 1.34% < 5% → approximation valid
 pH_wa, used_approx, x_wa = weak_acid_pH(1.8e-5, 0.1)
-check("Weak acid acetic: pH â‰ˆ 2.872", pH_wa, 2.872, tol=0.005)
+check("Weak acid acetic: pH ≈ 2.872", pH_wa, 2.872, tol=0.005)
 check("Weak acid acetic: used approx", used_approx, True)
-check("Weak acid acetic: [H+] â‰ˆ 1.342e-3", x_wa, math.sqrt(1.8e-5 * 0.1), tol=1e-8)
+check("Weak acid acetic: [H+] ≈ 1.342e-3", x_wa, math.sqrt(1.8e-5 * 0.1), tol=1e-8)
 
 # Weak acid: large Ka forces quadratic
-# Ka=0.01, C=0.05 â†’ x_approx = sqrt(5e-4)=0.02236, x/C = 44.7% â†’ quadratic
+# Ka=0.01, C=0.05 → x_approx = sqrt(5e-4)=0.02236, x/C = 44.7% → quadratic
 pH_waq, used_approxq, x_waq = weak_acid_pH(0.01, 0.05)
 check("Weak acid high Ka: NOT approx (quadratic)", used_approxq, False)
-# Verify quadratic: x^2 + 0.01x - 0.0005 = 0 â†’ x = (-0.01 + sqrt(0.0001+0.002))/2
+# Verify quadratic: x^2 + 0.01x - 0.0005 = 0 → x = (-0.01 + sqrt(0.0001+0.002))/2
 disc = 0.01**2 + 4*0.01*0.05
 x_expected = (-0.01 + math.sqrt(disc)) / 2
 check("Weak acid quadratic [H+]", x_waq, x_expected, tol=1e-10)
 
 # Weak base: ammonia Kb=1.8e-5, C=0.1
 pH_wb, approx_wb, x_wb = weak_base_pH(1.8e-5, 0.1)
-check("Weak base ammonia: pH â‰ˆ 11.128", pH_wb, 11.128, tol=0.005)
+check("Weak base ammonia: pH ≈ 11.128", pH_wb, 11.128, tol=0.005)
 check("Weak base: used approx", approx_wb, True)
 
 # Ka/Kb/pKa/pKb
-check("Ka_to_pKa: 1.8e-5 â‰ˆ 4.745", Ka_to_pKa(1.8e-5), 4.745, tol=0.001)
+check("Ka_to_pKa: 1.8e-5 ≈ 4.745", Ka_to_pKa(1.8e-5), 4.745, tol=0.001)
 check("pKa_to_Ka roundtrip",        pKa_to_Ka(Ka_to_pKa(1.8e-5)), 1.8e-5, tol=1e-8)
 check("Ka*Kb = Kw",                 1.8e-5 * Ka_to_Kb(1.8e-5), Kw, tol=1e-20)
 check("Kb_to_Ka roundtrip",         Kb_to_Ka(Ka_to_Kb(1.8e-5)), 1.8e-5, tol=1e-20)
@@ -425,17 +425,17 @@ check("pKa + pKb = 14",
       Ka_to_pKa(1.8e-5) + Kb_to_pKb(Ka_to_Kb(1.8e-5)), 14.0, tol=0.001)
 
 # Henderson-Hasselbalch buffer
-# Ka=1.8e-5, [HA]=0.1, [A-]=0.1 â†’ pH = pKa
+# Ka=1.8e-5, [HA]=0.1, [A-]=0.1 → pH = pKa
 pH_buf = buffer_pH(1.8e-5, 0.1, 0.1)
 check("Buffer equal concentrations: pH = pKa", pH_buf, Ka_to_pKa(1.8e-5), tol=1e-9)
 
-# [A-]/[HA] = 10 â†’ pH = pKa + 1
+# [A-]/[HA] = 10 → pH = pKa + 1
 pH_buf2 = buffer_pH(1.8e-5, 0.1, 1.0)
 check("Buffer [A-]/[HA]=10: pH = pKa+1", pH_buf2, Ka_to_pKa(1.8e-5)+1, tol=1e-9)
 
 # buffer_ratio
 ratio_buf = buffer_ratio(1.8e-5, Ka_to_pKa(1.8e-5))
-check("buffer_ratio at target=pKa â†’ ratio=1", ratio_buf, 1.0, tol=1e-9)
+check("buffer_ratio at target=pKa → ratio=1", ratio_buf, 1.0, tol=1e-9)
 
 # Acid/base identifier
 check("HCl = Strong acid",   identify("HCl"),     "Strong acid")
@@ -446,7 +446,7 @@ check("H2SO4 = Strong acid", identify("H2SO4"),   "Strong acid")
 check("Ba(OH)2 = Strong base", identify("Ba(OH)2"), "Strong base")
 
 # Titration
-n_eq = equivalence_moles(0.1, 0.025)  # 0.1 mol/L Ã— 0.025 L = 0.0025 mol
+n_eq = equivalence_moles(0.1, 0.025)  # 0.1 mol/L × 0.025 L = 0.0025 mol
 check("Titration: equivalence moles = 0.0025", n_eq, 0.0025, tol=1e-9)
 C_unk = titration_find_concentration(n_eq, 0.025)
 check("Titration: unknown C = 0.1 mol/L", C_unk, 0.1, tol=1e-9)
@@ -455,15 +455,68 @@ check("Titration: volume needed = 0.025 L", V_tit, 0.025, tol=1e-9)
 
 # Equivalence point descriptions
 desc_ss = equivalence_point_pH_description("strong acid", "strong base")
-check("Strong/strong eq. point = pH 7", "pH â‰ˆ 7" in desc_ss, True)
+check("Strong/strong eq. point = pH 7", "pH ≈ 7" in desc_ss, True)
 desc_ws = equivalence_point_pH_description("weak acid", "strong base")
 check("Weak acid/strong base eq. point > 7", "pH > 7" in desc_ws, True)
 desc_sw = equivalence_point_pH_description("strong acid", "weak base")
 check("Strong acid/weak base eq. point < 7", "pH < 7" in desc_sw, True)
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
+# REGRESSION: fixes from the 2026-09 backend pass
+# ─────────────────────────────────────────────────────────────
+print("\n=== Regression checks ===")
+from constants import capitalize_formula as _cap
+for _raw, _want in [("nh3", "NH3"), ("hno3", "HNO3"), ("co2", "CO2"), ("hcn", "HCN"),
+                    ("kscn", "KSCN"), ("po4", "PO4"), ("nacl", "NaCl"), ("kmno4", "KMnO4"),
+                    ("fe2o3", "Fe2O3"), ("ca(oh)2", "Ca(OH)2")]:
+    check(f"capitalize {_raw} -> {_want}", _cap(_raw), _want)
+
+from equation_balancer import balance_equation as _bal
+check("balance Ca(OH)2 + HCl", _bal(["Ca(OH)2", "HCl"], ["CaCl2", "H2O"]), ([1, 2], [1, 2]))
+check("balance hydrate CuSO4*5H2O", _bal(["CuSO4*5H2O"], ["CuSO4", "H2O"]), ([1], [1, 5]))
+check("balance Fe2(SO4)3 + KOH", _bal(["Fe2(SO4)3", "KOH"], ["Fe(OH)3", "K2SO4"]), ([1, 6], [2, 3]))
+check_raises("balance with two independent reactions raises",
+             lambda: _bal(["H2", "O2"], ["H2O", "H2O2"]), ValueError)
+check_raises("balance with unknown element raises", lambda: _bal(["Xx2"], ["Xx"]), ValueError)
+
+check_raises("parse unclosed bracket raises", lambda: parse_formula("Ca(OH"), ValueError)
+check_raises("parse stray ')' raises", lambda: parse_formula("CaOH)2"), ValueError)
+check("parse CuSO4.5H2O (dot hydrate)", parse_formula("CuSO4.5H2O"), {"Cu": 1, "S": 1, "O": 9, "H": 10})
+
+check("ox NaH: H = -1", solve_oxidation_numbers("NaH")["H"], -1)
+check("ox LiAlH4: H = -1", solve_oxidation_numbers("LiAlH4")["H"], -1)
+check("ox H2O: H = +1", solve_oxidation_numbers("H2O")["H"], 1)
+
+check_raises("empirical zero mass raises", lambda: calculate_empirical_formula(["C", "H"], [0, 14.4]), ValueError)
+# ~0.5 % relative noise on real percent compositions
+check("empirical noisy C9H8O4", calculate_empirical_formula(["C", "H", "O"], [60.1, 4.45, 35.6]), {"C": 9, "H": 8, "O": 4})
+check("empirical noisy K2Cr2O7", calculate_empirical_formula(["K", "Cr", "O"], [26.5, 35.2, 38.2]), {"K": 2, "Cr": 2, "O": 7})
+
+check("ionic Al3+ + SO4 2-", write_ionic_formula("Al", 3, "SO4", -2), "Al2(SO4)3")
+check("ionic Fe3+ + OH-", write_ionic_formula("Fe", 3, "OH", -1), "Fe(OH)3")
+check("ionic NH4+ + S2-", write_ionic_formula("NH4", 1, "S", -2), "(NH4)2S")
+check("ionic Na+ + NO3-", write_ionic_formula("Na", 1, "NO3", -1), "NaNO3")
+
+from acid_base import identify as _ident
+check("identify CH3COOH is acid", "acid" in _ident("CH3COOH"), True)
+check("identify NH3 weak base", _ident("NH3"), "Weak base")
+check("identify lowercase hcl", _ident("hcl"), "Strong acid")
+
+from ice_solver import solve_ice as _ice
+# 2HI <=> H2 + I2 written as H2 + I2 <=> 2HI, start from 1 M HI only, Kc = 50
+_x = _ice([1, 1], [0.0, 0.0], [2], [1.0], 50)
+check("ICE reverse from products only: Q(x) = Kc", (1 + 2*_x)**2 / (_x*_x), 50.0, tol=1e-6)
+_x = _ice([1], [1.0], [2], [0.0], 1e-30)
+check("ICE tiny K: Q(x) = Kc (relative)", (2*_x)**2 / (1 - _x) / 1e-30, 1.0, tol=1e-6)
+check_raises("ICE zero reactant and zero product raises",
+             lambda: _ice([1, 1], [1.0, 0.0], [2], [0.0], 50), ValueError)
+
+from mole_conversions import moles_to_volume as _m2v
+check("STP molar volume agrees across modules", _m2v(3), moles_to_volume_stp(3))
+
+# ─────────────────────────────────────────────────────────────
 # SUMMARY
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─────────────────────────────────────────────────────────────
 print(f"\n{'='*60}")
 print(f"  DIAGNOSTIC COMPLETE")
 print(f"{'='*60}")

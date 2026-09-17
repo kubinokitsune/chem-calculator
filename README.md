@@ -11,10 +11,10 @@ An interactive physical chemistry calculator built for IB Chemistry. Covers 17 c
 
 | # | Module | What it does |
 |---|--------|-------------|
-| 1 | **Mole Conversions** | Mass ↔ moles ↔ particles ↔ volume at STP |
+| 1 | **Mole Conversions** | Mass ↔ moles ↔ particles ↔ volume at STP (22.7 dm³/mol) |
 | 2 | **Empirical Formula** | Empirical formula from element masses or % composition |
-| 3 | **Equation Balancer** | Balances chemical equations using linear algebra |
-| 4 | **Limiting Reactant** | Finds the limiting reactant, leftover amounts, and theoretical yield |
+| 3 | **Equation Balancer** | Balances molecular and ionic equations and half-equations (linear algebra + half-equation method), with acidic/basic solutions |
+| 4 | **Limiting Reactant** | Limiting reactant, leftovers and theoretical yield from moles or grams, with auto-balancing |
 | 5 | **Percent Composition** | Molar mass and per-element % composition from a formula |
 | 6 | **Volume ↔ Mass** | Converts between volume and mass using density |
 | 7 | **Oxidation Numbers** | Rule-based oxidation state solver with algebraic fallback for unknowns |
@@ -22,9 +22,9 @@ An interactive physical chemistry calculator built for IB Chemistry. Covers 17 c
 | 9 | **Ionic Bonding** | Bond classification (ionic / polar covalent / covalent) and ionic formula writer |
 | 10 | **Percentage Yield** | Solves for actual yield, theoretical yield, or % yield |
 | 11 | **Periodic Table** | Element lookup by name, symbol, or atomic number |
-| 12 | **Gas Laws** | Ideal gas law, combined gas law, Graham's law, Dalton's law, molar volume |
+| 12 | **Gas Laws** | Ideal, combined, mixing, Graham's and Dalton's laws in atm/kPa/Pa, L/dm³/cm³/m³, K/°C |
 | 13 | **Acid-Base Chemistry** | pH/pOH conversions, strong/weak acid-base, buffers, Ka/Kb, titration |
-| 14 | **Thermodynamics** | Calorimetry (q=mcΔT), Hess's Law, bond enthalpy, ΔH°rxn, Gibbs free energy (ΔG=ΔH−TΔS) |
+| 14 | **Thermodynamics** | Calorimetry (q=mcΔT), Hess's Law, IB bond enthalpies, ΔH°rxn, ΔG=ΔH−TΔS, ΔG°=−RT ln K |
 | 15 | **Equilibrium & ICE Solver** | ICE table builder (bisection solver), Kc↔Kp, Q vs K, Le Chatelier's principle |
 | 16 | **Electrochemistry** | Cell potential, ΔG°=−nFE°, Faraday's law, Nernst equation, spontaneity checker |
 | 17 | **Kinetics** | Rate law from initial rates, Arrhenius equation, half-life, integrated rate laws (0/1/2 order) |
@@ -93,15 +93,27 @@ python ui_interface/app.py
 
 Then open **http://localhost:5000** in your browser.
 
+> The server runs in Flask debug mode for local use — don't expose it to the internet as-is.
+
 The web UI is **CHEMCALC FX-17** — a redesigned single-page app where modules are grouped by IB Chemistry topic (Stoichiometry, Energetics, Kinetics, Equilibrium, Acids & Bases, Electrochemistry, Tools). Clicking a module opens its input form inline; the output box shows the formula used, substituted values, and result. Dark and light themes are supported.
 
-### Run Diagnostics
+### Run the Tests
 
 ```bash
-python test_files/run_diagnostics.py
+python test_files/run_diagnostics.py      # every function + regression checks
+python test_files/test_ib_chemistry.py    # IB-style worked problems, checked to 3 s.f.
+python test_files/test_api.py             # web page <-> Flask API contract
+python test_files/stress_new_features.py  # ~36 000 checks: gas units, ionic balancing, limiting reactant
 ```
 
-Runs the full automated test suite across all modules — no user input needed. Outputs pass/fail for every test case.
+Also `stress_test.py`, `test_ice_solver.py` and `test_thermodynamics.py`. No user input needed; each prints pass/fail and a summary. See the [Diagnostics wiki page](https://github.com/kubinokitsune/chem-calculator/wiki/Diagnostics).
+
+### Input tips
+
+- Formulas can be typed in lower case: `nh3`, `kmno4`, `ca(oh)2`
+- Ions: `Fe^3+`, `MnO4-`, `SO4^2-` (or `SO42-`), electrons `e-`
+- Equations: `MnO4^- + Fe^2+ -> Mn^2+ + Fe^3+`, then pick **Acidic** solution
+- Gas laws: pick the units the question uses (kPa, cm³, °C…) — conversion is automatic
 
 ---
 
@@ -112,7 +124,7 @@ Runs the full automated test suite across all modules — no user input needed. 
 | Language | Python 3 |
 | Equation balancing | sympy |
 | Web interface | Flask + HTML/JS (CHEMCALC FX-17) |
-| Shared constants | `constants.py` (R, F, Avogadro, reduction potentials, bond enthalpies) |
+| Shared constants | `constants.py` (R, F, Avogadro, molar volume, reduction potentials, formula capitalisation) |
 | C UI prototype | C (in development) |
 
 ---
@@ -145,10 +157,13 @@ chem-calculator/
 │   │   ├── ui_interface/            # Flask web app
 │   │   │   ├── app.py               # REST API (one route per module)
 │   │   │   └── index.html           # Front-end
-│   │   ├── test_files/              # Automated test suite
+│   │   ├── test_files/              # Automated test suites
 │   │   │   ├── run_diagnostics.py
 │   │   │   ├── stress_test.py
+│   │   │   ├── stress_new_features.py
+│   │   │   ├── test_api.py
 │   │   │   ├── test_calculator.py
+│   │   │   ├── test_ib_chemistry.py
 │   │   │   ├── test_ice_solver.py
 │   │   │   └── test_thermodynamics.py
 │   │   └── requirements.txt

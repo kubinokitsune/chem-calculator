@@ -292,6 +292,12 @@ def open_limiting_reactant():
 
 def main():
     _ensure_script_dir_on_path()
+    # Windows consoles default to cp1252, which crashes on Δ, °, ₀, ≈ in output
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
 
     actions = {
         "1": open_mole_conversions,

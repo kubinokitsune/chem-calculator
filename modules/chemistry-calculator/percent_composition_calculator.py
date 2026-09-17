@@ -46,7 +46,7 @@ def _parse_number(s, i):
     return int(s[i:j]), j
 
 
-def _parse_group(s, i):
+def _parse_group(s, i, depth=0):
     """Parse a group (possibly nested) starting at index i. Returns (counts_dict, new_index)."""
     n = len(s)
     counts = defaultdict(int)
@@ -54,12 +54,14 @@ def _parse_group(s, i):
     while i < n:
         ch = s[i]
         if ch in '([{':
-            inner, i = _parse_group(s, i + 1)
+            inner, i = _parse_group(s, i + 1, depth + 1)
             mult, i = _parse_number(s, i)
             for el, cnt in inner.items():
                 counts[el] += cnt * mult
             continue
         if ch in ')]}':
+            if depth == 0:
+                raise FormulaError("Unmatched '{}' at position {} in '{}'.".format(ch, i+1, s))
             return counts, i + 1
 
         if ch.isupper():
@@ -75,6 +77,8 @@ def _parse_group(s, i):
         # Unexpected character
         raise FormulaError("Unexpected character '{}' at position {} in '{}'.".format(ch, i+1, s))
 
+    if depth > 0:
+        raise FormulaError("Missing closing bracket in '{}'.".format(s))
     return counts, i
 
 
@@ -88,8 +92,8 @@ def parse_formula(formula):
     # Remove spaces and normalize hydrate separator
     f = formula.replace(' ', '')
 
-    # Split on middle-dot variants and * for hydrates (e.g. CuSO4*5H2O or CuSO4·5H2O)
-    parts = re.split(r'[·•*]', f)
+    # Split on middle-dot variants, * and . for hydrates (e.g. CuSO4*5H2O, CuSO4·5H2O, CuSO4.5H2O)
+    parts = re.split(r'[·•*.]', f)
 
     total = defaultdict(int)
 

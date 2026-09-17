@@ -28,6 +28,11 @@ def calculate_empirical_formula(elements, masses):
         'Hs': 277, 'Mt': 276, 'Ds': 281, 'Rg': 282, 'Cn': 285, 'Nh': 286,
         'Fl': 289, 'Mc': 288, 'Lv': 293, 'Ts': 294, 'Og': 294
     }
+    if not elements or len(elements) != len(masses):
+        raise ValueError("Provide one mass for each element.")
+    if any(m <= 0 for m in masses):
+        raise ValueError("Every element mass (or %) must be greater than zero.")
+
     # Step 1: Convert masses to moles
     moles = []
     for i in range(len(elements)):
@@ -40,18 +45,16 @@ def calculate_empirical_formula(elements, masses):
     min_moles = min(moles)
     ratios = [m / min_moles for m in moles]
 
-    # Step 3: Convert ratios to whole numbers using LCM of denominators
-    from fractions import Fraction
-    from math import gcd
+    # Step 3: Find the smallest multiplier that makes every ratio a whole
+    # number (within 0.1, the usual lab-data tolerance). If none does, use
+    # the multiplier that gets closest.
+    def _max_err(mult):
+        return max(abs(r * mult - round(r * mult)) for r in ratios)
 
-    def _lcm(a, b):
-        return a * b // gcd(a, b)
-
-    fracs = [Fraction(r).limit_denominator(10) for r in ratios]
-    denom_lcm = 1
-    for frac in fracs:
-        denom_lcm = _lcm(denom_lcm, frac.denominator)
-    whole_numbers = [int(round(frac.numerator * (denom_lcm // frac.denominator))) for frac in fracs]
+    multiplier = next((m for m in range(1, 13) if _max_err(m) <= 0.1), None)
+    if multiplier is None:
+        multiplier = min(range(1, 13), key=_max_err)
+    whole_numbers = [int(round(r * multiplier)) for r in ratios]
 
     # Step 4: Create empirical formula dictionary
     empirical_formula = {}

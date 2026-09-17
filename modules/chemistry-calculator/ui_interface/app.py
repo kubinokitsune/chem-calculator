@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
+from flask.json.provider import DefaultJSONProvider
 import sys, os, math
 
 sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), '..')))
@@ -6,7 +7,9 @@ sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), '..'
 from mole_conversions import (mass_to_moles, moles_to_mass, moles_to_particles,
                                particles_to_moles, moles_to_volume, volume_to_moles)
 from Empirical_Formula_Calculator import calculate_empirical_formula, display_empirical_formula
-from equation_balancer import balance_equation
+from equation_balancer import balance_full, parse_equation
+from limiting_reactant import calculate_limiting_reactant
+from constants import capitalize_formula as cap
 from percent_composition_calculator import compute_percent_composition
 from volume_mass_conversions import mass_to_volume, volume_to_mass, density_from_mv
 from oxidation_number_calculator import solve_oxidation_numbers
@@ -16,11 +19,13 @@ from percentage_yield_calculator import calc_percentage_yield, calc_actual_yield
 from Periodic_table import get_element_by_name, get_element_by_symbol, get_element_by_number
 from gas_laws import (ideal_gas_find_P, ideal_gas_find_V, ideal_gas_find_n, ideal_gas_find_T,
                       combined_gas_find_P2, combined_gas_find_V2, combined_gas_find_T2,
-                      graham_rate_ratio, dalton_total_pressure)
+                      graham_rate_ratio, dalton_total_pressure,
+                      ideal_gas_solve, combined_gas_solve, gas_mixing_solve,
+                      pressure_to_Pa, volume_to_m3, temperature_to_K)
 from acid_base import (all_four, strong_acid_pH, strong_base_pH,
                        weak_acid_pH, weak_base_pH, buffer_pH, identify)
 from thermodynamics import (cal_q, cal_m, cal_c, cal_dT, hess_law,
-                             bond_enthalpy_dH, lookup_bond)
+                             bond_enthalpy_dH, lookup_bond, gibbs_dG)
 from ice_solver import build_ice_table
 from electrochemistry import (cell_potential, gibbs_from_cell, faraday_mass,
                                faraday_current, faraday_time, faraday_molar_mass,
@@ -28,7 +33,26 @@ from electrochemistry import (cell_potential, gibbs_from_cell, faraday_mass,
 from kinetics import (determine_order, rate_constant_from_experiment, arrhenius_Ea,
                       arrhenius_k2, k_units)
 
+
+
+def _finite(obj):
+    """Replace inf/NaN with None: browsers' JSON.parse rejects Infinity/NaN."""
+    if isinstance(obj, float) and not math.isfinite(obj):
+        return None
+    if isinstance(obj, dict):
+        return {k: _finite(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_finite(v) for v in obj]
+    return obj
+
+
+class StrictJSONProvider(DefaultJSONProvider):
+    def dumps(self, obj, **kwargs):
+        return super().dumps(_finite(obj), **kwargs)
+
+
 app = Flask(__name__, static_folder='.', static_url_path='')
+app.json = StrictJSONProvider(app)
 
 R_GAS = 8.314   # J/mol·K
 F_CONST = 96485  # C/mol
@@ -36,6 +60,22 @@ F_CONST = 96485  # C/mol
 
 def _sign(v):
     return f'+{v}' if v > 0 else str(v)
+
+
+def _err(e):
+    """Turn Python exception text into a message a student can act on."""
+    msg = str(e)
+    if isinstance(e, KeyError):
+        msg = f"Missing value: {msg.strip(chr(39))}"
+    elif isinstance(e, TypeError) and 'NoneType' in msg:
+        msg = 'A required value is missing or not a number.'
+    elif msg.startswith('could not convert string to float') or msg.startswith('invalid literal for int()'):
+        bad = msg.split(':', 1)[1].strip() if ':' in msg else ''
+        msg = ('A required number is blank.' if bad in ("''", '')
+               else f'{bad} is not a valid number.')
+    elif isinstance(e, ZeroDivisionError):
+        msg = 'Division by zero: check that no required value is 0.'
+    return jsonify(error=msg), 400
 
 
 @app.route('/')
@@ -110,7 +150,7 @@ def api_mole():
             return jsonify(error='Unknown conversion type'), 400
         return jsonify(compact=compact, detailed=detailed, warnings=[], result=result)
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 2. Empirical Formula ──────────────────────────────────────────────────────
@@ -118,7 +158,7 @@ def api_mole():
 def api_empirical():
     d = request.json or {}
     try:
-        elements = d['elements']
+        elements = [cap(e.strip()) for e in d['elements']]
         masses   = [float(m) for m in d['masses']]
         formula  = calculate_empirical_formula(elements, masses)
         display  = display_empirical_formula(formula)
@@ -136,8 +176,16 @@ def api_empirical():
             step_moles.append(f'  {el}: {mass} g ÷ {aw:.3f} g/mol = {mol:.4f} mol')
         min_mol = min(moles)
         ratios = [m / min_mol for m in moles]
-        step_ratios = [f'  {el}: {m:.4f} / {min_mol:.4f} = {r:.4f} ≈ {round(r)}'
+        step_ratios = [f'  {el}: {m:.4f} / {min_mol:.4f} = {r:.4f}'
                        for el, m, r in zip(elements, moles, ratios)]
+        mult = formula[elements[moles.index(min_mol)]]  # smallest-mole element's subscript = multiplier
+        if mult > 1:
+            step_ratios.append(f'Ratios are not all whole numbers — multiply by {mult}:')
+            step_ratios += [f'  {el}: {r:.4f} × {mult} = {r * mult:.3f} ≈ {formula[el]}'
+                            for el, r in zip(elements, ratios)]
+        else:
+            step_ratios.append('Round to whole numbers: ' +
+                               ', '.join(f'{el} = {formula[el]}' for el in elements))
         detailed = [
             f'Given masses: {", ".join(f"{el}={m}g" for el,m in zip(elements,masses))}',
             'Convert to moles (mass ÷ atomic mass):',
@@ -149,36 +197,40 @@ def api_empirical():
         ]
         return jsonify(formula=display, compact=compact, detailed=detailed, warnings=[])
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 3. Equation Balancer ──────────────────────────────────────────────────────
 @app.route('/api/equation', methods=['POST'])
 def api_equation():
     d = request.json or {}
-    eq = d.get('equation', '').strip()
-    if '->' not in eq:
-        return jsonify(error="Equation must contain '->' to separate reactants and products."), 400
+    eq = (d.get('equation') or '').strip()
+    medium = (d.get('medium') or '').strip() or None
     try:
-        r_str, p_str = eq.split('->', 1)
-        reactants = [r.strip() for r in r_str.split('+') if r.strip()]
-        products  = [p.strip() for p in p_str.split('+') if p.strip()]
-        if not reactants or not products:
-            return jsonify(error='Must have at least one reactant and one product.'), 400
-        rc, pc = balance_equation(reactants, products)
-        balanced = (' + '.join(f'{rc[i]}{reactants[i]}' for i in range(len(reactants)))
-                    + ' -> '
-                    + ' + '.join(f'{pc[i]}{products[i]}' for i in range(len(products))))
+        reactants, products = parse_equation(eq)
+        res = balance_full(reactants, products, medium)
+        balanced = res['equation']
         compact  = f'Balanced: {balanced}'
+        fmt = lambda terms: ', '.join(f'{s.display()} = {c}' for c, s in terms)
         detailed = [
             f'Unbalanced: {eq}',
-            f'Reactant coefficients: [{", ".join(str(c) for c in rc)}]',
-            f'Product  coefficients: [{", ".join(str(c) for c in pc)}]',
-            f'Balanced equation: {balanced}',
+            'Species: ' + ', '.join(s.display() for s in
+                                    [x for _, x in res['reactants']] + [x for _, x in res['products']]),
+            'Method: conserve every element' + (' and total charge' if any(
+                s.charge for _, s in res['reactants'] + res['products']) else ''),
+            f'Reactant coefficients: {fmt(res["reactants"])}',
+            f'Product  coefficients: {fmt(res["products"])}',
         ]
-        return jsonify(balanced=balanced, compact=compact, detailed=detailed, warnings=[])
+        warnings = list(res['notes'])
+        if res['added']:
+            detailed.append(f'Added for {medium} solution: {", ".join(res["added"])}')
+        detailed.append(f'Balanced equation: {balanced}')
+        return jsonify(balanced=balanced, added=res['added'],
+                       reactants=[{'species': s.display(), 'coeff': c} for c, s in res['reactants']],
+                       products=[{'species': s.display(), 'coeff': c} for c, s in res['products']],
+                       compact=compact, detailed=detailed, warnings=warnings)
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 4. Limiting Reactant ──────────────────────────────────────────────────────
@@ -186,40 +238,43 @@ def api_equation():
 def api_limiting():
     d = request.json or {}
     try:
-        rd = d['reactants']
-        pd = d['products']
-        reactants = [r['name'] for r in rd]
-        r_coeffs  = [float(r['coeff']) for r in rd]
-        r_moles   = [float(r['moles']) for r in rd]
-        products  = [p['name'] for p in pd]
-        p_coeffs  = [float(p['coeff']) for p in pd]
-
-        ratios   = [r_moles[i] / r_coeffs[i] for i in range(len(reactants))]
-        lim_idx  = ratios.index(min(ratios))
-        limiting = reactants[lim_idx]
-        leftovers = {r: round(max(r_moles[i] - r_coeffs[i] * ratios[lim_idx], 0), 4)
-                     for i, r in enumerate(reactants)}
-        yields    = {p: round(p_coeffs[i] * ratios[lim_idx], 4)
-                     for i, p in enumerate(products)}
-
-        compact  = f'Limiting reactant: {limiting}'
-        detailed = [
-            'Given moles of each reactant:',
-            *[f'  {r}: {m:.4g} mol  (stoich. coeff: {c:.4g})'
-              for r, m, c in zip(reactants, r_moles, r_coeffs)],
-            'Mole ratios (available ÷ coefficient):',
-            *[f'  {r}: {m:.4g} ÷ {c:.4g} = {m/c:.4g}'
-              for r, m, c in zip(reactants, r_moles, r_coeffs)],
-            f'Smallest ratio → limiting reactant: {limiting} ({min(ratios):.4g})',
-            'Leftover moles after reaction:',
-            *[f'  {r}: {v:.4g} mol' for r, v in leftovers.items()],
-            'Expected product yields:',
-            *[f'  {p}: {v:.4g} mol' for p, v in yields.items()],
-        ]
-        return jsonify(limiting=limiting, leftovers=leftovers, yields=yields,
-                       compact=compact, detailed=detailed, warnings=[])
+        rd, pd = d['reactants'], d['products']
+        unit = d.get('unit') or 'mol'
+        res = calculate_limiting_reactant(
+            [r['name'] for r in rd], [r.get('amount', r.get('moles')) for r in rd],
+            [p['name'] for p in pd],
+            [r.get('coeff') for r in rd], [p.get('coeff') for p in pd], unit)
+        g = lambda v: f'{v:.4g} g' if v is not None else '—'
+        lim = ' and '.join(res['limiting'])
+        compact = f'Limiting reactant: {lim}'
+        detailed = [f'Equation: {res["equation"]}'
+                    + ('  (coefficients balanced automatically)' if res['balanced'] else '')]
+        if unit == 'g':
+            detailed.append('Convert masses to moles (n = m / M):')
+            detailed += [f'  {r["name"]}: {r["grams"]:.4g} g ÷ {r["molar_mass"]:.3f} g/mol = {r["moles"]:.4g} mol'
+                         for r in res['reactants']]
+        detailed.append('Mole ratios (moles ÷ coefficient):')
+        detailed += [f'  {r["name"]}: {r["moles"]:.4g} ÷ {r["coeff"]:g} = {r["ratio"]:.4g}'
+                     for r in res['reactants']]
+        detailed.append(f'Smallest ratio → limiting reactant: {lim} ({res["extent"]:.4g})')
+        if len(res['limiting']) > 1:
+            detailed.append('  (reactants are in the exact stoichiometric ratio)')
+        detailed.append('Left over after reaction:')
+        detailed += [f'  {r["name"]}: {r["leftover_mol"]:.4g} mol  ({g(r["leftover_g"])})'
+                     for r in res['reactants']]
+        detailed.append('Theoretical yield (coefficient × smallest ratio):')
+        detailed += [f'  {p["name"]}: {p["coeff"]:g} × {res["extent"]:.4g} = {p["moles"]:.4g} mol  ({g(p["grams"])})'
+                     for p in res['products']]
+        warnings = list(res['warnings'])
+        return jsonify(limiting=res['limiting'][0], limiting_all=res['limiting'],
+                       equation=res['equation'], balanced=res['balanced'], unit=unit,
+                       leftovers={r['name']: round(r['leftover_mol'], 6) for r in res['reactants']},
+                       leftovers_g={r['name']: r['leftover_g'] for r in res['reactants']},
+                       yields={p['name']: round(p['moles'], 6) for p in res['products']},
+                       yields_g={p['name']: p['grams'] for p in res['products']},
+                       compact=compact, detailed=detailed, warnings=warnings)
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 5. Percent Composition ────────────────────────────────────────────────────
@@ -227,6 +282,7 @@ def api_limiting():
 def api_percent():
     d = request.json or {}
     try:
+        d['formula'] = cap(d['formula'].strip())
         mm, percents = compute_percent_composition(d['formula'])
         percents_r = {k: round(v, 2) for k, v in percents.items()}
         compact  = f'{d["formula"]}: ' + ', '.join(f'{el}={p:.2f}%' for el, p in percents_r.items())
@@ -240,7 +296,7 @@ def api_percent():
         return jsonify(formula=d['formula'], molar_mass=round(mm, 3),
                        percents=percents_r, compact=compact, detailed=detailed, warnings=[])
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 6. Volume / Mass ──────────────────────────────────────────────────────────
@@ -285,7 +341,7 @@ def api_volume():
         return jsonify(result=round(result, 4), unit={'mass_to_volume':'mL','volume_to_mass':'g','density':'g/mL'}[t],
                        compact=compact, detailed=detailed, warnings=[])
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 7. Oxidation Numbers ──────────────────────────────────────────────────────
@@ -295,6 +351,7 @@ def api_oxidation():
     try:
         charge   = int(d.get('charge', 0))
         peroxide = bool(d.get('peroxide', False))
+        d['formula'] = cap(d['formula'].strip())
         numbers  = solve_oxidation_numbers(d['formula'], charge, peroxide)
         numbers_r = {k: round(v, 4) for k, v in numbers.items()}
         compact   = ', '.join(f'{el}: {_sign(v)}' for el, v in numbers_r.items())
@@ -314,7 +371,7 @@ def api_oxidation():
         return jsonify(formula=d['formula'], charge=charge, numbers=numbers_r,
                        compact=compact, detailed=detailed, warnings=warnings)
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 8. Atom Economy ───────────────────────────────────────────────────────────
@@ -324,7 +381,8 @@ def api_atom_eco():
     try:
         rd = d['reactants']
         desired = d['desired']
-        formulas = [r['formula'] for r in rd]
+        formulas = [cap(r['formula'].strip()) for r in rd]
+        desired['formula'] = cap(desired['formula'].strip())
         coeffs   = [float(r['coeff']) for r in rd]
         des_c    = float(desired['coeff'])
         ae, mw_d, mw_r = calculate_atom_economy(formulas, coeffs, desired['formula'], des_c)
@@ -343,7 +401,7 @@ def api_atom_eco():
         return jsonify(atom_economy=round(ae, 2), mw_desired=round(mw_d, 3),
                        mw_reactants=round(mw_r, 3), compact=compact, detailed=detailed, warnings=warnings)
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 9. Ionic Bonding ──────────────────────────────────────────────────────────
@@ -353,6 +411,7 @@ def api_ionic():
     action = d.get('action')
     try:
         if action == 'classify':
+            d['elem1'], d['elem2'] = cap(d['elem1'].strip()), cap(d['elem2'].strip())
             bond_type, en1, en2, diff = classify_bond(d['elem1'], d['elem2'])
             compact  = f'Bond type: {bond_type}  (ΔEN = {diff:.2f})'
             detailed = [
@@ -369,6 +428,7 @@ def api_ionic():
                            diff=round(diff,2), elem1=d['elem1'], elem2=d['elem2'],
                            compact=compact, detailed=detailed, warnings=[])
         else:
+            d['cation'], d['anion'] = cap(d['cation'].strip()), cap(d['anion'].strip())
             cat_c = int(d['cation_charge'])
             ani_c = int(d['anion_charge'])
             formula = write_ionic_formula(d['cation'], cat_c, d['anion'], ani_c)
@@ -386,7 +446,7 @@ def api_ionic():
                            cation_charge=cat_c, anion_charge=ani_c,
                            compact=compact, detailed=detailed, warnings=[])
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 10. Percentage Yield ──────────────────────────────────────────────────────
@@ -433,7 +493,7 @@ def api_yield():
             return jsonify(error='Unknown type'), 400
         return jsonify(result=round(result, 4), compact=compact, detailed=detailed, warnings=warnings)
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 11. Periodic Table ────────────────────────────────────────────────────────
@@ -462,7 +522,7 @@ def api_periodic():
                        name=name, atomic_weight=elem['atomic_weight'],
                        compact=compact, detailed=detailed, warnings=[])
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 12. Gas Laws ──────────────────────────────────────────────────────────────
@@ -472,88 +532,82 @@ def api_gas_laws():
     t = d.get('type')
     R = 0.08206  # L·atm/mol·K
     try:
+        pu = d.get('p_unit') or 'atm'
+        vu = d.get('v_unit') or 'L'
+        tu = d.get('t_unit') or 'K'
+        tl = '°C' if tu == 'C' else 'K'
+        vl = {'dm3': 'dm³', 'cm3': 'cm³', 'm3': 'm³'}.get(vu, vu)
+        unit_of = {'P': pu, 'V': vl, 'n': 'mol', 'T': tl}
+        raw_of = {'P': pu, 'V': vu, 'n': 'mol', 'T': tl}
+        num = lambda k: float(d[k]) if str(d.get(k, '')).strip() != '' else None
+        si_note = []
+        if (pu, vu, tu) != ('Pa', 'm3', 'K'):
+            si_note = ['Convert to SI units (Pa, m³, K):']
+
         if t == 'ideal':
             solve = d.get('solve')
-            vals = {k: float(d[k]) for k in ('n', 'v', 'T', 'p') if d.get(k)}
-            if solve == 'P':
-                result = ideal_gas_find_P(vals['n'], vals['v'], vals['T']); unit = 'atm'
-                detailed = [
-                    'Law: Ideal Gas Law — PV = nRT',
-                    f'Given: n={vals["n"]} mol, V={vals["v"]} L, T={vals["T"]} K',
-                    'R = 0.08206 L·atm/mol·K',
-                    'Rearranging: P = nRT / V',
-                    f'P = ({vals["n"]} × 0.08206 × {vals["T"]}) / {vals["v"]}',
-                    f'P = {result:.4g} atm',
-                ]
-            elif solve == 'V':
-                result = ideal_gas_find_V(vals['n'], vals['T'], vals['p']); unit = 'L'
-                detailed = [
-                    'Law: Ideal Gas Law — PV = nRT',
-                    f'Given: n={vals["n"]} mol, T={vals["T"]} K, P={vals["p"]} atm',
-                    'Rearranging: V = nRT / P',
-                    f'V = ({vals["n"]} × 0.08206 × {vals["T"]}) / {vals["p"]}',
-                    f'V = {result:.4g} L',
-                ]
-            elif solve == 'n':
-                result = ideal_gas_find_n(vals['p'], vals['v'], vals['T']); unit = 'mol'
-                detailed = [
-                    'Law: Ideal Gas Law — PV = nRT',
-                    f'Given: P={vals["p"]} atm, V={vals["v"]} L, T={vals["T"]} K',
-                    'Rearranging: n = PV / RT',
-                    f'n = ({vals["p"]} × {vals["v"]}) / (0.08206 × {vals["T"]})',
-                    f'n = {result:.4g} mol',
-                ]
-            elif solve == 'T':
-                result = ideal_gas_find_T(vals['p'], vals['v'], vals['n']); unit = 'K'
-                detailed = [
-                    'Law: Ideal Gas Law — PV = nRT',
-                    f'Given: P={vals["p"]} atm, V={vals["v"]} L, n={vals["n"]} mol',
-                    'Rearranging: T = PV / nR',
-                    f'T = ({vals["p"]} × {vals["v"]}) / ({vals["n"]} × 0.08206)',
-                    f'T = {result:.4g} K',
-                ]
-            else:
-                return jsonify(error='Unknown solve target'), 400
+            vals = {'P': num('p'), 'V': num('v'), 'n': num('n'), 'T': num('T')}
+            given = {k: v for k, v in vals.items() if k != solve}
+            result = ideal_gas_solve(solve, P_unit=pu, V_unit=vu, T_unit=tu, **given)
+            unit, raw_unit = unit_of[solve], raw_of[solve]
+            conv = []
+            if si_note:
+                conv = si_note[:]
+                if 'P' in given: conv.append(f'  P = {given["P"]} {pu} = {pressure_to_Pa(given["P"], pu):.6g} Pa')
+                if 'V' in given: conv.append(f'  V = {given["V"]} {vl} = {volume_to_m3(given["V"], vu):.6g} m³')
+                if 'T' in given: conv.append(f'  T = {given["T"]} {tl} = {temperature_to_K(given["T"], tu):.6g} K')
+            rearr = {'P': 'P = nRT / V', 'V': 'V = nRT / P', 'n': 'n = PV / RT', 'T': 'T = PV / nR'}[solve]
+            detailed = [
+                'Law: Ideal Gas Law — PV = nRT',
+                'Given: ' + ', '.join(f'{k} = {v} {unit_of[k]}' for k, v in given.items()),
+                *conv,
+                'R = 8.314 J/(mol·K)',
+                f'Rearranging: {rearr}',
+                f'{solve} = {result:.4g} {unit}',
+            ]
             compact = f'{solve} = {result:.4g} {unit}'
-            return jsonify(result=result, unit=unit, compact=compact, detailed=detailed, warnings=[])
+            return jsonify(result=result, unit=raw_unit, unit_label=unit, compact=compact, detailed=detailed, warnings=[])
 
         elif t == 'combined':
             solve = d.get('solve')
-            P1, V1, T1 = float(d['P1']), float(d['V1']), float(d['T1'])
-            if solve == 'P2':
-                result = combined_gas_find_P2(P1, V1, T1, float(d['V2']), float(d['T2'])); unit = 'atm'
-                detailed = [
-                    'Law: Combined Gas Law — P₁V₁/T₁ = P₂V₂/T₂',
-                    f'State 1: P₁={P1} atm, V₁={V1} L, T₁={T1} K',
-                    f'State 2 (known): V₂={d["V2"]} L, T₂={d["T2"]} K',
-                    'Solving for P₂: P₂ = P₁V₁T₂ / (T₁V₂)',
-                    f'P₂ = ({P1} × {V1} × {d["T2"]}) / ({T1} × {d["V2"]})',
-                    f'P₂ = {result:.4g} atm',
-                ]
-            elif solve == 'V2':
-                result = combined_gas_find_V2(P1, V1, T1, float(d['P2']), float(d['T2'])); unit = 'L'
-                detailed = [
-                    'Law: Combined Gas Law — P₁V₁/T₁ = P₂V₂/T₂',
-                    f'State 1: P₁={P1} atm, V₁={V1} L, T₁={T1} K',
-                    f'State 2 (known): P₂={d["P2"]} atm, T₂={d["T2"]} K',
-                    'Solving for V₂: V₂ = P₁V₁T₂ / (T₁P₂)',
-                    f'V₂ = ({P1} × {V1} × {d["T2"]}) / ({T1} × {d["P2"]})',
-                    f'V₂ = {result:.4g} L',
-                ]
-            elif solve == 'T2':
-                result = combined_gas_find_T2(P1, V1, T1, float(d['P2']), float(d['V2'])); unit = 'K'
-                detailed = [
-                    'Law: Combined Gas Law — P₁V₁/T₁ = P₂V₂/T₂',
-                    f'State 1: P₁={P1} atm, V₁={V1} L, T₁={T1} K',
-                    f'State 2 (known): P₂={d["P2"]} atm, V₂={d["V2"]} L',
-                    'Solving for T₂: T₂ = P₂V₂T₁ / (P₁V₁)',
-                    f'T₂ = ({d["P2"]} × {d["V2"]} × {T1}) / ({P1} × {V1})',
-                    f'T₂ = {result:.4g} K',
-                ]
-            else:
-                return jsonify(error='Unknown solve target'), 400
+            vals = {k: num(k) for k in ('P1', 'V1', 'T1', 'P2', 'V2', 'T2') if k != solve}
+            result = combined_gas_solve(solve, P_unit=pu, V_unit=vu, T_unit=tu, **vals)
+            unit, raw_unit = unit_of[solve[0]], raw_of[solve[0]]
+            detailed = [
+                'Law: Combined Gas Law — P₁V₁/T₁ = P₂V₂/T₂',
+                'Given: ' + ', '.join(f'{k} = {v} {unit_of[k[0]]}' for k, v in vals.items()),
+            ]
+            if tu == 'C':
+                detailed.append('Temperatures must be in kelvin: T(K) = T(°C) + 273.15')
+                detailed += [f'  {k} = {v} °C = {v + 273.15:.2f} K' for k, v in vals.items() if k[0] == 'T']
+            detailed += [
+                f'Solve for {solve} (P and V units cancel, so they stay as {pu} and {vl})',
+                f'{solve} = {result:.4g} {unit}',
+            ]
             compact = f'{solve} = {result:.4g} {unit}'
-            return jsonify(result=result, unit=unit, compact=compact, detailed=detailed, warnings=[])
+            return jsonify(result=result, unit=raw_unit, unit_label=unit, compact=compact, detailed=detailed, warnings=[])
+
+        elif t == 'mixing':
+            solve = d.get('solve')
+            result, n1, n2 = gas_mixing_solve(
+                solve, num('P1'), num('V1'), num('T1'), num('P2'), num('V2'), num('T2'),
+                Pf=num('Pf'), Vf=num('Vf'), Tf=num('Tf') if num('Tf') is not None else
+                (25.0 if tu == 'C' else 298.15),
+                P_unit=pu, V_unit=vu, T_unit=tu)
+            unit, raw_unit = unit_of[solve[0]], raw_of[solve[0]]
+            label = {'Pf': 'P_final', 'Vf': 'V_final', 'Tf': 'T_final'}[solve]
+            compact = f'{label} = {result:.4g} {unit}'
+            detailed = [
+                'Gas Mixing — two samples combined',
+                f'Gas 1: P={num("P1")} {pu}, V={num("V1")} {vl}, T={num("T1")} {tl}',
+                f'Gas 2: P={num("P2")} {pu}, V={num("V2")} {vl}, T={num("T2")} {tl}',
+                'Step 1 — moles in each sample, n = PV/RT (SI units, R = 8.314):',
+                f'  n₁ = {n1:.4g} mol,  n₂ = {n2:.4g} mol,  n_total = {n1 + n2:.4g} mol',
+                'Step 2 — apply PV = nRT to the combined sample',
+                f'{label} = {result:.4g} {unit}',
+            ]
+            return jsonify(result=result, unit=raw_unit, unit_label=unit, n1=n1, n2=n2,
+                           compact=compact, detailed=detailed, warnings=[])
 
         elif t == 'graham':
             M1, M2 = float(d['M1']), float(d['M2'])
@@ -576,89 +630,26 @@ def api_gas_laws():
         elif t == 'dalton':
             gases    = d.get('gases', [])
             partials = [{'name': g['name'], 'p': float(g['p'])} for g in gases]
+            if not partials:
+                return jsonify(error='Add at least one gas.'), 400
+            if any(g['p'] < 0 for g in partials):
+                return jsonify(error='Partial pressures cannot be negative.'), 400
+            pressure_to_Pa(0, pu)   # validates the unit
             total    = dalton_total_pressure([g['p'] for g in partials])
-            compact  = f'P_total = {total:.4g} atm'
+            compact  = f'P_total = {total:.4g} {pu}'
             parts_str = ' + '.join(f'{g["p"]:.4g}' for g in partials)
             detailed = [
                 "Law: Dalton's Law of Partial Pressures",
                 'Formula: P_total = Σ P_i',
-                *[f'  P({g["name"]}) = {g["p"]:.4g} atm' for g in partials],
-                f'P_total = {parts_str} = {total:.4g} atm',
+                *[f'  P({g["name"]}) = {g["p"]:.4g} {pu}' for g in partials],
+                f'P_total = {parts_str} = {total:.4g} {pu}',
             ]
             return jsonify(total=total, partials=partials, compact=compact, detailed=detailed, warnings=[])
-
-        elif t == 'mixing':
-            # Two gas samples combined — find final state using ideal gas law for each sample
-            # n_total = P1V1/RT1 + P2V2/RT2 ; then PfVf = n_total * R * Tf
-            solve = d.get('solve')
-            P1, V1, T1 = float(d['P1']), float(d['V1']), float(d['T1'])
-            P2, V2, T2 = float(d['P2']), float(d['V2']), float(d['T2'])
-            n1 = (P1 * V1) / (R * T1)
-            n2 = (P2 * V2) / (R * T2)
-            n_total = n1 + n2
-            step_n = [
-                'Step 1 — Find moles in each sample using n = PV/RT:',
-                f'  n₁ = ({P1} × {V1}) / (0.08206 × {T1}) = {n1:.4g} mol',
-                f'  n₂ = ({P2} × {V2}) / (0.08206 × {T2}) = {n2:.4g} mol',
-                f'  n_total = {n1:.4g} + {n2:.4g} = {n_total:.4g} mol',
-                'Step 2 — Apply ideal gas law to combined sample: PfVf = n_total·R·Tf',
-            ]
-            if solve == 'Pf':
-                Vf = float(d['Vf'])
-                Tf = float(d.get('Tf') or '298.15')
-                result = (n_total * R * Tf) / Vf
-                unit = 'atm'
-                compact = f'P_final = {result:.4g} atm'
-                detailed = [
-                    'Gas Mixing — find final pressure',
-                    f'Gas 1: P={P1} atm, V={V1} L, T={T1} K',
-                    f'Gas 2: P={P2} atm, V={V2} L, T={T2} K',
-                    *step_n,
-                    f'  Given: V_final={Vf} L, T_final={Tf} K',
-                    '  Rearranging: P_f = n_total·R·T_f / V_f',
-                    f'  P_f = ({n_total:.4g} × 0.08206 × {Tf}) / {Vf}',
-                    f'P_final = {result:.4g} atm',
-                ]
-            elif solve == 'Vf':
-                Pf = float(d['Pf'])
-                Tf = float(d.get('Tf') or '298.15')
-                result = (n_total * R * Tf) / Pf
-                unit = 'L'
-                compact = f'V_final = {result:.4g} L'
-                detailed = [
-                    'Gas Mixing — find final volume',
-                    f'Gas 1: P={P1} atm, V={V1} L, T={T1} K',
-                    f'Gas 2: P={P2} atm, V={V2} L, T={T2} K',
-                    *step_n,
-                    f'  Given: P_final={Pf} atm, T_final={Tf} K',
-                    '  Rearranging: V_f = n_total·R·T_f / P_f',
-                    f'  V_f = ({n_total:.4g} × 0.08206 × {Tf}) / {Pf}',
-                    f'V_final = {result:.4g} L',
-                ]
-            elif solve == 'Tf':
-                Pf = float(d['Pf'])
-                Vf = float(d['Vf'])
-                result = (Pf * Vf) / (n_total * R)
-                unit = 'K'
-                compact = f'T_final = {result:.4g} K'
-                detailed = [
-                    'Gas Mixing — find final temperature',
-                    f'Gas 1: P={P1} atm, V={V1} L, T={T1} K',
-                    f'Gas 2: P={P2} atm, V={V2} L, T={T2} K',
-                    *step_n,
-                    f'  Given: P_final={Pf} atm, V_final={Vf} L',
-                    '  Rearranging: T_f = P_f·V_f / (n_total·R)',
-                    f'  T_f = ({Pf} × {Vf}) / ({n_total:.4g} × 0.08206)',
-                    f'T_final = {result:.4g} K',
-                ]
-            else:
-                return jsonify(error='Unknown solve target for mixing'), 400
-            return jsonify(result=result, unit=unit, compact=compact, detailed=detailed, warnings=[])
 
         else:
             return jsonify(error='Unknown gas law type'), 400
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 13. Acid-Base ─────────────────────────────────────────────────────────────
@@ -789,7 +780,7 @@ def api_acid_base():
         return jsonify(pH=pH, pOH=pOH, H=H, OH=OH,
                        compact=compact, detailed=detailed, warnings=warnings)
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 14. Thermodynamics ────────────────────────────────────────────────────────
@@ -870,15 +861,16 @@ def api_thermo():
         elif t == 'gibbs':
             dH = float(d['dH'])
             dS = float(d['dS'])
-            T  = float(d.get('T', 298.15))
-            dG = dH - T * dS
+            T  = float(d.get('T') or 298.15)
+            dG = gibbs_dG(dH, T, dS)   # ΔS in J/(mol·K)
             spont = 'spontaneous (ΔG < 0)' if dG < 0 else ('at equilibrium (ΔG = 0)' if dG == 0 else 'non-spontaneous (ΔG > 0)')
             compact  = f'ΔG = {dG:.4g} kJ/mol  ({spont})'
             detailed = [
-                'Formula: ΔG = ΔH − TΔS  (all in kJ/mol)',
-                f'Given: ΔH = {dH} kJ/mol,  ΔS = {dS} kJ/mol·K,  T = {T} K',
-                f'TΔS = {T} × {dS} = {T*dS:.4g} kJ/mol',
-                f'ΔG = {dH} − {T*dS:.4g}',
+                'Formula: ΔG = ΔH − TΔS',
+                f'Given: ΔH = {dH} kJ/mol,  ΔS = {dS} J/(mol·K),  T = {T} K',
+                f'Convert ΔS to kJ: {dS} ÷ 1000 = {dS/1000:.4g} kJ/(mol·K)',
+                f'TΔS = {T} × {dS/1000:.4g} = {T*dS/1000:.4g} kJ/mol',
+                f'ΔG = {dH} − ({T*dS/1000:.4g})',
                 f'ΔG = {dG:.4g} kJ/mol',
                 f'Conclusion: reaction is {spont}',
             ]
@@ -888,7 +880,7 @@ def api_thermo():
         else:
             return jsonify(error='Unknown type'), 400
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 15. ICE Solver ────────────────────────────────────────────────────────────
@@ -940,7 +932,7 @@ def api_ice():
                        approx_pct=res['approx_pct'],
                        compact=compact, detailed=detailed, warnings=warnings)
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 16. Electrochemistry ──────────────────────────────────────────────────────
@@ -1024,7 +1016,7 @@ def api_electrochem():
         else:
             return jsonify(error='Unknown type'), 400
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 # ── 17. Kinetics ──────────────────────────────────────────────────────────────
@@ -1135,7 +1127,7 @@ def api_kinetics():
         else:
             return jsonify(error='Unknown type'), 400
     except Exception as e:
-        return jsonify(error=str(e)), 400
+        return _err(e)
 
 
 if __name__ == '__main__':

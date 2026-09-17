@@ -1,4 +1,4 @@
-﻿"""
+"""
 Rigorous diagnostic for ice_solver.py
 Tests every solver with known chemistry values.
 """
@@ -77,13 +77,13 @@ check("H2+I2->2HI: Q = 1.0^2/(0.5*0.5) = 4.0", Q, 4.0)
 Q2 = reaction_quotient([1],[1.0],[2],[0.2])
 check("N2O4->2NO2: Q = 0.04/1.0 = 0.04", Q2, 0.04)
 
-# All products zero â†’ Q = 0
+# All products zero → Q = 0
 Q3 = reaction_quotient([1],[0.5],[1],[0.0])
 check("Product = 0 -> Q = 0.0", Q3, 0.0)
 
-# Reactant = 0 â†’ Q = 0 (return 0 convention)
+# Reactant = 0 with product present → Q is unbounded (must shift reverse)
 Q4 = reaction_quotient([1],[0.0],[1],[0.5])
-check("Reactant = 0 -> Q = 0.0", Q4, 0.0)
+check("Reactant = 0 -> Q = inf", math.isinf(Q4), True)
 
 # Multi-coefficient: 2A <=> B+C, [A]=0.4, [B]=0.1, [C]=0.1
 # Q = (0.1*0.1) / 0.4^2 = 0.01/0.16 = 0.0625
@@ -135,7 +135,7 @@ x_D = solve_ice([1],[0.2],[1],[0.8], Kc=4.0)
 check_approx("Already at eq: x â‰ˆ 0", x_D, 0.0, tol_pct=0.001)
 
 # --- Test E: Reverse shift Q > Kc
-# A <=> B, Kc=1.0, [A]=0.1, [B]=0.9 â†’ Q=9 > 1
+# A <=> B, Kc=1.0, [A]=0.1, [B]=0.9 → Q=9 > 1
 # Reverse: products decrease by x, reactants increase by x
 # Eq: (0.9+x)/(0.1-x)... wait, sign convention:
 # In solve_ice, x < 0 means reverse. So r_initial=[A]=0.1, p_initial=[B]=0.9
@@ -214,17 +214,17 @@ for dn_test in [-2, -1, 0, 1, 2]:
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 section("4. Q vs K COMPARISON")
 
-# Q < K â†’ forward
+# Q < K → forward
 direction, msg = compare_Q_K(1.0, 10.0)
 check("Q<K -> forward", direction, 'forward')
 check("Q<K message has 'RIGHT'", 'RIGHT' in msg.upper(), True)
 
-# Q > K â†’ reverse
+# Q > K → reverse
 direction2, msg2 = compare_Q_K(20.0, 10.0)
 check("Q>K -> reverse", direction2, 'reverse')
 check("Q>K message has 'LEFT'", 'LEFT' in msg2.upper(), True)
 
-# Q = K â†’ equilibrium
+# Q = K → equilibrium
 direction3, msg3 = compare_Q_K(10.0, 10.0)
 check("Q=K -> equilibrium", direction3, 'equilibrium')
 check("Q=K message has 'equilibrium'", 'equilibrium' in msg3.lower(), True)
@@ -323,8 +323,8 @@ section("6. CROSS-CHECKS & EDGE CASES")
 # Let y = 2x (moles shifted from A): Kc = y/2 / (2-y)^2
 # 0.25*(2-y)^2 = y/2  ... simpler: let [B]=x, [A]=2-2x
 # 0.25 = x / (2-2x)^2 = x / 4(1-x)^2
-# x = 1 - (1-x) â†’ 0.25 * 4 * (1-x)^2 = x â†’ (1-x)^2 = x â†’ 1 - 2x + x^2 = x
-# x^2 - 3x + 1 = 0 â†’ x = (3 - sqrt(5)) / 2 â‰ˆ 0.3820
+# x = 1 - (1-x) → 0.25 * 4 * (1-x)^2 = x → (1-x)^2 = x → 1 - 2x + x^2 = x
+# x^2 - 3x + 1 = 0 → x = (3 - sqrt(5)) / 2 â‰ˆ 0.3820
 x_expected_2A = (3 - math.sqrt(5)) / 2
 x_2A = solve_ice([2],[2.0],[1],[0.0], Kc=0.25)
 check_approx("2A<=>B: x(ice var) gives [B]_eq", 0.0 + 1*x_2A, x_expected_2A, tol_pct=0.01)
@@ -332,7 +332,7 @@ Q_2A = reaction_quotient([2],[2.0 - 2*x_2A],[1],[x_2A])
 check_approx("2A<=>B verify Q=0.25", Q_2A, 0.25, tol_pct=0.01)
 
 # ICE: large Kc (essentially complete reaction)
-# A <=> B, Kc=1e6, [A]=1.0 â†’ x â‰ˆ 1 - 1e-6
+# A <=> B, Kc=1e6, [A]=1.0 → x â‰ˆ 1 - 1e-6
 x_large = solve_ice([1],[1.0],[1],[0.0], Kc=1e6)
 check_approx("Large Kc=1e6: x â‰ˆ 0.999999", x_large, 1e6/(1+1e6), tol_pct=0.001)
 

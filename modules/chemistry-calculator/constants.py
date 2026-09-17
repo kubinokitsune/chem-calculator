@@ -140,6 +140,14 @@ _ELEMENTS = {
     "Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og",
 }
 
+# Two-letter symbols whose letters are also two valid single-element symbols,
+# where the split reading is far more common in lowercase input:
+# 'nh3' is NH3 not Nh3, 'hno3' is HNO3 not HNo3, 'co2' is CO2, 'hcn' is HCN,
+# 'kscn' is KSCN, 'ch3cho' is CH3CHO, 'po4' is PO4, 'hf' is HF, 'cf4' is CF4.
+# Type the proper capitalisation (e.g. 'CoCl2') to get the element instead.
+_PREFER_SPLIT = {"Nh", "No", "Co", "Cn", "Sc", "Ho", "Po", "Hf", "Hs", "Bh", "Cf"}
+
+
 def capitalize_formula(formula: str) -> str:
     """Properly capitalise a chemical formula typed in any case.
 
@@ -149,8 +157,9 @@ def capitalize_formula(formula: str) -> str:
 
     Ambiguity note: some 2-letter sequences are valid elements but may
     represent two separate elements in common formulas (e.g. 'co' = Co
-    (cobalt) OR C+O as in CaCO3).  If a formula looks wrong, type it
-    with correct capitalisation (e.g. 'CaCO3' instead of 'caco3').
+    (cobalt) OR C+O as in CO2).  Symbols in _PREFER_SPLIT are read as two
+    elements; for everything else the 2-letter element wins.  If a formula
+    looks wrong, type it with correct capitalisation (e.g. 'CoCl2').
 
     Non-letter characters (digits, parentheses, *, .) are passed through
     unchanged.  If *formula* is empty or None, it is returned as-is.
@@ -180,7 +189,10 @@ def capitalize_formula(formula: str) -> str:
             # Try 2-letter element first
             if i + 1 < len(s) and s[i + 1].isalpha():
                 two = s[i].upper() + s[i + 1].lower()
-                if two in _ELEMENTS:
+                splittable = (two in _PREFER_SPLIT
+                              and s[i].upper() in _ELEMENTS
+                              and s[i + 1].upper() in _ELEMENTS)
+                if two in _ELEMENTS and not splittable:
                     result.append(two)
                     i += 2
                     continue
