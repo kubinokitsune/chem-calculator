@@ -28,3 +28,6 @@ ehthumbs.db
 
 # Claude Code
 .claude/
+
+# Server log written by the Flask app
+modules/chemistry-calculator/ui_interface/server.log

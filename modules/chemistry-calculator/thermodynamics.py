@@ -228,6 +228,14 @@ def spontaneity_analysis(dH_kJ, dS_J_per_K):
     Returns a qualitative description of spontaneity across all T ranges,
     based on signs of ΔH and ΔS (without needing T).
     """
+    if dH_kJ == 0 and dS_J_per_K == 0:
+        return "At equilibrium at all temperatures (ΔH = 0, ΔS = 0)"
+    if dH_kJ == 0:
+        return ("Always spontaneous at all temperatures (ΔH = 0, ΔS > 0)" if dS_J_per_K > 0
+                else "Never spontaneous at any temperature (ΔH = 0, ΔS < 0)")
+    if dS_J_per_K == 0:
+        return ("Always spontaneous at all temperatures (ΔH < 0, ΔS = 0)" if dH_kJ < 0
+                else "Never spontaneous at any temperature (ΔH > 0, ΔS = 0)")
     if dH_kJ < 0 and dS_J_per_K > 0:
         return "Always spontaneous at all temperatures (ΔH<0, ΔS>0)"
     elif dH_kJ > 0 and dS_J_per_K < 0:

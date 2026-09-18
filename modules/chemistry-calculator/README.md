@@ -36,7 +36,17 @@ python test_files/test_thermodynamics.py
 python test_files/test_ib_chemistry.py    # IB-style worked problems (3 s.f.)
 python test_files/test_api.py             # web page <-> Flask API contract
 python test_files/stress_new_features.py  # gas units, ionic balancing, limiting reactant
+python test_files/test_ui.py              # browser click-through (see below)
 ```
+
+For the browser tests:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m playwright install chromium
+```
+
+All suites also run in GitHub Actions on every push.
 
 ## Notes
 
@@ -44,4 +54,5 @@ python test_files/stress_new_features.py  # gas units, ionic balancing, limiting
 - The equation balancer handles ions (`Fe^3+`, `SO42-`), electrons (`e-`) and acidic/basic solutions.
 - Gas laws accept atm/kPa/Pa/bar/mmHg, L/dm³/mL/cm³/m³ and K/°C (R = 8.314 J K⁻¹ mol⁻¹).
 - Molar volume at STP is 22.7 dm³ mol⁻¹ (0 °C, 100 kPa), set once in `constants.py`.
-- The web server runs in Flask debug mode — fine on your own computer, but don't expose it to the internet as-is.
+- The web page is `ui_interface/index.html` plus `ui_interface/static/style.css` and `static/app.js`; only `static/` is served to the browser.
+- Debug mode is off unless `CHEMCALC_DEBUG=1`, and the server listens on `127.0.0.1` unless `CHEMCALC_HOST` is set.

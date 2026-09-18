@@ -1,0 +1,5 @@
+# Extra packages for the browser click-through tests (test_files/test_ui.py).
+# After installing, download the test browser once:
+#     py -m playwright install chromium
+-r requirements.txt
+playwright

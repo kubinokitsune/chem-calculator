@@ -848,7 +848,9 @@ if webapp:
                                 "products": [{"name": "H2O", "coeff": ""}]})
 
     # every new/changed form field the page sends is read by the server
-    html = open(os.path.join(ROOT, "ui_interface", "index.html"), encoding="utf-8").read()
+    # the page is split into index.html + static/style.css + static/app.js
+    html = "\n".join(open(os.path.join(ROOT, "ui_interface", *rel), encoding="utf-8").read()
+                     for rel in (("index.html",), ("static", "style.css"), ("static", "app.js")))
     for needle in ("medium: val('eqMedium')", "unit: val('limUnit')", "amount: ins[2].value",
                    "p_unit: val('gasPU')", "...units"):
         record(f"page sends {needle}", needle in html)

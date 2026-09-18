@@ -1,5 +1,7 @@
 # Chemistry Calculator
 
+[![tests](https://github.com/kubinokitsune/chem-calculator/actions/workflows/tests.yml/badge.svg)](https://github.com/kubinokitsune/chem-calculator/actions/workflows/tests.yml)
+
 An interactive physical chemistry calculator built for IB Chemistry. Covers 17 core topics through both a command-line interface and a browser-based web UI.
 
 **Developer:** Felipe "Pipe" Fonseca
@@ -93,9 +95,24 @@ python ui_interface/app.py
 
 Then open **http://localhost:5000** in your browser.
 
-> The server runs in Flask debug mode for local use — don't expose it to the internet as-is.
+> Debug mode is off by default and the server listens on localhost only.
 
-The web UI is **CHEMCALC FX-17** — a redesigned single-page app where modules are grouped by IB Chemistry topic (Stoichiometry, Energetics, Kinetics, Equilibrium, Acids & Bases, Electrochemistry, Tools). Clicking a module opens its input form inline; the output box shows the formula used, substituted values, and result. Dark and light themes are supported.
+The web UI is **CHEMCALC FX-17** — a single-page app where modules are grouped by IB Chemistry topic (Stoichiometry, Energetics, Kinetics, Equilibrium, Acids & Bases, Electrochemistry, Tools). Clicking a module opens its input form inline; the output box shows the formula used, substituted values, and result.
+
+Every module option is available on the page, and it also has:
+
+- **Answers: Auto / 2–6 s.f.** — rounds answers to the significant figures you want (formulas are never touched)
+- **★ Try example** — a worked IB-style example for every module and option
+- **⧉ Copy**, **Enter to calculate**, **⟲ Recent** (your last 20 answers), dark/light themes
+- **→ % Yield** — sends a theoretical yield from Limiting Reactant into % Yield
+
+| Environment variable | Default | Meaning |
+|----------------------|---------|---------|
+| `CHEMCALC_DEBUG` | off | `1` enables Flask's debugger (local use only) |
+| `CHEMCALC_HOST` | `127.0.0.1` | `0.0.0.0` to allow other machines |
+| `PORT` | `5000` | port to listen on |
+
+Only `ui_interface/static/` is served to the browser, so the Python source and the server log are not downloadable.
 
 ### Run the Tests
 
@@ -104,7 +121,10 @@ python test_files/run_diagnostics.py      # every function + regression checks
 python test_files/test_ib_chemistry.py    # IB-style worked problems, checked to 3 s.f.
 python test_files/test_api.py             # web page <-> Flask API contract
 python test_files/stress_new_features.py  # ~36 000 checks: gas units, ionic balancing, limiting reactant
+python test_files/test_ui.py              # clicks through the real page in a browser (needs playwright)
 ```
+
+All of these run in GitHub Actions on every push.
 
 Also `stress_test.py`, `test_ice_solver.py` and `test_thermodynamics.py`. No user input needed; each prints pass/fail and a summary. See the [Diagnostics wiki page](https://github.com/kubinokitsune/chem-calculator/wiki/Diagnostics).
 
@@ -156,7 +176,11 @@ chem-calculator/
 │   │   ├── constants.py             # Shared physical/chemical constants
 │   │   ├── ui_interface/            # Flask web app
 │   │   │   ├── app.py               # REST API (one route per module)
-│   │   │   └── index.html           # Front-end
+│   │   │   ├── index.html           # Front-end markup
+│   │   │   └── static/              # the only folder served to the browser
+│   │   │       ├── style.css
+│   │   │       ├── app.js
+│   │   │       └── fonts/
 │   │   ├── test_files/              # Automated test suites
 │   │   │   ├── run_diagnostics.py
 │   │   │   ├── stress_test.py
@@ -165,11 +189,13 @@ chem-calculator/
 │   │   │   ├── test_calculator.py
 │   │   │   ├── test_ib_chemistry.py
 │   │   │   ├── test_ice_solver.py
-│   │   │   └── test_thermodynamics.py
+│   │   │   ├── test_thermodynamics.py
+│   │   │   └── test_ui.py           # browser click-through (playwright)
 │   │   └── requirements.txt
 │   └── user interface/              # C UI (in development)
 │       ├── main_menu.C
 │       └── include/ui.h
+├── .github/workflows/tests.yml      # runs all 8 suites on every push
 ├── .gitignore
 └── README.md
 ```

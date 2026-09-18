@@ -241,29 +241,29 @@ def le_chatelier_pressure(pressure_change, delta_n):
     pc = pressure_change.lower()
     if delta_n == 0:
         return ('none',
-                "Delta_n = 0 (equal moles of gas on both sides). "
+                "Δn = 0 (equal moles of gas on both sides). "
                 "A pressure change has NO effect on equilibrium position.")
     if pc == 'increase':
         if delta_n > 0:
             return ('left',
                     f"Increasing pressure favours the side with FEWER moles of gas. "
-                    f"Delta_n = {delta_n:+g} (more moles on products side). "
+                    f"Δn = {delta_n:+g} (more moles on products side). "
                     f"Equilibrium shifts LEFT.")
         else:
             return ('right',
                     f"Increasing pressure favours the side with FEWER moles of gas. "
-                    f"Delta_n = {delta_n:+g} (more moles on reactants side). "
+                    f"Δn = {delta_n:+g} (more moles on reactants side). "
                     f"Equilibrium shifts RIGHT.")
     elif pc == 'decrease':
         if delta_n > 0:
             return ('right',
                     f"Decreasing pressure favours the side with MORE moles of gas. "
-                    f"Delta_n = {delta_n:+g} (more moles on products side). "
+                    f"Δn = {delta_n:+g} (more moles on products side). "
                     f"Equilibrium shifts RIGHT.")
         else:
             return ('left',
                     f"Decreasing pressure favours the side with MORE moles of gas. "
-                    f"Delta_n = {delta_n:+g} (more moles on reactants side). "
+                    f"Δn = {delta_n:+g} (more moles on reactants side). "
                     f"Equilibrium shifts LEFT.")
     raise ValueError(f"Invalid pressure_change '{pressure_change}'.")
 

@@ -1,0 +1,56 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: modules/chemistry-calculator
+
+jobs:
+  calculator:
+    name: Calculator + API suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: modules/chemistry-calculator/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Diagnostics (every function + regressions)
+        run: python test_files/run_diagnostics.py
+      - name: Stress test (edge cases)
+        run: python test_files/stress_test.py
+      - name: ICE solver
+        run: python test_files/test_ice_solver.py
+      - name: Thermodynamics
+        run: python test_files/test_thermodynamics.py
+      - name: IB worked problems
+        run: python test_files/test_ib_chemistry.py
+      - name: Web API contract
+        run: python test_files/test_api.py
+      - name: New features stress test (~36 000 checks)
+        run: python test_files/stress_new_features.py
+
+  browser:
+    name: Browser click-through
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: modules/chemistry-calculator/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Click through the web UI
+        run: python test_files/test_ui.py

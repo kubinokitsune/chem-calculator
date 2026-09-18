@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask.json.provider import DefaultJSONProvider
-import sys, os, math
+import sys, os, math, re
 
 sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -23,15 +23,25 @@ from gas_laws import (ideal_gas_find_P, ideal_gas_find_V, ideal_gas_find_n, idea
                       ideal_gas_solve, combined_gas_solve, gas_mixing_solve,
                       pressure_to_Pa, volume_to_m3, temperature_to_K)
 from acid_base import (all_four, strong_acid_pH, strong_base_pH,
-                       weak_acid_pH, weak_base_pH, buffer_pH, identify)
+                       weak_acid_pH, weak_base_pH, buffer_pH, identify,
+                       equivalence_moles, titration_find_concentration,
+                       titration_find_volume, equivalence_point_pH_description)
 from thermodynamics import (cal_q, cal_m, cal_c, cal_dT, hess_law,
-                             bond_enthalpy_dH, lookup_bond, gibbs_dG)
-from ice_solver import build_ice_table
+                             bond_enthalpy_dH, lookup_bond, gibbs_dG,
+                             standard_enthalpy_rxn, gibbs_from_K, K_from_gibbs,
+                             spontaneity_analysis)
+from ice_solver import (build_ice_table, reaction_quotient, compare_Q_K,
+                        kc_to_kp, kp_to_kc, le_chatelier_concentration,
+                        le_chatelier_pressure, le_chatelier_temperature,
+                        le_chatelier_catalyst)
 from electrochemistry import (cell_potential, gibbs_from_cell, faraday_mass,
                                faraday_current, faraday_time, faraday_molar_mass,
                                nernst, spontaneity_check, cell_type)
 from kinetics import (determine_order, rate_constant_from_experiment, arrhenius_Ea,
-                      arrhenius_k2, k_units)
+                      arrhenius_k2, k_units, irl_concentration, irl_time)
+from constants import REDUCTION_POTENTIALS, get_reduction_potential
+from equation_balancer import parse_species
+from limiting_reactant import species_molar_mass
 
 
 
@@ -51,11 +61,101 @@ class StrictJSONProvider(DefaultJSONProvider):
         return super().dumps(_finite(obj), **kwargs)
 
 
-app = Flask(__name__, static_folder='.', static_url_path='')
+# Only ui_interface/static (style.css, app.js, fonts) is served to the browser,
+# so app.py, server.log and the calculator modules are never downloadable.
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.json = StrictJSONProvider(app)
 
 R_GAS = 8.314   # J/mol·K
 F_CONST = 96485  # C/mol
+
+
+def _answer(label, value, unit=''):
+    return {'label': label, 'value': value, 'unit': unit}
+
+
+def _is_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+_UNIT_AFTER = re.compile(
+    r'=\s*[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?\s*([^,(\n]*)')
+
+
+def _derive_answers(d):
+    """Numeric answers (label, value, unit) for the page's significant-figure
+    setting, worked out from a response body. Returns (answers, headline)."""
+    compact = d.get('compact') or ''
+    a, headline = [], None
+    if 'E_cell' in d:
+        a = [_answer('E°cell', d['E_cell'], 'V'), _answer('ΔG°', d['dG'], 'kJ/mol')]
+        headline = f"{d['spontaneity']} ({d['cell_type']} cell)"
+    elif 'pH' in d and 'pOH' in d:
+        a = [_answer('pH', d['pH']), _answer('pOH', d['pOH']),
+             _answer('[H⁺]', d['H'], 'mol/dm³'), _answer('[OH⁻]', d['OH'], 'mol/dm³')]
+    elif 'r_eq' in d:
+        a = [_answer('x', d['x'], 'mol/dm³')] + \
+            [_answer(f'[{n}]', v, 'mol/dm³') for n, v in zip(d['r_names'] + d['p_names'], d['r_eq'] + d['p_eq'])]
+    elif 'direction' in d and 'Q' in d:
+        a = [_answer('Q', d['Q'])] if _is_num(d['Q']) else []
+        headline = f"Shifts {d['direction']}"
+    elif 'total' in d:
+        a = [_answer('P_total', d['total'], d.get('unit') or compact.rsplit(' ', 1)[-1])]
+    elif 'E' in d and _is_num(d.get('E')):
+        a = [_answer('E', d['E'], 'V')]
+    elif 'Ea_kJ' in d:
+        a = [_answer('Ea', d['Ea_kJ'], 'kJ/mol')]
+    elif 'k2' in d:
+        a = [_answer('k₂', d['k2'])]
+    elif 't_half' in d:
+        a = [_answer('t½', d['t_half'], 's')]
+    elif 'order' in d and 'k' in d:
+        a = [_answer('k', d['k'], d.get('k_units', ''))]
+        headline = f"Order ≈ {round(d['order'])}"
+    elif 'k' in d and _is_num(d.get('k')):
+        a = [_answer('k', d['k'], 's⁻¹')]
+    elif 'T_crossover' in d:
+        a = [_answer('Crossover T', d['T_crossover'], 'K')] if _is_num(d['T_crossover']) else []
+        headline = d.get('result')
+    elif _is_num(d.get('result')):
+        label = compact.split(' = ')[0].strip() if ' = ' in compact else 'Result'
+        unit = d.get('unit_label') or d.get('unit')
+        if unit is None:
+            m = _UNIT_AFTER.search(compact)
+            unit = m.group(1).strip() if m else ''
+        a = [_answer(label, d['result'], unit)]
+        if 'spontaneous' in d:
+            headline = 'Spontaneous' if d['spontaneous'] else (
+                'At equilibrium' if d['result'] == 0 else 'Non-spontaneous')
+    a = [x for x in a if _is_num(x['value'])]
+    return a, headline
+
+
+@app.after_request
+def _security_headers(resp):
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    resp.headers.setdefault('Referrer-Policy', 'no-referrer')
+    resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    resp.headers.setdefault('Content-Security-Policy',
+                            "default-src 'self'; style-src 'self' 'unsafe-inline'; "
+                            "script-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                            "font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'")
+    return resp
+
+
+@app.after_request
+def _add_answers(resp):
+    if resp.status_code != 200 or not resp.is_json:
+        return resp
+    d = resp.get_json(silent=True)
+    if not isinstance(d, dict) or 'error' in d or 'answers' in d or 'compact' not in d:
+        return resp
+    answers, headline = _derive_answers(d)
+    d['answers'] = answers
+    if headline and 'headline' not in d:
+        d['headline'] = headline
+    resp.set_data(app.json.dumps(d))
+    return resp
 
 
 def _sign(v):
@@ -78,6 +178,40 @@ def _err(e):
     return jsonify(error=msg), 400
 
 
+def _molar_mass_input(b):
+    """Molar mass typed as a number ('18.02') or a formula ('H2O').
+    Returns (value, note)."""
+    text = str(b if b is not None else '').strip()
+    if not text:
+        raise ValueError('A required number is blank.')
+    try:
+        return float(text), None
+    except ValueError:
+        pass
+    m = species_molar_mass(text)
+    if m is None:
+        raise ValueError(f"'{text}' is not a number or a chemical formula.")
+    shown = cap(text)
+    return m, f'Molar mass of {shown} = {m:.3f} g/mol (from atomic masses)'
+
+
+def _num(d, key, label=None, positive=False, allow_zero=False):
+    """Read a required number from the request with a readable error."""
+    label = label or key
+    raw = d.get(key)
+    if raw is None or str(raw).strip() == '':
+        raise ValueError(f'Missing value: {label}')
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        raise ValueError(f"'{raw}' is not a valid number for {label}.")
+    if not math.isfinite(v):
+        raise ValueError(f'{label} must be a finite number.')
+    if positive and (v < 0 or (v == 0 and not allow_zero)):
+        raise ValueError(f'{label} must be {"zero or " if allow_zero else ""}greater than zero.')
+    return v
+
+
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
@@ -91,23 +225,25 @@ def api_mole():
     try:
         a = float(a)
         if t == 'mass_to_moles':
-            bv = float(b)
+            bv, m_note = _molar_mass_input(b)
             result = mass_to_moles(a, bv)
             compact  = f'Moles = {result:.4g} mol'
             detailed = [
-                f'Given: mass = {a} g, molar mass M = {bv} g/mol',
+                *([m_note] if m_note else []),
+                f'Given: mass = {a} g, molar mass M = {bv:.6g} g/mol',
                 'Formula: n = mass / M',
-                f'n = {a} / {bv}',
+                f'n = {a} / {bv:.6g}',
                 f'n = {result:.6g} mol',
             ]
         elif t == 'moles_to_mass':
-            bv = float(b)
+            bv, m_note = _molar_mass_input(b)
             result = moles_to_mass(a, bv)
             compact  = f'Mass = {result:.4g} g'
             detailed = [
-                f'Given: n = {a} mol, molar mass M = {bv} g/mol',
+                *([m_note] if m_note else []),
+                f'Given: n = {a} mol, molar mass M = {bv:.6g} g/mol',
                 'Formula: mass = n × M',
-                f'mass = {a} × {bv}',
+                f'mass = {a} × {bv:.6g}',
                 f'mass = {result:.6g} g',
             ]
         elif t == 'moles_to_particles':
@@ -266,7 +402,10 @@ def api_limiting():
         detailed += [f'  {p["name"]}: {p["coeff"]:g} × {res["extent"]:.4g} = {p["moles"]:.4g} mol  ({g(p["grams"])})'
                      for p in res['products']]
         warnings = list(res['warnings'])
+        answers = [_answer(f'{p["name"]} (theoretical)', p['grams'], 'g') if p['grams'] is not None
+                   else _answer(f'{p["name"]} (theoretical)', p['moles'], 'mol') for p in res['products']]
         return jsonify(limiting=res['limiting'][0], limiting_all=res['limiting'],
+                       answers=answers, headline=compact,
                        equation=res['equation'], balanced=res['balanced'], unit=unit,
                        leftovers={r['name']: round(r['leftover_mol'], 6) for r in res['reactants']},
                        leftovers_g={r['name']: r['leftover_g'] for r in res['reactants']},
@@ -293,7 +432,9 @@ def api_percent():
             *[f'  {el}: {p:.2f}%' for el, p in percents_r.items()],
             f'Sum: {sum(percents.values()):.1f}%',
         ]
-        return jsonify(formula=d['formula'], molar_mass=round(mm, 3),
+        answers = [_answer(f'M({d["formula"]})', mm, 'g/mol')] + \
+                  [_answer(f'% {el}', v, '%') for el, v in percents.items()]
+        return jsonify(formula=d['formula'], molar_mass=round(mm, 3), answers=answers,
                        percents=percents_r, compact=compact, detailed=detailed, warnings=[])
     except Exception as e:
         return _err(e)
@@ -338,7 +479,7 @@ def api_volume():
             ]
         else:
             return jsonify(error='Unknown type'), 400
-        return jsonify(result=round(result, 4), unit={'mass_to_volume':'mL','volume_to_mass':'g','density':'g/mL'}[t],
+        return jsonify(result=result, unit={'mass_to_volume':'mL','volume_to_mass':'g','density':'g/mL'}[t],
                        compact=compact, detailed=detailed, warnings=[])
     except Exception as e:
         return _err(e)
@@ -399,6 +540,7 @@ def api_atom_eco():
         ]
         warnings = ['Atom economy < 50% — significant waste produced'] if ae < 50 else []
         return jsonify(atom_economy=round(ae, 2), mw_desired=round(mw_d, 3),
+                       answers=[_answer('Atom economy', ae, '%')],
                        mw_reactants=round(mw_r, 3), compact=compact, detailed=detailed, warnings=warnings)
     except Exception as e:
         return _err(e)
@@ -491,7 +633,7 @@ def api_yield():
             ]
         else:
             return jsonify(error='Unknown type'), 400
-        return jsonify(result=round(result, 4), compact=compact, detailed=detailed, warnings=warnings)
+        return jsonify(result=result, compact=compact, detailed=detailed, warnings=warnings)
     except Exception as e:
         return _err(e)
 
@@ -765,6 +907,50 @@ def api_acid_base():
             if abs(ratio - 1) > 0.9:
                 warnings.append('Buffer ratio far from 1:1 — buffering capacity is reduced at this ratio')
 
+        elif t == 'titration':
+            solve = d.get('solve') or 'analyte_conc'
+            ra = _num(d, 'ratio_analyte', 'analyte coefficient', positive=True) if str(d.get('ratio_analyte') or '').strip() else 1.0
+            rt = _num(d, 'ratio_titrant', 'titrant coefficient', positive=True) if str(d.get('ratio_titrant') or '').strip() else 1.0
+            Ct = _num(d, 'C_titrant', 'titrant concentration', positive=True)
+            Va = _num(d, 'V_analyte', 'analyte volume', positive=True)
+            if solve == 'analyte_conc':
+                Vt = _num(d, 'V_titrant', 'titrant volume (at equivalence)', positive=True)
+                n_t = equivalence_moles(Ct, Vt / 1000)
+                n_a = n_t * ra / rt
+                result = titration_find_concentration(n_a, Va / 1000)
+                unit, label = 'mol/dm³', 'Analyte concentration'
+                detailed = [
+                    'Titration: find the concentration of the analyte',
+                    f'Mole ratio analyte : titrant = {ra:g} : {rt:g}',
+                    f'n(titrant) = c × V = {Ct:g} mol/dm³ × {Vt:g} cm³ ÷ 1000 = {n_t:.4g} mol',
+                    f'n(analyte) = n(titrant) × {ra:g}/{rt:g} = {n_a:.4g} mol',
+                    f'c(analyte) = n / V = {n_a:.4g} mol ÷ ({Va:g} cm³ ÷ 1000)',
+                    f'c(analyte) = {result:.4g} mol/dm³',
+                ]
+            elif solve == 'titrant_volume':
+                Ca = _num(d, 'C_analyte', 'analyte concentration', positive=True)
+                n_a = equivalence_moles(Ca, Va / 1000)
+                n_t = n_a * rt / ra
+                result = titration_find_volume(n_t, Ct) * 1000
+                unit, label = 'cm³', 'Titrant volume at equivalence'
+                detailed = [
+                    'Titration: find the volume of titrant needed',
+                    f'Mole ratio analyte : titrant = {ra:g} : {rt:g}',
+                    f'n(analyte) = c × V = {Ca:g} mol/dm³ × {Va:g} cm³ ÷ 1000 = {n_a:.4g} mol',
+                    f'n(titrant) = n(analyte) × {rt:g}/{ra:g} = {n_t:.4g} mol',
+                    f'V(titrant) = n / c = {n_t:.4g} mol ÷ {Ct:g} mol/dm³ = {result / 1000:.4g} dm³',
+                    f'V(titrant) = {result:.4g} cm³',
+                ]
+            else:
+                return jsonify(error='Unknown titration target'), 400
+            acid_s, base_s = d.get('acid_strength'), d.get('base_strength')
+            if acid_s in ('strong', 'weak') and base_s in ('strong', 'weak'):
+                detailed.append(f'Equivalence point ({acid_s} acid + {base_s} base): '
+                                + equivalence_point_pH_description(f'{acid_s} acid', f'{base_s} base'))
+            compact = f'{label} = {result:.4g} {unit}'
+            return jsonify(result=result, unit=unit, compact=compact,
+                           detailed=detailed, warnings=[])
+
         elif t == 'identify':
             identity = identify(d['formula'])
             compact  = f'{d["formula"]} → {identity}'
@@ -858,6 +1044,99 @@ def api_thermo():
                            compact=compact, detailed=detailed,
                            warnings=['Bond enthalpies are average values — result is approximate'])
 
+        elif t == 'std_enthalpy':
+            species = []
+            for row in d.get('species', []):
+                f = str(row.get('formula') or '').strip()
+                if not f and str(row.get('dHf') or '').strip() == '':
+                    continue
+                role = row.get('role')
+                if role not in ('reactant', 'product'):
+                    return jsonify(error='Each species must be a reactant or a product.'), 400
+                species.append({'formula': cap(f) or '?',
+                                'dHf': _num(row, 'dHf', f'ΔH°f of {f or "a species"}'),
+                                'coeff': _num(row, 'coeff', f'coefficient of {f or "a species"}', positive=True)
+                                         if str(row.get('coeff') or '').strip() else 1.0,
+                                'role': role})
+            if not any(x['role'] == 'reactant' for x in species) or \
+               not any(x['role'] == 'product' for x in species):
+                return jsonify(error='Add at least one reactant and one product.'), 400
+            result = standard_enthalpy_rxn(species)
+            prods = [x for x in species if x['role'] == 'product']
+            reacs = [x for x in species if x['role'] == 'reactant']
+            sp = sum(x['coeff'] * x['dHf'] for x in prods)
+            sr = sum(x['coeff'] * x['dHf'] for x in reacs)
+            line = lambda x: f'  {x["coeff"]:g} × ΔH°f({x["formula"]}) = {x["coeff"]:g} × {x["dHf"]:g} = {x["coeff"] * x["dHf"]:.4g} kJ'
+            detailed = [
+                'Formula: ΔH°rxn = ΣnΔH°f(products) − ΣnΔH°f(reactants)',
+                'Products:', *[line(x) for x in prods], f'  Σ = {sp:.4g} kJ',
+                'Reactants:', *[line(x) for x in reacs], f'  Σ = {sr:.4g} kJ',
+                f'ΔH°rxn = {sp:.4g} − ({sr:.4g}) = {result:.4g} kJ/mol',
+            ]
+            warnings = []
+            for x in species:
+                try:
+                    counts = parse_species(x['formula']).counts
+                except ValueError:
+                    continue
+                if len(counts) == 1 and x['dHf'] != 0 and x['formula'] in ('H2', 'O2', 'N2', 'F2', 'Cl2', 'Br2', 'I2', 'C', 'S', 'Na', 'Mg', 'Fe', 'Cu', 'Zn', 'Al', 'Ca', 'K', 'P4', 'S8'):
+                    warnings.append(f'{x["formula"]} is an element in its standard state: its ΔH°f should be 0.')
+            return jsonify(result=result, sum_products=sp, sum_reactants=sr,
+                           compact=f'ΔH°rxn = {result:.4g} kJ/mol', detailed=detailed, warnings=warnings)
+
+        elif t == 'gibbs_k':
+            solve = d.get('solve')
+            T = _num(d, 'T', 'T', positive=True) if str(d.get('T') or '').strip() else 298.15
+            if solve == 'dG':
+                K = _num(d, 'K', 'K', positive=True)
+                result = gibbs_from_K(K, T)
+                unit = 'kJ/mol'
+                compact = f'ΔG° = {result:.4g} kJ/mol'
+                detailed = ['Formula: ΔG° = −RT ln K  (R = 8.314 J/(mol·K))',
+                            f'Given: K = {K:g}, T = {T:g} K',
+                            f'ln K = {math.log(K):.4f}',
+                            f'ΔG° = −8.314 × {T:g} × {math.log(K):.4f} ÷ 1000',
+                            f'ΔG° = {result:.4g} kJ/mol']
+                K_val = K
+            elif solve == 'K':
+                dG = _num(d, 'dG', 'ΔG°')
+                expo = -dG * 1000 / (8.314 * T)
+                if expo > 700:
+                    return jsonify(error=f'K is too large to show (about 10^{expo / math.log(10):.0f}).'), 400
+                result = K_from_gibbs(dG, T)
+                unit = ''
+                compact = f'K = {result:.4g}'
+                detailed = ['Formula: K = e^(−ΔG°/RT)',
+                            f'Given: ΔG° = {dG:g} kJ/mol, T = {T:g} K',
+                            f'−ΔG°/RT = −({dG:g} × 1000) ÷ (8.314 × {T:g}) = {expo:.4f}',
+                            f'K = e^{expo:.4f} = {result:.4g}']
+                K_val = result
+            else:
+                return jsonify(error='Unknown solve target'), 400
+            if K_val > 1:
+                detailed.append('K > 1 (ΔG° < 0): products are favoured at equilibrium.')
+            elif K_val < 1:
+                detailed.append('K < 1 (ΔG° > 0): reactants are favoured at equilibrium.')
+            else:
+                detailed.append('K = 1 (ΔG° = 0): neither side is favoured.')
+            return jsonify(result=result, unit=unit, compact=compact, detailed=detailed, warnings=[])
+
+        elif t == 'spontaneity':
+            dH = _num(d, 'dH', 'ΔH')
+            dS = _num(d, 'dS', 'ΔS')
+            desc = spontaneity_analysis(dH, dS)
+            detailed = ['ΔG = ΔH − TΔS, so the signs of ΔH and ΔS decide when ΔG < 0',
+                        f'Given: ΔH = {dH:g} kJ/mol, ΔS = {dS:g} J/(mol·K)',
+                        desc]
+            T_cross = None
+            if dH != 0 and dS != 0 and (dH > 0) == (dS > 0):
+                T_cross = dH * 1000 / dS
+                side = 'below' if dH < 0 else 'above'
+                detailed += [f'Crossover temperature (ΔG = 0): T = ΔH ÷ ΔS = {dH:g} × 1000 ÷ {dS:g} = {T_cross:.4g} K',
+                             f'Spontaneous {side} {T_cross:.4g} K ({T_cross - 273.15:.4g} °C)']
+            return jsonify(result=desc, T_crossover=T_cross, compact=desc,
+                           detailed=detailed, warnings=[])
+
         elif t == 'gibbs':
             dH = float(d['dH'])
             dS = float(d['dS'])
@@ -887,7 +1166,10 @@ def api_thermo():
 @app.route('/api/ice', methods=['POST'])
 def api_ice():
     d = request.json or {}
+    t = d.get('type') or 'table'
     try:
+        if t != 'table':
+            return _ice_tools(d, t)
         rd = d['reactants']
         pd = d['products']
         r_names  = [r['name'] for r in rd]
@@ -897,6 +1179,12 @@ def api_ice():
         p_coeffs = [float(p['coeff']) for p in pd]
         p_init   = [float(p['initial']) for p in pd]
         Kc = float(d['Kc'])
+        if any(c <= 0 for c in r_coeffs + p_coeffs):
+            return jsonify(error='Coefficients must be greater than zero.'), 400
+        if any(c < 0 for c in r_init + p_init):
+            return jsonify(error='Initial concentrations cannot be negative.'), 400
+        if Kc <= 0:
+            return jsonify(error='Kc must be greater than zero.'), 400
         res = build_ice_table(r_names, r_coeffs, r_init, p_names, p_coeffs, p_init, Kc)
         x = res['x']
 
@@ -924,7 +1212,8 @@ def api_ice():
             f'Kc_verified = {res["Q_final"]:.4g}  (target: {Kc})',
             f'5% approximation check: x/[min initial] = {res["approx_pct"]:.2f}%',
         ]
-        warnings = ([f'x/{min(r_init):.4g} = {res["approx_pct"]:.1f}% > 5% — exact (bisection) method used, not approximation']
+        warnings = ([f'x is {res["approx_pct"]:.1f}% of the smallest starting concentration (> 5%) — '
+                     'the exact (bisection) answer is shown, not the approximation']
                     if res['approx_pct'] > 5 else [])
         return jsonify(x=x, r_names=r_names, p_names=p_names,
                        r_eq=res['r_eq'], p_eq=res['p_eq'],
@@ -935,12 +1224,142 @@ def api_ice():
         return _err(e)
 
 
+def _ice_tools(d, t):
+    if t == 'kc_kp':
+        solve = d.get('solve')
+        T = _num(d, 'T', 'T (K)', positive=True)
+        dn = _num(d, 'delta_n', 'Δn')
+        K = _num(d, 'K', 'Kc' if solve == 'Kp' else 'Kp', positive=True)
+        if solve == 'Kp':
+            result, frm = kc_to_kp(K, T, dn), f'Kp = Kc(RT)^Δn = {K:g} × (0.08206 × {T:g})^{dn:g}'
+        elif solve == 'Kc':
+            result, frm = kp_to_kc(K, T, dn), f'Kc = Kp ÷ (RT)^Δn = {K:g} ÷ (0.08206 × {T:g})^{dn:g}'
+        else:
+            return jsonify(error='Unknown solve target'), 400
+        detailed = ['Kp = Kc(RT)^Δn, with R = 0.08206 L·atm/(mol·K) and Kp in atm',
+                    'Δn = moles of gaseous products − moles of gaseous reactants',
+                    f'RT = {0.08206 * T:.4g}', frm, f'{solve} = {result:.4g}']
+        warnings = ['Δn = 0, so Kp = Kc.'] if dn == 0 else []
+        return jsonify(result=result, compact=f'{solve} = {result:.4g}', detailed=detailed, warnings=warnings)
+
+    if t == 'q_vs_k':
+        rd, pd = d.get('reactants', []), d.get('products', [])
+        if not rd or not pd:
+            return jsonify(error='Need at least 1 reactant and 1 product.'), 400
+        rc = [_num(r, 'coeff', f'coefficient of {r.get("name") or "a reactant"}', positive=True) for r in rd]
+        pc = [_num(p, 'coeff', f'coefficient of {p.get("name") or "a product"}', positive=True) for p in pd]
+        rx = [_num(r, 'initial', f'[{r.get("name") or "reactant"}]', positive=True, allow_zero=True) for r in rd]
+        px = [_num(p, 'initial', f'[{p.get("name") or "product"}]', positive=True, allow_zero=True) for p in pd]
+        K = _num(d, 'Kc', 'K', positive=True)
+        if all(v == 0 for v in rx + px):
+            return jsonify(error='All concentrations are zero, so Q is undefined.'), 400
+        Q = reaction_quotient(rc, rx, pc, px)
+        direction, explanation = compare_Q_K(Q, K)
+        term = lambda n, c: f'[{n}]^{c:g}' if c != 1 else f'[{n}]'
+        num = ' × '.join(term(p.get('name') or '?', c) for p, c in zip(pd, pc))
+        den = ' × '.join(term(r.get('name') or '?', c) for r, c in zip(rd, rc))
+        Q_text = '∞ (a reactant is at zero)' if math.isinf(Q) else f'{Q:.4g}'
+        detailed = [f'Q = ({num}) ÷ ({den})',
+                    'Values: ' + ', '.join(f'[{x.get("name") or "?"}] = {v:g}' for x, v in zip(rd + pd, rx + px)),
+                    f'Q = {Q_text},  K = {K:g}',
+                    explanation]
+        return jsonify(Q=Q, K=K, direction=direction,
+                       compact=f'Q = {Q_text} → {direction}', detailed=detailed, warnings=[])
+
+    if t == 'le_chatelier':
+        dist = d.get('disturbance')
+        k_effect = 'unchanged'
+        if dist == 'concentration':
+            direction, explanation = le_chatelier_concentration(d.get('role', ''), d.get('change', ''))
+        elif dist == 'pressure':
+            direction, explanation = le_chatelier_pressure(d.get('change', ''), _num(d, 'delta_n', 'Δn'))
+        elif dist == 'temperature':
+            direction, explanation, k_effect = le_chatelier_temperature(d.get('change', ''), d.get('rxn_type', ''))
+        elif dist == 'catalyst':
+            direction, explanation = le_chatelier_catalyst()
+        else:
+            return jsonify(error='Choose a disturbance.'), 400
+        shift = {'left': 'Shifts LEFT (towards reactants)', 'right': 'Shifts RIGHT (towards products)',
+                 'none': 'No shift'}[direction]
+        detailed = [explanation, f'Value of K: {k_effect}' + ('' if dist == 'temperature' else ' (only temperature changes K)')]
+        return jsonify(direction=direction, k_effect=k_effect, compact=shift,
+                       detailed=detailed, warnings=[])
+
+    return jsonify(error='Unknown type'), 400
+
+
 # ── 16. Electrochemistry ──────────────────────────────────────────────────────
+@app.route('/api/reduction_potentials', methods=['GET'])
+def api_reduction_potentials():
+    rows = sorted(REDUCTION_POTENTIALS.items(), key=lambda kv: -kv[1])
+    return jsonify(half_cells=[{'label': k, 'E': v} for k, v in rows])
+
+
+def _half_cell(label):
+    """(E°, ox species, red species, medium, electrons) for 'Cu2+/Cu'."""
+    E = get_reduction_potential(label)
+    ox, red = label.split('/')
+    has_o = any('O' in parse_species(x).counts for x in (ox, red))
+    medium = 'acidic' if has_o else None
+    half = balance_full([ox, 'e-'], [red], medium)
+    n = next(c for c, sp in half['reactants'] if sp.is_electron)
+    ox_coeff = next(c for c, sp in half['reactants'] if not sp.is_electron
+                    and (sp.formula, sp.charge) == (parse_species(ox).formula, parse_species(ox).charge))
+    return E, ox, red, medium, n, ox_coeff, half['equation']
 @app.route('/api/electrochem', methods=['POST'])
 def api_electrochem():
     d = request.json or {}
     t = d.get('type')
     try:
+        if t == 'cell_pick':
+            l1, l2 = d.get('half1'), d.get('half2')
+            if not l1 or not l2:
+                return jsonify(error='Choose two half-cells.'), 400
+            if l1 == l2:
+                return jsonify(error='Choose two different half-cells.'), 400
+            h1, h2 = _half_cell(l1), _half_cell(l2)
+            (cat_l, cat), (ano_l, ano) = sorted([(l1, h1), (l2, h2)], key=lambda x: -x[1][0])
+            E_cat, E_ano = cat[0], ano[0]
+            E_cell = cell_potential(E_cat, E_ano)
+            n = math.lcm(cat[4], ano[4])
+            warnings, equation = [], None
+            if E_cell == 0:
+                warnings.append('Both half-cells have the same E°, so E°cell = 0.')
+            try:
+                medium = 'acidic' if (cat[3] or ano[3]) else None
+                # cathode is reduced, anode is oxidised; merge duplicates (Fe2+ made twice)
+                r_raw, p_raw = [cat[1], ano[2]], [cat[2], ano[1]]
+                key = lambda x: (parse_species(x).formula, parse_species(x).charge)
+                if medium and ('H', 1) in {key(x) for x in r_raw + p_raw}:
+                    # let the acidic option put H+ on whichever side it belongs
+                    r_raw = [x for x in r_raw if key(x) != ('H', 1)]
+                    p_raw = [x for x in p_raw if key(x) != ('H', 1)]
+                r_list = list({key(x): x for x in r_raw}.values())
+                p_list = list({key(x): x for x in p_raw}.values())
+                overall = balance_full(r_list, p_list, medium)
+                equation = overall['equation']
+                ox_c = next(c for c, sp in overall['reactants'] if (sp.formula, sp.charge) == key(cat[1]))
+                n = cat[4] * ox_c // cat[5]
+            except (ValueError, StopIteration):
+                warnings.append('Could not write the overall equation for this pair.')
+            dG = gibbs_from_cell(n, E_cell)
+            spont, ctype = spontaneity_check(E_cell), cell_type(E_cell)
+            compact = f'E°cell = {E_cell:+.2f} V,  ΔG° = {dG:.4g} kJ/mol'
+            detailed = [
+                f'Cathode (reduction, higher E°): {cat_l}   E° = {E_cat:+.2f} V',
+                f'   {cat[6]}',
+                f'Anode (oxidation, lower E°):    {ano_l}   E° = {E_ano:+.2f} V',
+                f'   {" → ".join(reversed(ano[6].split(" → ")))}',
+                *([f'Overall: {equation}'] if equation else []),
+                f'E°cell = E°cathode − E°anode = {E_cat:+.2f} − ({E_ano:+.2f}) = {E_cell:+.2f} V',
+                f'Electrons transferred: n = {n}',
+                f'ΔG° = −nFE° = −{n} × 96485 × {E_cell:.2f} ÷ 1000 = {dG:.4g} kJ/mol',
+                f'Conclusion: {spont} → {ctype} cell',
+            ]
+            return jsonify(E_cell=E_cell, dG=dG, n=n, cathode=cat_l, anode=ano_l,
+                           equation=equation, spontaneity=spont, cell_type=ctype,
+                           compact=compact, detailed=detailed, warnings=warnings)
+
         if t == 'cell':
             E_cat  = float(d['E_cat'])
             E_ano  = float(d['E_ano'])
@@ -997,7 +1416,7 @@ def api_electrochem():
             E0 = float(d['E0'])
             n  = int(d['n'])
             Q  = float(d['Q'])
-            T  = float(d.get('T', 298.15))
+            T  = float(d.get('T') or 298.15)
             E  = nernst(E0, n, Q, T)
             factor = R_GAS * T / (n * F_CONST)
             ln_Q   = math.log(Q)
@@ -1108,6 +1527,37 @@ def api_kinetics():
                 ]
                 return jsonify(k=k_val, compact=compact, detailed=detailed, warnings=[])
 
+        elif t == 'integrated':
+            order = int(_num(d, 'order', 'order'))
+            if order not in (0, 1, 2):
+                return jsonify(error='Order must be 0, 1 or 2.'), 400
+            solve = d.get('solve')
+            A0 = _num(d, 'A0', '[A]₀', positive=True)
+            k = _num(d, 'k', 'k', positive=True)
+            law = {0: '[A]t = [A]₀ − kt', 1: 'ln[A]t = ln[A]₀ − kt  ([A]t = [A]₀e^(−kt))',
+                   2: '1/[A]t = 1/[A]₀ + kt'}[order]
+            half = {0: A0 / (2 * k), 1: math.log(2) / k, 2: 1 / (k * A0)}[order]
+            half_f = {0: 't½ = [A]₀ ÷ 2k', 1: 't½ = ln 2 ÷ k', 2: 't½ = 1 ÷ (k[A]₀)'}[order]
+            ku = k_units(order)
+            if solve == 'At':
+                tt = _num(d, 't', 't', positive=True, allow_zero=True)
+                result = irl_concentration(order, A0, k, tt)
+                compact = f'[A]t = {result:.4g} mol/dm³'
+                given = f'Given: [A]₀ = {A0:g} mol/dm³, k = {k:g} {ku}, t = {tt:g} s'
+                last = f'[A] after {tt:g} s = {result:.4g} mol/dm³'
+            elif solve == 't':
+                At = _num(d, 'At', '[A]t', positive=True)
+                result = irl_time(order, A0, At, k)
+                compact = f't = {result:.4g} s'
+                given = f'Given: [A]₀ = {A0:g} mol/dm³, [A]t = {At:g} mol/dm³, k = {k:g} {ku}'
+                last = f'Time to fall from {A0:g} to {At:g} mol/dm³ = {result:.4g} s'
+            else:
+                return jsonify(error='Unknown solve target'), 400
+            detailed = [f'Order {order} integrated rate law: {law}', given, last,
+                        f'Half-life for this order: {half_f} = {half:.4g} s']
+            return jsonify(result=result, half_life=half, compact=compact,
+                           detailed=detailed, warnings=[])
+
         elif t == 'kunits':
             order_i  = int(d.get('order', 1))
             units_str = k_units(order_i)
@@ -1131,4 +1581,10 @@ def api_kinetics():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Debug mode exposes an interactive debugger — keep it opt-in, and stay on
+    # localhost unless CHEMCALC_HOST says otherwise.
+    debug = os.environ.get('CHEMCALC_DEBUG') == '1'
+    host = os.environ.get('CHEMCALC_HOST', '127.0.0.1')
+    port = int(os.environ.get('PORT', '5000'))
+    print(f'ChemCalc FX-17 on http://{host}:{port}   (debug={"on" if debug else "off"})')
+    app.run(debug=debug, host=host, port=port)
