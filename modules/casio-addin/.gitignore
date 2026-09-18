@@ -1,0 +1,4 @@
+test_core
+*.o
+*.g3a
+build-cg/
