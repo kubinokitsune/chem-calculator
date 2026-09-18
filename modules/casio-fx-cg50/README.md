@@ -10,7 +10,7 @@ software beyond the one Casio ships.
 
 1. Connect the calculator with the USB cable and choose **USB Flash** on the
    calculator's screen. It appears as a removable drive.
-2. Copy **all nine `.py` files** from this folder into the root of that drive
+2. Copy **all ten `.py` files** from this folder into the root of that drive
    (not into a subfolder - the Python app only lists files in the root).
 3. Eject the drive, then on the calculator open **MENU -> Python**.
 4. Highlight `chem.py`, press **F1 (RUN)**, then **F6 (RUN)** at the prompt.
@@ -30,8 +30,9 @@ To update later, copy the changed files over the old ones the same way.
 | `chemstruct.py` | 7 KB | electron configuration, oxidation numbers, ionic formulae |
 | `chemtools.py` | 7 KB | isotopes and Ar, uncertainties, index of hydrogen deficiency |
 | `chembal.py` | 4 KB | equation balancer (exact fractions, no external libraries) |
+| `chemptab.py` | 10 KB | the periodic table: all 118 elements, group/period/block, bond type from electronegativity |
 
-About 80 KB in total. The calculator has 16 MB of storage, so space is not the
+About 75 KB in total. The calculator has 16 MB of storage, so space is not the
 constraint - **RAM is**. `chem.py` imports one topic module at a time for that
 reason; do not merge the files into one.
 
@@ -61,9 +62,11 @@ J g-1 K-1.
 - The balancer handles ordinary equations by exact linear algebra, but it takes
   **neutral formulae only**: no charges (`Fe^3+`) and no half-equation
   (acidic/basic medium) balancing, both of which the desktop version does.
-- Element data is masses only. There are no names, groups, or electronegativity
-  values; the fx-CG50's own periodic table (the Physium add-in) is a separate
-  program and cannot be read from Python.
+- The periodic table holds atomic number, symbol, name, relative atomic mass,
+  electronegativity, group, period, block, state at room temperature and the
+  usual ion charge. It does **not** hold ionisation energies, radii, melting or
+  boiling points - use Physium for those. (Physium is an add-in, so the Python
+  app cannot read its data; `chemptab.py` carries its own.)
 - Text is ASCII only, so it prints `dH`, `dG`, `dm3` rather than the symbols.
 
 ## Testing
@@ -75,6 +78,6 @@ keypresses to each menu and checks the printed output:
 py modules/chemistry-calculator/test_files/test_casio.py
 ```
 
-221 checks: every menu path, the IB worked answers, and the MicroPython
-constraints (ASCII only, no f-strings, no classes or generators, no imports
-the calculator does not have).
+281 checks: every menu path, the IB worked answers, all 118 elements against
+the desktop table, and the MicroPython constraints (ASCII only, no f-strings,
+no classes or generators, no imports the calculator does not have).

@@ -71,7 +71,8 @@ def section(title):
 
 
 FILES = ["chem.py", "chemcore.py", "chemstoi.py", "chemgas.py", "chemaqua.py",
-         "chemener.py", "chemstruct.py", "chemtools.py", "chembal.py"]
+         "chemener.py", "chemstruct.py", "chemtools.py", "chembal.py",
+         "chemptab.py"]
 
 # ═════════════════════════════════════════════════════════════════════════════
 section("1. Fits what the calculator can run")
@@ -81,7 +82,7 @@ for name in FILES:
     record(f"{name} exists", os.path.exists(path))
 
 ALLOWED_IMPORTS = {"math", "chemcore", "chemstoi", "chemgas", "chemaqua",
-                   "chemener", "chemstruct", "chemtools", "chembal"}
+                   "chemener", "chemstruct", "chemtools", "chembal", "chemptab"}
 for name in FILES:
     src = open(os.path.join(CASIO, name), encoding="utf-8").read()
     raw = open(os.path.join(CASIO, name), "rb").read()
@@ -123,6 +124,7 @@ import chemener
 import chemstruct
 import chemtools
 import chembal
+import chemptab
 
 import percent_composition_calculator as desk_pc
 import Empirical_Formula_Calculator as desk_emp
@@ -137,6 +139,7 @@ import oxidation_number_calculator as desk_ox
 import ionic_bonding_calculator as desk_ionic
 import kinetics as desk_kin
 import gas_laws as desk_gas
+import Periodic_table as desk_pt
 from equation_balancer import balance_equation as desk_balance
 
 # -- formulas and molar masses
@@ -274,6 +277,115 @@ raises("balancer rejects two reactions in one",
        lambda: chembal.balance(["H2", "O2"], ["H2O", "H2O2"]))
 
 # ═════════════════════════════════════════════════════════════════════════════
+section("2b. The periodic table")
+
+# Every element is there, once, in order, and agrees with the desktop table.
+equal("periodic table has 118 elements", chemptab.count(), 118)
+desk_by_z = dict((z, (sym, name, w)) for z, sym, name, w in desk_pt.ELEMENTS)
+IB_SPELLING = {"aluminum": "aluminium", "cesium": "caesium"}
+BOOKLET = {"S": 32.07}     # where IB differs from the IUPAC conventional value
+seen = set()
+bad_mass, bad_name, bad_symbol = [], [], []
+for z in range(1, 119):
+    symbol, name, ar, _en = chemptab.record(z)
+    desk_symbol, desk_name, desk_w = desk_by_z[z]
+    if symbol != desk_symbol:
+        bad_symbol.append(z)
+    want_name = IB_SPELLING.get(desk_name, desk_name).capitalize()
+    if name != want_name:
+        bad_name.append((z, name, want_name))
+    want_mass = BOOKLET.get(symbol, desk_w)
+    if abs(ar - want_mass) > 0.0051:   # 55.845 rounds up to 55.85
+        bad_mass.append((symbol, ar, want_mass))
+    seen.add(symbol)
+record("symbols match the desktop table", not bad_symbol, str(bad_symbol[:5]))
+record("names match the desktop table", not bad_name, str(bad_name[:3]))
+record("masses match the desktop table to 2 dp", not bad_mass, str(bad_mass[:5]))
+equal("no symbol appears twice", len(seen), 118)
+
+# The masses the calculator already used must not have changed underneath it.
+core_clash = [sym for sym, m in chemcore.masses().items()
+              if abs(chemptab.mass(sym) - m) > 0.005]
+record("the table agrees with chemcore's own masses", not core_clash, str(core_clash))
+
+# Electronegativities come from the desktop bonding module.
+en_clash = []
+for z in range(1, 119):
+    symbol, _name, _ar, en = chemptab.record(z)
+    desk_en = desk_ionic.ELECTRONEGATIVITIES.get(symbol)
+    if desk_en in (None, 0.0):
+        if en is not None:
+            en_clash.append((symbol, en, desk_en))
+    elif en is None or abs(en - desk_en) > 0.005:
+        en_clash.append((symbol, en, desk_en))
+record("electronegativities match the desktop table", not en_clash, str(en_clash[:5]))
+
+# Positions, worked out by hand from a printed periodic table.
+POSITIONS = {1: (1, 1), 2: (18, 1), 5: (13, 2), 6: (14, 2), 10: (18, 2),
+             11: (1, 3), 17: (17, 3), 18: (18, 3), 19: (1, 4), 26: (8, 4),
+             30: (12, 4), 31: (13, 4), 36: (18, 4), 38: (2, 5), 47: (11, 5),
+             53: (17, 5), 54: (18, 5), 55: (1, 6), 57: (3, 6), 71: (3, 6),
+             72: (4, 6), 79: (11, 6), 82: (14, 6), 86: (18, 6), 87: (1, 7),
+             89: (3, 7), 92: (3, 7), 103: (3, 7), 104: (4, 7), 118: (18, 7)}
+wrong = [(z, chemptab.group_period(z), want)
+         for z, want in POSITIONS.items() if chemptab.group_period(z) != want]
+record("group and period are right for 30 hand-checked elements", not wrong, str(wrong[:4]))
+
+# Each period must hold the right number of elements.
+SIZES = {1: 2, 2: 8, 3: 8, 4: 18, 5: 18, 6: 32, 7: 32}
+period_counts = {}
+for z in range(1, 119):
+    period = chemptab.group_period(z)[1]
+    period_counts[period] = period_counts.get(period, 0) + 1
+equal("the periods hold 2, 8, 8, 18, 18, 32, 32 elements", period_counts, SIZES)
+equal("group 17 is F Cl Br I At Ts",
+      [chemptab.record(z)[0] for z in range(1, 119)
+       if chemptab.group_period(z)[0] == 17],
+      ["F", "Cl", "Br", "I", "At", "Ts"])
+equal("group 2 is Be Mg Ca Sr Ba Ra",
+      [chemptab.record(z)[0] for z in range(1, 119)
+       if chemptab.group_period(z)[0] == 2],
+      ["Be", "Mg", "Ca", "Sr", "Ba", "Ra"])
+equal("15 lanthanoids", len([z for z in range(57, 72) if chemptab.is_f_block(z)]), 15)
+equal("15 actinoids", len([z for z in range(89, 104) if chemptab.is_f_block(z)]), 15)
+
+equal("blocks: Na is s, Fe is d, Cl is p, U is f",
+      [chemptab.block(11), chemptab.block(26), chemptab.block(17), chemptab.block(92)],
+      ["s", "d", "p", "f"])
+equal("helium is in the s block although it sits in group 18", chemptab.block(2), "s")
+equal("categories", [chemptab.category(z) for z in (3, 20, 26, 17, 18, 32, 8, 60)],
+      ["Alkali metal", "Alkaline earth metal", "Transition metal", "Halogen",
+       "Noble gas", "Metalloid", "Non-metal", "Lanthanoid"])
+equal("states at room temperature",
+      [chemptab.state(z) for z in (1, 35, 80, 26, 53)],
+      ["gas", "liquid", "liquid", "solid", "solid"])
+equal("usual ions", [chemptab.typical_ion(z) for z in (11, 12, 13, 7, 16, 17, 18, 26)],
+      ["+1", "+2", "+3", "-3", "-2", "-1", "none", "varies"])
+
+# Lookup accepts a number, a symbol or a name, in any case.
+equal("lookup by number", chemptab.find("26"), 26)
+equal("lookup by symbol", chemptab.find("fe"), 26)
+equal("lookup by name", chemptab.find("Iron"), 26)
+equal("lookup by name, lower case", chemptab.find("uranium"), 92)
+raises("an invented name is rejected", lambda: chemptab.find("Kryptonite"))
+raises("atomic number 0 is rejected", lambda: chemptab.record(0))
+raises("atomic number 119 is rejected", lambda: chemptab.record(119))
+
+# Bond types agree with the desktop bonding module.
+bond_clash = []
+for a, b in [("Na", "Cl"), ("H", "Cl"), ("C", "H"), ("H", "H"), ("Mg", "O"),
+             ("C", "O"), ("K", "Br"), ("N", "H"), ("C", "C"), ("Al", "Cl")]:
+    gap = abs(desk_ionic.ELECTRONEGATIVITIES[a] - desk_ionic.ELECTRONEGATIVITIES[b])
+    desk_type = desk_ionic.classify_bond(a, b)[0].lower().replace("nonpolar", "non-polar")
+    got = chemptab.bond_type(gap)
+    if got != desk_type:
+        bond_clash.append((a, b, got, desk_type))
+record("bond types agree with the desktop module", not bond_clash, str(bond_clash[:3]))
+
+# The full table also fills the gaps in chemcore's small mass table.
+close("molar mass of Nd2O3 uses the full table", chemcore.molar_mass("Nd2O3"), 336.48, rel=1e-4)
+raises("a made-up element is still rejected", lambda: chemcore.molar_mass("Qz2"))
+
 section("3. Every menu runs from the keypad")
 
 
@@ -407,8 +519,28 @@ except ValueError as e:
 except Exception as e:
     record("a bad formula is reported", False, f"{type(e).__name__}: {e}")
 
+menu("table: lookup by symbol", chemptab.menu_lookup, ["Fe", ""], "Iron")
+menu("table: lookup shows the mass", chemptab.menu_lookup, ["26", ""], "55.85")
+menu("table: lookup by name", chemptab.menu_lookup, ["magnesium", ""], "Group 2")
+menu("table: lookup can add the configuration", chemptab.menu_lookup,
+     ["Cl", "y"], "3p5")
+menu("table: group listing", chemptab.menu_group, ["17"], "At")
+menu("table: period listing", chemptab.menu_period, ["3"], "Ar")
+menu("table: bond type NaCl", chemptab.menu_bond, ["Na", "Cl"], "ionic")
+menu("table: bond type HCl", chemptab.menu_bond, ["H", "Cl"], "polar covalent")
+menu("table: bond type C-H", chemptab.menu_bond, ["C", "H"], "non-polar covalent")
+
 main_src = open(os.path.join(CASIO, "chem.py"), encoding="utf-8").read()
 record("chem.py catches errors so the menu keeps going", "except ValueError" in main_src)
+record("chem.py offers the periodic table", "chemptab" in main_src)
+
+for module_name in ("chemstoi", "chemgas", "chemaqua", "chemener", "chemstruct",
+                    "chemtools", "chembal", "chemptab"):
+    module = sys.modules[module_name]
+    keys = [key for key, _label, _fn in module.MENU]
+    record(module_name + ": menu keys are unique", len(keys) == len(set(keys)), str(keys))
+    record(module_name + ": every menu entry is callable",
+           all(callable(fn) for _k, _l, fn in module.MENU))
 
 # ═════════════════════════════════════════════════════════════════════════════
 print("\n" + "=" * 60)

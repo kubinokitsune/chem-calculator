@@ -214,6 +214,7 @@ chem-calculator/
 │   │   ├── chemcore.py              # masses, formula parsing, prompts
 │   │   ├── chemstoi.py  chemgas.py  chemaqua.py  chemener.py
 │   │   ├── chemstruct.py  chemtools.py  chembal.py
+│   │   ├── chemptab.py              # all 118 elements + group/period/block
 │   │   └── README.md                # how to copy it onto the calculator
 │   └── user interface/              # C UI (in development)
 │       ├── main_menu.C

@@ -35,6 +35,14 @@ def masses():
 def element_mass(symbol):
     m = masses().get(symbol)
     if m is None:
+        # The short table above holds the elements IB uses every day. Anything
+        # else (the lanthanoids, say) comes from the full periodic table, which
+        # is only loaded if it is actually needed.
+        try:
+            m = __import__("chemptab").mass(symbol)
+        except ImportError:
+            m = None
+    if m is None:
         raise ValueError("Unknown element: " + symbol)
     return m
 
@@ -225,20 +233,17 @@ def parse_formula(formula):
             raise ValueError("Bad formula: " + part)
         for el in counts:
             total[el] = total.get(el, 0) + counts[el] * lead
-    table = masses()
     for el in total:
-        if el not in table:
-            raise ValueError("Unknown element: " + el)
+        element_mass(el)      # raises if it is not an element
     return total
 
 
 def molar_mass(formula):
     """Relative molecular mass of a formula string."""
     counts = parse_formula(formula)
-    table = masses()
     total = 0.0
     for el in counts:
-        total += table[el] * counts[el]
+        total += element_mass(el) * counts[el]
     return total
 
 

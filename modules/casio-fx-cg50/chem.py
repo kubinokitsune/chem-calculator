@@ -1,7 +1,8 @@
 # chem.py - ChemCalc for the Casio fx-CG50
 # Run this file from the Python app; the others are loaded when you pick a topic.
 #
-# Files: chemcore chemstoi chemgas chemaqua chemener chemstruct chemtools chembal
+# Files: chemcore chemstoi chemgas chemaqua chemener chemstruct chemtools
+#        chembal chemptab
 
 from chemcore import line, ask_text
 
@@ -13,6 +14,7 @@ TOPICS = [
     ("5", "Structure & bonding", "chemstruct"),
     ("6", "Isotopes, errors, IHD", "chemtools"),
     ("7", "Equation balancer", "chembal"),
+    ("8", "Periodic table", "chemptab"),
 ]
 
 
