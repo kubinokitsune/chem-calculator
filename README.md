@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/kubinokitsune/chem-calculator/actions/workflows/tests.yml/badge.svg)](https://github.com/kubinokitsune/chem-calculator/actions/workflows/tests.yml)
 
-An interactive physical chemistry calculator built for IB Chemistry. Covers 22 topics through both a command-line interface and a browser-based web UI.
+An interactive physical chemistry calculator built for IB Chemistry. Covers 22 topics through a command-line interface, a browser-based web UI, and a cut-down port that runs on a **Casio fx-CG50** graphing calculator (see [modules/casio-fx-cg50](modules/casio-fx-cg50/README.md)).
 
 **Developer:** Felipe "Pipe" Fonseca
 **Project type:** IB Chemistry / personal STEM project
@@ -132,6 +132,7 @@ python test_files/test_ib_chemistry.py    # IB-style worked problems, checked to
 python test_files/test_api.py             # web page <-> Flask API contract
 python test_files/stress_new_features.py  # ~36 000 checks: gas units, ionic balancing, limiting reactant
 python test_files/test_ui.py              # clicks through the real page in a browser (needs playwright)
+python test_files/test_casio.py           # the Casio fx-CG50 port: every menu, plus its MicroPython limits
 ```
 
 All of these run in GitHub Actions on every push.
@@ -205,12 +206,19 @@ chem-calculator/
 │   │   │   ├── test_ib_chemistry.py
 │   │   │   ├── test_ice_solver.py
 │   │   │   ├── test_thermodynamics.py
-│   │   │   └── test_ui.py           # browser click-through (playwright)
+│   │   │   ├── test_ui.py           # browser click-through (playwright)
+│   │   │   └── test_casio.py        # drives the Casio port's menus
 │   │   └── requirements.txt
+│   ├── casio-fx-cg50/               # port for the Casio fx-CG50 (MicroPython)
+│   │   ├── chem.py                  # run this one on the calculator
+│   │   ├── chemcore.py              # masses, formula parsing, prompts
+│   │   ├── chemstoi.py  chemgas.py  chemaqua.py  chemener.py
+│   │   ├── chemstruct.py  chemtools.py  chembal.py
+│   │   └── README.md                # how to copy it onto the calculator
 │   └── user interface/              # C UI (in development)
 │       ├── main_menu.C
 │       └── include/ui.h
-├── .github/workflows/tests.yml      # runs all 8 suites on every push
+├── .github/workflows/tests.yml      # runs all 9 suites on every push
 ├── .gitignore
 └── README.md
 ```

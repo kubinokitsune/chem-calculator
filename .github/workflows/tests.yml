@@ -36,6 +36,8 @@ jobs:
         run: python test_files/test_api.py
       - name: New features stress test (~36 000 checks)
         run: python test_files/stress_new_features.py
+      - name: Casio fx-CG50 port
+        run: python test_files/test_casio.py
 
   browser:
     name: Browser click-through
