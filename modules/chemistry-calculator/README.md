@@ -20,7 +20,7 @@
 From this directory:
 
 ```bash
-python main.py              # terminal menu (17 modules)
+python main.py              # terminal menu (22 modules)
 python ui_interface/app.py  # web UI at http://localhost:5000
 ```
 
@@ -54,5 +54,7 @@ All suites also run in GitHub Actions on every push.
 - The equation balancer handles ions (`Fe^3+`, `SO42-`), electrons (`e-`) and acidic/basic solutions.
 - Gas laws accept atm/kPa/Pa/bar/mmHg, L/dm³/mL/cm³/m³ and K/°C (R = 8.314 J K⁻¹ mol⁻¹).
 - Molar volume at STP is 22.7 dm³ mol⁻¹ (0 °C, 100 kPa), set once in `constants.py`.
+- Solutions accept cm³, dm³, mL, L or m³, and any molar-mass box also takes a formula.
+- Uncertainties follow the IB rules: absolute uncertainties add when adding, percentages add when multiplying.
 - The web page is `ui_interface/index.html` plus `ui_interface/static/style.css` and `static/app.js`; only `static/` is served to the browser.
 - Debug mode is off unless `CHEMCALC_DEBUG=1`, and the server listens on `127.0.0.1` unless `CHEMCALC_HOST` is set.

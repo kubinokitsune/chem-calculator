@@ -157,6 +157,41 @@ def identify(formula):
     return "Unknown / likely neutral or weak"
 
 
+# ── Salt solutions (hydrolysis) ──────────────────────────────────────────────
+
+def salt_pH(kind, K_parent, concentration):
+    """
+    pH of a salt solution.
+      kind 'weak_acid_salt'  — e.g. CH3COONa: give Ka of the parent acid.
+                               Kb = Kw/Ka, [OH-] = √(Kb·C), pH > 7
+      kind 'weak_base_salt'  — e.g. NH4Cl: give Kb of the parent base.
+                               Ka = Kw/Kb, [H+] = √(Ka·C), pH < 7
+    Returns (pH, K of the ion that reacts, [H+] or [OH-]).
+    """
+    K_parent = float(K_parent)
+    concentration = float(concentration)
+    if K_parent <= 0:
+        raise ValueError("The Ka or Kb of the parent must be greater than zero.")
+    if concentration <= 0:
+        raise ValueError("Concentration must be greater than zero.")
+    K_ion = Kw / K_parent
+    x = math.sqrt(K_ion * concentration)
+    if kind == 'weak_acid_salt':
+        pOH = -math.log10(x)
+        return 14.0 - pOH, K_ion, x
+    if kind == 'weak_base_salt':
+        return -math.log10(x), K_ion, x
+    raise ValueError("kind must be 'weak_acid_salt' or 'weak_base_salt'.")
+
+
+def pKa_from_half_equivalence(pH_half):
+    """At half-equivalence [HA] = [A-], so pH = pKa. Returns (pKa, Ka)."""
+    pKa = float(pH_half)
+    if not (-5 <= pKa <= 20):
+        raise ValueError("That pH is outside the range this makes sense for.")
+    return pKa, 10 ** (-pKa)
+
+
 # ── Titration ────────────────────────────────────────────────────────────────
 
 def equivalence_moles(C, V_L):

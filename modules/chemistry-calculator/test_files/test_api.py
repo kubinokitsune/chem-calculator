@@ -611,15 +611,20 @@ _record("no direct localStorage use outside the safe wrapper",
 examples = re.findall(r"^  '(\d+(?::\w+)?)':", html_now, re.M)
 subtypes = {
     "1": ["mass_to_moles", "moles_to_mass", "moles_to_particles", "particles_to_moles", "moles_to_volume", "volume_to_moles"],
+    "2": ["masses", "combustion", "molecular"],
     "6": ["mass_to_volume", "volume_to_mass", "density"], "9": ["classify", "formula"],
+    "18": ["concentration", "moles", "volume", "from_mass", "mass_needed", "convert", "dilution", "ppm"],
+    "19": ["ar", "abundance"],
+    "20": ["convert", "add", "multiply", "power", "error", "sigfig"],
     "10": ["percent", "actual", "theoretical"], "12": ["ideal", "combined", "graham", "dalton", "mixing"],
-    "13": ["ph_convert", "strong_acid", "strong_base", "weak_acid", "weak_base", "buffer", "titration", "identify"],
-    "14": ["calorimetry", "hess", "bond", "std_enthalpy", "gibbs", "gibbs_k", "spontaneity"],
+    "13": ["ph_convert", "strong_acid", "strong_base", "weak_acid", "weak_base", "buffer", "titration",
+           "salt", "half_equivalence", "identify"],
+    "14": ["calorimetry", "hess", "bond", "std_enthalpy", "entropy", "gibbs", "gibbs_k", "spontaneity"],
     "15": ["table", "q_vs_k", "le_chatelier", "kc_kp"], "16": ["cell_pick", "cell", "faraday", "nernst"],
-    "17": ["order", "arrhenius", "halflife", "integrated", "kunits"],
+    "17": ["order", "arrhenius", "halflife", "integrated", "arrhenius_graph", "kunits"],
 }
 missing = [f"{m}:{t}" for m, ts in subtypes.items() for t in ts if f"{m}:{t}" not in examples]
-missing += [m for m in ("2", "3", "4", "5", "7", "8", "11") if m not in examples]
+missing += [m for m in ("3", "4", "5", "7", "8", "11", "21", "22") if m not in examples]
 _record("every module and option has a worked example", not missing, f"missing: {missing}")
 
 section("Hosting: only the static folder is served")
@@ -637,6 +642,149 @@ for header, needle in (("X-Content-Type-Options", "nosniff"), ("Content-Security
 r2 = client.post("/api/mole", json={"type": "moles_to_volume", "a": "1"})
 _record("security headers on API responses too", "nosniff" in r2.headers.get("X-Content-Type-Options", ""))
 _record("debug mode is not on by default", webapp.app.debug is False)
+
+section("IB topics — solutions")
+S = "/api/solutions"
+ok("c from moles and cm³", S, {"type": "concentration", "n": "0.0500", "V": "250", "v_unit": "cm3"},
+   result=0.200, unit="mol/dm³", **TEXT)
+ok("n from c and volume", S, {"type": "moles", "c": "0.100", "V": "25.0", "v_unit": "cm3"}, result=2.50e-3)
+ok("volume needed, answered in cm³", S, {"type": "volume", "n": "0.0125", "c": "0.500", "v_unit": "cm3"},
+   result=25.0, unit="cm³")
+ok("c from a mass, formula for M", S, {"type": "from_mass", "mass": "5.85", "M": "NaCl", "V": "500", "v_unit": "cm3"},
+   result=0.200)
+ok("mass for a standard solution", S, {"type": "mass_needed", "c": "0.100", "V": "250", "v_unit": "cm3", "M": "NaCl"},
+   result=1.461, unit="g")
+ok("g/dm³ → mol/dm³", S, {"type": "convert", "direction": "to_mol", "value": "5.844", "M": "NaCl"}, result=0.100)
+ok("mol/dm³ → g/dm³", S, {"type": "convert", "direction": "to_g", "value": "0.100", "M": "NaCl"}, result=5.844)
+ok("dilution: V₁ to take", S, {"type": "dilution", "solve": "V1", "c1": "2.00", "c2": "0.250", "V2": "100",
+                               "v_unit": "cm3"}, result=12.5, detailed=lambda d: any("Water to add" in x for x in d))
+ok("dilution: c₂ after making up", S, {"type": "dilution", "solve": "c2", "c1": "2.00", "V1": "25.0", "V2": "250"},
+   result=0.200)
+ok("ppm", S, {"type": "ppm", "mass_mg": "5.0", "V": "2.0", "v_unit": "dm3"}, result=2.5, unit="ppm")
+err("zero volume", S, {"type": "concentration", "n": "1", "V": "0", "v_unit": "cm3"})
+err("blank moles", S, {"type": "concentration", "n": "", "V": "10", "v_unit": "cm3"})
+err("unknown volume unit", S, {"type": "concentration", "n": "1", "V": "10", "v_unit": "gallons"})
+err("M that is neither number nor formula", S, {"type": "mass_needed", "c": "1", "V": "10", "M": "Qq"})
+err("unknown solutions type", S, {"type": "nonsense"})
+
+section("IB topics — isotopes")
+I = "/api/isotopes"
+ok("Ar of chlorine", I, {"type": "ar", "symbol": "Cl",
+                         "isotopes": [{"mass": "34.969", "abundance": "75.77"},
+                                      {"mass": "36.966", "abundance": "24.23"}]},
+   Ar=35.4529, percents=lambda p: abs(p[0] - 75.77) < 1e-9, **TEXT)
+ok("Ar from peak heights", I, {"type": "ar", "isotopes": [{"mass": "10.013", "abundance": "19.9"},
+                                                          {"mass": "11.009", "abundance": "80.1"}]},
+   Ar=10.81, percents=lambda p: abs(sum(p) - 100) < 1e-9)
+ok("abundances from Ar (copper)", I, {"type": "abundance", "Ar": "63.546", "mass1": "62.930", "mass2": "64.928"},
+   percent1=69.17, percent2=30.83)
+err("only one isotope", I, {"type": "ar", "isotopes": [{"mass": "12", "abundance": "100"}]})
+err("Ar outside the isotope masses", I, {"type": "abundance", "Ar": "70", "mass1": "62.93", "mass2": "64.93"})
+err("blank isotope mass", I, {"type": "ar", "isotopes": [{"mass": "", "abundance": "50"},
+                                                         {"mass": "13", "abundance": "50"}]})
+
+section("IB topics — uncertainties")
+U = "/api/uncertainty"
+ok("absolute → percentage", U, {"type": "convert", "value": "25.00", "absolute": "0.05", "percent": ""},
+   percent=0.200, absolute=0.05, compact=lambda c: "±" in c,
+   detailed=lambda d: isinstance(d, list) and d)
+ok("percentage → absolute", U, {"type": "convert", "value": "25.00", "absolute": "", "percent": "0.2"},
+   absolute=0.05)
+ok("adding: absolute uncertainties add", U, {"type": "add", "measurements": [
+    {"value": "24.80", "unc": "0.05"}, {"value": "-1.20", "unc": "0.05"}]}, result=23.60, absolute=0.10)
+ok("multiplying: percentages add", U, {"type": "multiply", "measurements": [
+    {"value": "0.100", "unc": "0.5", "op": "*"}, {"value": "25.0", "unc": "0.2", "op": "*"}]},
+   result=2.50, percent=0.70, absolute=0.0175)
+ok("dividing works too", U, {"type": "multiply", "measurements": [
+    {"value": "10.0", "unc": "1.0", "op": "*"}, {"value": "4.00", "unc": "1.0", "op": "/"}]},
+   result=2.50, percent=2.0)
+ok("power doubles the percentage", U, {"type": "power", "value": "2.50", "percent": "1.2", "power": "2"},
+   result=6.25, percent=2.4)
+ok("percentage error", U, {"type": "error", "experimental": "1.23", "accepted": "1.20"}, result=2.5, unit="%")
+ok("round to significant figures", U, {"type": "sigfig", "value": "0.0824567", "figures": "3"}, result=0.0825)
+err("neither uncertainty given", U, {"type": "convert", "value": "25", "absolute": "", "percent": ""})
+err("only one measurement to combine", U, {"type": "add", "measurements": [{"value": "1", "unc": "0.1"}]})
+err("negative uncertainty", U, {"type": "convert", "value": "25", "absolute": "-1", "percent": ""})
+err("zero accepted value", U, {"type": "error", "experimental": "1", "accepted": "0"})
+
+section("IB topics — electron configuration and IHD")
+ok("iron", "/api/electron_config", {"element": "Fe", "charge": "0"},
+   configuration="1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁶ 4s²", shorthand="[Ar] 3d⁶ 4s²", **TEXT)
+ok("Fe³⁺ loses 4s first", "/api/electron_config", {"element": "Fe", "charge": "3"},
+   configuration="1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁵")
+ok("chromium exception is explained", "/api/electron_config", {"element": "Cr", "charge": "0"},
+   configuration="1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁵ 4s¹",
+   detailed=lambda d: any("exception" in x for x in d))
+ok("by name", "/api/electron_config", {"element": "iron", "charge": ""},
+   configuration="1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁶ 4s²")
+ok("by atomic number", "/api/electron_config", {"element": "17", "charge": "-1"},
+   configuration="1s² 2s² 2p⁶ 3s² 3p⁶")
+err("unknown element", "/api/electron_config", {"element": "Xx", "charge": "0"})
+err("no element given", "/api/electron_config", {"element": "", "charge": "0"})
+err("charge larger than the atom", "/api/electron_config", {"element": "H", "charge": "2"})
+
+ok("benzene", "/api/ihd", {"formula": "C6H6"}, result=4, **TEXT)
+ok("caffeine", "/api/ihd", {"formula": "C8H10N4O2"}, result=6)
+ok("hexane is saturated", "/api/ihd", {"formula": "C6H14"}, result=0)
+ok("lower case is fine", "/api/ihd", {"formula": "c6h5cl"}, result=4)
+err("too many hydrogens", "/api/ihd", {"formula": "C2H10"})
+err("not organic", "/api/ihd", {"formula": "H2O"})
+err("blank formula", "/api/ihd", {"formula": ""})
+
+section("IB topics — added to existing modules")
+ok("molecular formula from empirical + Mr", "/api/empirical",
+   {"type": "molecular", "elements": ["C", "H", "O"], "counts": ["1", "2", "1"], "Mr": "180.16"},
+   formula="C6H12O6", multiplier=6, **TEXT)
+ok("combustion analysis", "/api/empirical",
+   {"type": "combustion", "CO2": "0.2641", "H2O": "0.1081", "sample": "0.1802", "N": ""}, formula="CH2O")
+ok("combustion of a hydrocarbon warns about oxygen", "/api/empirical",
+   {"type": "combustion", "CO2": "1.3203", "H2O": "0.2702", "sample": "0.3906", "N": ""},
+   formula="CH", warnings=lambda w: any("no oxygen" in x for x in w))
+ok("empirical from masses still works", "/api/empirical",
+   {"elements": ["C", "H"], "masses": ["85.7", "14.3"]}, formula="CH2")
+err("molecular formula with a too-small Mr", "/api/empirical",
+    {"type": "molecular", "elements": ["C", "H", "O"], "counts": ["1", "2", "1"], "Mr": "12"})
+err("combustion with nothing burnt", "/api/empirical", {"type": "combustion", "CO2": "0", "H2O": "0"})
+
+ok("ΔS° of the Haber process", "/api/thermo", {"type": "entropy", "species": [
+    {"formula": "N2", "coeff": "1", "S": "191.6", "role": "reactant"},
+    {"formula": "H2", "coeff": "3", "S": "130.7", "role": "reactant"},
+    {"formula": "NH3", "coeff": "2", "S": "192.5", "role": "product"}]},
+   result=-198.7, unit="J/(mol·K)", detailed=lambda d: any("decreases" in x for x in d))
+err("entropy needs a product", "/api/thermo", {"type": "entropy", "species": [
+    {"formula": "N2", "coeff": "1", "S": "191.6", "role": "reactant"}]})
+err("negative S° rejected", "/api/thermo", {"type": "entropy", "species": [
+    {"formula": "N2", "coeff": "1", "S": "-191.6", "role": "reactant"},
+    {"formula": "NH3", "coeff": "2", "S": "192.5", "role": "product"}]})
+
+ok("Arrhenius from a graph", "/api/kinetics", {"type": "arrhenius_graph", "points": [
+    {"T": "290", "k": str(3.5e8 * math.exp(-52000 / (8.314 * 290)))},
+    {"T": "300", "k": str(3.5e8 * math.exp(-52000 / (8.314 * 300)))},
+    {"T": "310", "k": str(3.5e8 * math.exp(-52000 / (8.314 * 310)))},
+    {"T": "320", "k": str(3.5e8 * math.exp(-52000 / (8.314 * 320)))}]},
+   Ea_kJ=52.0, A=3.5e8, r2=1.0, **TEXT)
+ok("scattered points get a warning", "/api/kinetics", {"type": "arrhenius_graph", "points": [
+    {"T": "300", "k": "1e-3"}, {"T": "310", "k": "5e-1"}, {"T": "320", "k": "2e-3"}]},
+   warnings=lambda w: len(w) == 1)
+err("one point is not a graph", "/api/kinetics", {"type": "arrhenius_graph", "points": [{"T": "300", "k": "1e-3"}]})
+err("negative rate constant", "/api/kinetics", {"type": "arrhenius_graph", "points": [
+    {"T": "300", "k": "-1"}, {"T": "310", "k": "2"}]})
+
+ok("pH of CH₃COONa", "/api/acid_base", {"type": "salt", "kind": "weak_acid_salt", "K": "1.74e-5", "conc": "0.100"},
+   pH=8.88, **TEXT)
+ok("pH of NH₄Cl", "/api/acid_base", {"type": "salt", "kind": "weak_base_salt", "K": "1.78e-5", "conc": "0.100"},
+   pH=5.13)
+ok("pKa from half-equivalence", "/api/acid_base", {"type": "half_equivalence", "pH": "4.76"},
+   pKa=4.76, Ka=1.738e-5)
+err("salt without a kind", "/api/acid_base", {"type": "salt", "K": "1e-5", "conc": "0.1"})
+err("salt with zero concentration", "/api/acid_base",
+    {"type": "salt", "kind": "weak_acid_salt", "K": "1e-5", "conc": "0"})
+
+# the page wires up every new module
+for needle in ["type: 'molecular'", "type: 'combustion'", "'/api/solutions'", "'/api/isotopes'",
+               "'/api/uncertainty'", "'/api/electron_config'", "'/api/ihd'", "type: 'entropy'",
+               "type: 'arrhenius_graph'", "val('saltKind')", "18: 'Solutions'", "22: 'Index of Hydrogen Deficiency'"]:
+    _record(f"page wires up: {needle}", needle in page_source())
 
 section("Robustness")
 for url in urls:

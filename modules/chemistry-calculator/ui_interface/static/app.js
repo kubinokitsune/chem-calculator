@@ -183,7 +183,8 @@ async function copyOutput() {
 /* ════════════════════════════════════════════════════════
    Recent calculations (kept in this browser only)
 ════════════════════════════════════════════════════════ */
-const TYPE_SELECTS = ['moleType', 'volType', 'yieldType', 'gasType', 'abType', 'thermoType', 'iceType', 'ecType', 'kinType'];
+const TYPE_SELECTS = ['moleType', 'empType', 'volType', 'yieldType', 'gasType', 'abType', 'thermoType',
+                      'iceType', 'ecType', 'kinType', 'solType', 'isoType', 'uncType'];
 function subtypeLabel() {
   for (const id of TYPE_SELECTS) {
     const el = document.getElementById(id);
@@ -308,7 +309,9 @@ const EXAMPLES = {
   '1:particles_to_moles': [['mA', '3.01e23']],
   '1:moles_to_volume':    [['mA', '0.500']],
   '1:volume_to_moles':    [['mA', '4.54']],
-  '2': [rowsOf('empRows', addEmpRow, [['C', '40.0'], ['H', '6.7'], ['O', '53.3']])],
+  '2:masses': [rowsOf('empRows', addEmpRow, [['C', '40.0'], ['H', '6.7'], ['O', '53.3']])],
+  '2:combustion': [['cbCO2', '0.2641'], ['cbH2O', '0.1081'], ['cbSample', '0.1802'], ['cbN', '']],
+  '2:molecular': [rowsOf('molRows', addMolRow, [['C', '1'], ['H', '2'], ['O', '1']]), ['molMr', '180.16']],
   '3': [['eqInput', 'MnO4^- + Fe^2+ -> Mn^2+ + Fe^3+'], ['eqMedium', 'acidic']],
   '4': [['limUnit', 'g'], rowsOf('limRRows', addLimR, [['H2', '', '4.0'], ['O2', '', '16.0']]),
         rowsOf('limPRows', addLimP, [['H2O', '']])],
@@ -342,12 +345,16 @@ const EXAMPLES = {
   '13:titration':   [['tiSolve', 'analyte_conc'], ['tiRa', '1'], ['tiRt', '2'], ['tiCt', '0.100'],
                      ['tiVt', '20.0'], ['tiVa', '25.0'], ['tiAcid', 'strong'], ['tiBase', 'strong']],
   '13:identify':    [['abFormula', 'CH3COOH']],
+  '13:salt':        [['saltKind', 'weak_acid_salt'], ['saltK', '1.74e-5'], ['saltC', '0.100']],
+  '13:half_equivalence': [['heQ', '4.76']],
   '14:calorimetry':  [['calSolve', 'q'], ['calQ', ''], ['calM', '50.0'], ['calC', '4.18'], ['calDT', '12.0']],
   '14:hess':         [rowsOf('hessRows', addHessRow, [['-393.5', '1'], ['-283.0', '-1']])],
   '14:bond':         [rowsOf('bondBrRows', () => addBondRow('bondBrRows'), [['C-H', '4', ''], ['O=O', '2', '']]),
                       rowsOf('bondFmRows', () => addBondRow('bondFmRows'), [['C=O', '2', ''], ['O-H', '4', '']])],
   '14:std_enthalpy': [rowsOf('hfRRows', () => addHfRow('hfRRows'), [['CH4', '1', '-74.0'], ['O2', '2', '0']]),
                       rowsOf('hfPRows', () => addHfRow('hfPRows'), [['CO2', '1', '-393.5'], ['H2O', '2', '-285.8']])],
+  '14:entropy':      [rowsOf('soRRows', () => addSoRow('soRRows'), [['N2', '1', '191.6'], ['H2', '3', '130.7']]),
+                      rowsOf('soPRows', () => addSoRow('soPRows'), [['NH3', '2', '192.5']])],
   '14:gibbs':        [['gibbsDH', '-92.2'], ['gibbsDS', '-199'], ['gibbsT', '298']],
   '14:gibbs_k':      [['gkSolve', 'dG'], ['gkK', '1.00e3'], ['gkDG', ''], ['gkT', '298']],
   '14:spontaneity':  [['spDH', '178'], ['spDS', '161']],
@@ -365,7 +372,27 @@ const EXAMPLES = {
   '17:arrhenius':    [['arrSolve', 'Ea'], ['arrK1', '1.0e-3'], ['arrT1', '300'], ['arrK2', '4.0e-3'], ['arrT2', '320'], ['arrEa', '']],
   '17:halflife':     [['hlSolve', 't_half'], ['hlK', '0.0231'], ['hlT', '']],
   '17:integrated':   [['irOrder', '1'], ['irSolve', 'At'], ['irA0', '0.800'], ['irK', '0.0231'], ['irT', '60'], ['irAt', '']],
+  '17:arrhenius_graph': [rowsOf('agRows', addAgRow, [['300', '1.0e-3'], ['310', '1.9e-3'],
+                                                     ['320', '3.5e-3'], ['330', '6.2e-3']])],
   '17:kunits':       [['kinOrder', '2']],
+  '18:concentration': [['solVU', 'cm3'], ['solN', '0.0500'], ['solV', '250']],
+  '18:moles':         [['solVU', 'cm3'], ['solC', '0.100'], ['solV', '25.0']],
+  '18:volume':        [['solVU', 'cm3'], ['solN', '0.0125'], ['solC', '0.500']],
+  '18:from_mass':     [['solVU', 'cm3'], ['solMass', '2.50'], ['solM', 'NaCl'], ['solV', '250']],
+  '18:mass_needed':   [['solVU', 'cm3'], ['solC', '0.100'], ['solV', '250'], ['solM', 'NaCl']],
+  '18:convert':       [['solDir', 'to_mol'], ['solValue', '5.85'], ['solM', 'NaCl']],
+  '18:dilution':      [['solVU', 'cm3'], ['solSolve', 'V1'], ['sol_c1', '2.00'], ['sol_c2', '0.250'], ['sol_V2', '100']],
+  '18:ppm':           [['solVU', 'dm3'], ['solMg', '5.0'], ['solV', '2.0']],
+  '19:ar':            [['isoSymbol', 'Cl'], rowsOf('isoRows', addIsoRow, [['34.969', '75.77'], ['36.966', '24.23']])],
+  '19:abundance':     [['isoAr', '63.546'], ['isoM1', '62.930'], ['isoM2', '64.928']],
+  '20:convert':       [['uncValue', '25.00'], ['uncAbs', '0.05'], ['uncPct', '']],
+  '20:add':           [rowsOf('uncRows', () => addUncRow('add'), [['24.80', '0.05'], ['-1.20', '0.05']])],
+  '20:multiply':      [rowsOf('uncRows', () => addUncRow('multiply'), [['0.100', '0.5'], ['25.0', '0.2']])],
+  '20:power':         [['uncValue', '2.50'], ['uncPct', '1.2'], ['uncPower', '2']],
+  '20:error':         [['uncExp', '1.23'], ['uncAcc', '1.20']],
+  '20:sigfig':        [['uncValue', '0.0824567'], ['uncFigs', '3']],
+  '21':               [['ecElement', 'Fe'], ['ecCharge', '3']],
+  '22':               [['ihdFormula', 'C6H5NO2']],
 };
 function exampleKey() {
   const radio = document.querySelector('#panelBody input[name="ionicAction"]:checked');
@@ -507,6 +534,11 @@ const MOD_NAMES = {
   15: 'ICE Solver',
   16: 'Electrochemistry',
   17: 'Kinetics',
+  18: 'Solutions',
+  19: 'Isotopes & Ar',
+  20: 'Uncertainty',
+  21: 'Electron Configuration',
+  22: 'Index of Hydrogen Deficiency',
 };
 
 function selectMod(n) {
@@ -556,10 +588,16 @@ const PANELS = {
   /* ── 2. Empirical Formula ────────────────────────── */
   2(body) {
     body.innerHTML = `
-      <div class="panel-title" style="margin-bottom:4px">Elements &amp; Masses (g)</div>
-      <div class="dynamic-rows" id="empRows"></div>
-      <button class="add-row-btn" onclick="addEmpRow()">+ Add Element</button>`;
-    addEmpRow(); addEmpRow();
+      <div class="field-row">
+        <label>From</label>
+        <select id="empType" onchange="updateEmpFields()">
+          <option value="masses">Masses or percentages</option>
+          <option value="combustion">Combustion analysis (CO₂ + H₂O)</option>
+          <option value="molecular">Molecular formula (empirical + Mr)</option>
+        </select>
+      </div>
+      <div id="empFields"></div>`;
+    updateEmpFields();
   },
 
   /* ── 3. Equation Balancer ────────────────────────── */
@@ -747,6 +785,8 @@ const PANELS = {
           <option value="weak_base">Weak Base → pH</option>
           <option value="buffer">Buffer pH (Henderson-Hasselbalch)</option>
           <option value="titration">Titration (c or V at equivalence)</option>
+          <option value="salt">pH of a salt solution</option>
+          <option value="half_equivalence">pKa from half-equivalence</option>
           <option value="identify">Identify Acid/Base</option>
         </select>
       </div>
@@ -764,6 +804,7 @@ const PANELS = {
           <option value="hess">Hess's Law</option>
           <option value="bond">Bond Enthalpy</option>
           <option value="std_enthalpy">ΔH°rxn from ΔH°f values</option>
+          <option value="entropy">ΔS°rxn from S° values</option>
           <option value="gibbs">Gibbs Free Energy (ΔG = ΔH − TΔS)</option>
           <option value="gibbs_k">ΔG° ↔ K (ΔG° = −RT ln K)</option>
           <option value="spontaneity">Spontaneity from signs of ΔH &amp; ΔS</option>
@@ -805,6 +846,79 @@ const PANELS = {
     updateECFields();
   },
 
+  /* ── 18. Solutions ───────────────────────────────── */
+  18(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Find</label>
+        <select id="solType" onchange="updateSolFields()">
+          <option value="concentration">Concentration from moles (c = n/V)</option>
+          <option value="moles">Moles from concentration (n = cV)</option>
+          <option value="volume">Volume from moles and c (V = n/c)</option>
+          <option value="from_mass">Concentration from a mass of solute</option>
+          <option value="mass_needed">Mass needed for a standard solution</option>
+          <option value="convert">g/dm³ ↔ mol/dm³</option>
+          <option value="dilution">Dilution (c₁V₁ = c₂V₂)</option>
+          <option value="ppm">ppm (dilute aqueous)</option>
+        </select>
+      </div>
+      <div class="field-row" id="solUnitRow"><label>Volume unit</label>
+        <select id="solVU" onchange="updateSolFields()">
+          <option value="cm3">cm³</option><option value="dm3">dm³</option>
+          <option value="mL">mL</option><option value="L">L</option><option value="m3">m³</option>
+        </select>
+      </div>
+      <div id="solFields"></div>`;
+    updateSolFields();
+  },
+
+  /* ── 19. Isotopes ────────────────────────────────── */
+  19(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Find</label>
+        <select id="isoType" onchange="updateIsoFields()">
+          <option value="ar">Ar from isotope abundances</option>
+          <option value="abundance">Abundances from Ar (2 isotopes)</option>
+        </select>
+      </div>
+      <div id="isoFields"></div>`;
+    updateIsoFields();
+  },
+
+  /* ── 20. Uncertainty ─────────────────────────────── */
+  20(body) {
+    body.innerHTML = `
+      <div class="field-row">
+        <label>Find</label>
+        <select id="uncType" onchange="updateUncFields()">
+          <option value="convert">Absolute ↔ percentage uncertainty</option>
+          <option value="add">Adding / subtracting measurements</option>
+          <option value="multiply">Multiplying / dividing measurements</option>
+          <option value="power">Raising to a power</option>
+          <option value="error">Percentage error vs accepted value</option>
+          <option value="sigfig">Round to significant figures</option>
+        </select>
+      </div>
+      <div id="uncFields"></div>`;
+    updateUncFields();
+  },
+
+  /* ── 21. Electron configuration ──────────────────── */
+  21(body) {
+    body.innerHTML = `
+      <div class="field-row"><label>Element</label><input id="ecElement" type="text" placeholder="Fe, iron or 26" /></div>
+      <div class="field-row"><label>Charge</label><input id="ecCharge" type="number" step="1" value="0" style="width:70px;flex:none" />
+        <span style="font-size:9px;color:var(--label-fg)">0 = neutral atom</span></div>`;
+  },
+
+  /* ── 22. Index of hydrogen deficiency ────────────── */
+  22(body) {
+    body.innerHTML = `
+      <div class="field-row"><label>Molecular formula</label><input id="ihdFormula" type="text" placeholder="C6H6" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Counts rings and π bonds: IHD = (2C + 2 + N − H − X) ÷ 2.</div>`;
+  },
+
   /* ── 17. Kinetics ────────────────────────────────── */
   17(body) {
     body.innerHTML = `
@@ -815,6 +929,7 @@ const PANELS = {
           <option value="arrhenius">Arrhenius (find Ea or k₂)</option>
           <option value="halflife">Half-life ↔ k (1st order)</option>
           <option value="integrated">Integrated rate law (0, 1st, 2nd order)</option>
+          <option value="arrhenius_graph">Arrhenius graph (ln k vs 1/T → Ea and A)</option>
           <option value="kunits">Rate Constant Units</option>
         </select>
       </div>
@@ -850,6 +965,43 @@ function updateMoleFields() {
 }
 
 /* Module 2 */
+function updateEmpFields() {
+  const t = document.getElementById('empType').value;
+  const f = document.getElementById('empFields');
+  if (t === 'masses') {
+    f.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Elements &amp; masses (g) or percentages</div>
+      <div class="dynamic-rows" id="empRows"></div>
+      <button class="add-row-btn" onclick="addEmpRow()">+ Add Element</button>`;
+    addEmpRow(); addEmpRow();
+  } else if (t === 'combustion') {
+    f.innerHTML = `
+      <div class="field-row"><label>Mass of CO₂ (g)</label><input id="cbCO2" type="number" step="any" /></div>
+      <div class="field-row"><label>Mass of H₂O (g)</label><input id="cbH2O" type="number" step="any" /></div>
+      <div class="field-row"><label>Mass of sample (g)</label><input id="cbSample" type="number" step="any" placeholder="— if unknown" /></div>
+      <div class="field-row"><label>Mass of N (g)</label><input id="cbN" type="number" step="any" placeholder="— if none" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">The sample mass lets oxygen be found by difference.</div>`;
+  } else {
+    f.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Empirical formula (element, subscript)</div>
+      <div class="dynamic-rows" id="molRows"></div>
+      <button class="add-row-btn" onclick="addMolRow()">+ Add Element</button>
+      <hr class="sep">
+      <div class="field-row"><label>Molecular mass Mr</label><input id="molMr" type="number" step="any" placeholder="g/mol" /></div>`;
+    addMolRow(); addMolRow();
+  }
+  checkButtonState();
+}
+function addMolRow() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `
+    <input class="w-sm" placeholder="sym" title="Element symbol" />
+    <span class="dyn-label">subscript</span>
+    <input class="w-sm" type="number" step="1" value="1" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('molRows').appendChild(row);
+}
 function addEmpRow() {
   const row = document.createElement('div');
   row.className = 'dyn-row';
@@ -1051,6 +1203,132 @@ function addDaltonRow() {
   document.getElementById('daltonRows').appendChild(row);
 }
 
+/* Module 18 – Solutions */
+function solVolLabel() {
+  const el = document.getElementById('solVU');
+  const v = el ? el.value : 'cm3';
+  return { dm3: 'dm³', cm3: 'cm³', m3: 'm³' }[v] || v;
+}
+function updateSolFields() {
+  const t = document.getElementById('solType').value;
+  const f = document.getElementById('solFields');
+  const V = solVolLabel();
+  document.getElementById('solUnitRow').style.display = (t === 'convert') ? 'none' : '';
+  const rows = {
+    concentration: `<div class="field-row"><label>Moles (mol)</label><input id="solN" type="number" step="any" /></div>
+      <div class="field-row"><label>Volume (${V})</label><input id="solV" type="number" step="any" /></div>`,
+    moles: `<div class="field-row"><label>Concentration (mol/dm³)</label><input id="solC" type="number" step="any" /></div>
+      <div class="field-row"><label>Volume (${V})</label><input id="solV" type="number" step="any" /></div>`,
+    volume: `<div class="field-row"><label>Moles (mol)</label><input id="solN" type="number" step="any" /></div>
+      <div class="field-row"><label>Concentration (mol/dm³)</label><input id="solC" type="number" step="any" /></div>`,
+    from_mass: `<div class="field-row"><label>Mass of solute (g)</label><input id="solMass" type="number" step="any" /></div>
+      <div class="field-row"><label>M (g/mol) or formula</label><input id="solM" type="text" placeholder="58.44 or NaCl" /></div>
+      <div class="field-row"><label>Volume (${V})</label><input id="solV" type="number" step="any" /></div>`,
+    mass_needed: `<div class="field-row"><label>Concentration wanted (mol/dm³)</label><input id="solC" type="number" step="any" /></div>
+      <div class="field-row"><label>Volume (${V})</label><input id="solV" type="number" step="any" /></div>
+      <div class="field-row"><label>M (g/mol) or formula</label><input id="solM" type="text" placeholder="58.44 or NaCl" /></div>`,
+    convert: `<div class="field-row"><label>Direction</label>
+        <select id="solDir"><option value="to_mol">g/dm³ → mol/dm³</option><option value="to_g">mol/dm³ → g/dm³</option></select></div>
+      <div class="field-row"><label>Value</label><input id="solValue" type="number" step="any" /></div>
+      <div class="field-row"><label>M (g/mol) or formula</label><input id="solM" type="text" placeholder="58.44 or NaCl" /></div>`,
+    dilution: `<div class="field-row"><label>Solve for</label>
+        <select id="solSolve" onchange="updateSolFields()">
+          <option value="V1">V₁ (stock volume to take)</option>
+          <option value="c2">c₂ (diluted concentration)</option>
+          <option value="V2">V₂ (final volume)</option>
+          <option value="c1">c₁ (stock concentration)</option>
+        </select></div>
+      <div id="dilFields"></div>`,
+    ppm: `<div class="field-row"><label>Mass of solute (mg)</label><input id="solMg" type="number" step="any" /></div>
+      <div class="field-row"><label>Volume (${V})</label><input id="solV" type="number" step="any" /></div>`,
+  }[t] || '';
+  f.innerHTML = rows;
+  if (t === 'dilution') {
+    const solve = val('solSolve') || 'V1';
+    const fields = {
+      c1: ['V1', 'c2', 'V2'], V1: ['c1', 'c2', 'V2'], c2: ['c1', 'V1', 'V2'], V2: ['c1', 'V1', 'c2'],
+    }[solve];
+    const labels = { c1: `c₁ stock (mol/dm³)`, V1: `V₁ stock (${V})`, c2: `c₂ diluted (mol/dm³)`, V2: `V₂ final (${V})` };
+    document.getElementById('dilFields').innerHTML = fields.map(k =>
+      `<div class="field-row"><label>${labels[k]}</label><input id="sol_${k}" type="number" step="any" /></div>`).join('');
+  }
+  checkButtonState();
+}
+
+/* Module 19 – Isotopes */
+function updateIsoFields() {
+  const t = document.getElementById('isoType').value;
+  const f = document.getElementById('isoFields');
+  if (t === 'ar') {
+    f.innerHTML = `
+      <div class="field-row"><label>Element (optional)</label><input id="isoSymbol" type="text" placeholder="Cl" data-optional /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Isotopes (mass, abundance % or peak height)</div>
+      <div class="dynamic-rows" id="isoRows"></div>
+      <button class="add-row-btn" onclick="addIsoRow()">+ Isotope</button>`;
+    addIsoRow(); addIsoRow();
+  } else {
+    f.innerHTML = `
+      <div class="field-row"><label>Ar (from the data booklet)</label><input id="isoAr" type="number" step="any" /></div>
+      <div class="field-row"><label>Mass of isotope 1</label><input id="isoM1" type="number" step="any" /></div>
+      <div class="field-row"><label>Mass of isotope 2</label><input id="isoM2" type="number" step="any" /></div>`;
+  }
+  checkButtonState();
+}
+function addIsoRow() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `<span class="dyn-label">mass</span>
+    <input class="w-md" type="number" step="any" placeholder="34.969" />
+    <span class="dyn-label">abundance</span>
+    <input class="w-md" type="number" step="any" placeholder="75.77" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('isoRows').appendChild(row);
+}
+
+/* Module 20 – Uncertainty */
+function updateUncFields() {
+  const t = document.getElementById('uncType').value;
+  const f = document.getElementById('uncFields');
+  if (t === 'convert') {
+    f.innerHTML = `
+      <div class="field-row"><label>Measurement</label><input id="uncValue" type="number" step="any" /></div>
+      <div class="field-row"><label>Absolute (±)</label><input id="uncAbs" type="number" step="any" placeholder="— if giving %" /></div>
+      <div class="field-row"><label>Percentage (%)</label><input id="uncPct" type="number" step="any" placeholder="— if giving ±" /></div>`;
+  } else if (t === 'add' || t === 'multiply') {
+    const what = t === 'add' ? 'absolute (±)' : 'percentage (%)';
+    f.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Measurements (value, ${what}${t === 'add' ? '; use a negative value to subtract' : ''})</div>
+      <div class="dynamic-rows" id="uncRows"></div>
+      <button class="add-row-btn" onclick="addUncRow('${t}')">+ Measurement</button>`;
+    addUncRow(t); addUncRow(t);
+  } else if (t === 'power') {
+    f.innerHTML = `
+      <div class="field-row"><label>Value</label><input id="uncValue" type="number" step="any" /></div>
+      <div class="field-row"><label>Percentage (%)</label><input id="uncPct" type="number" step="any" /></div>
+      <div class="field-row"><label>Power</label><input id="uncPower" type="number" step="any" value="2" /></div>`;
+  } else if (t === 'error') {
+    f.innerHTML = `
+      <div class="field-row"><label>Experimental value</label><input id="uncExp" type="number" step="any" /></div>
+      <div class="field-row"><label>Accepted value</label><input id="uncAcc" type="number" step="any" /></div>`;
+  } else {
+    f.innerHTML = `
+      <div class="field-row"><label>Value</label><input id="uncValue" type="number" step="any" /></div>
+      <div class="field-row"><label>Significant figures</label><input id="uncFigs" type="number" step="1" value="3" /></div>`;
+  }
+  checkButtonState();
+}
+function addUncRow(kind) {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  const op = kind === 'multiply'
+    ? `<select class="w-sm"><option value="*">×</option><option value="/">÷</option></select>` : '';
+  row.innerHTML = `${op}<input class="w-md" type="number" step="any" placeholder="value" />
+    <span class="dyn-label">${kind === 'add' ? '±' : '%'}</span>
+    <input class="w-sm" type="number" step="any" placeholder="0.05" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('uncRows').appendChild(row);
+}
+
 /* Module 13 – Acid-Base */
 function updateABFields() {
   const t = document.getElementById('abType').value;
@@ -1082,6 +1360,18 @@ function updateABFields() {
       <div class="field-row"><label>[Base] (mol/L)</label><input id="abBase" type="number" step="any" /></div>`,
     identify: `
       <div class="field-row"><label>Formula</label><input id="abFormula" type="text" placeholder="HCl, NaOH, NaCl..." /></div>`,
+    salt: `
+      <div class="field-row"><label>Salt of</label>
+        <select id="saltKind">
+          <option value="weak_acid_salt">a weak acid (e.g. CH₃COONa) — give Ka</option>
+          <option value="weak_base_salt">a weak base (e.g. NH₄Cl) — give Kb</option>
+        </select>
+      </div>
+      <div class="field-row"><label>Ka or Kb of parent</label><input id="saltK" type="number" step="any" placeholder="e.g. 1.74e-5" /></div>
+      <div class="field-row"><label>Concentration (mol/dm³)</label><input id="saltC" type="number" step="any" /></div>`,
+    half_equivalence: `
+      <div class="field-row"><label>pH at half-equivalence</label><input id="heQ" type="number" step="any" placeholder="e.g. 4.76" /></div>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Half way to the equivalence point [HA] = [A⁻], so pH = pKa.</div>`,
     titration: `
       <div class="field-row"><label>Solve for</label>
         <select id="tiSolve" onchange="updateTitrationFields()">
@@ -1166,6 +1456,18 @@ function updateThermoFields() {
       <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Elements in their standard state (O₂, H₂, C…) have ΔH°f = 0.</div>`;
     addHfRow('hfRRows'); addHfRow('hfRRows');
     addHfRow('hfPRows'); addHfRow('hfPRows');
+  } else if (t === 'entropy') {
+    f.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Reactants (formula, coefficient, S° J/mol·K)</div>
+      <div class="dynamic-rows" id="soRRows"></div>
+      <button class="add-row-btn" onclick="addSoRow('soRRows')">+ Reactant</button>
+      <hr class="sep">
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Products (formula, coefficient, S° J/mol·K)</div>
+      <div class="dynamic-rows" id="soPRows"></div>
+      <button class="add-row-btn" onclick="addSoRow('soPRows')">+ Product</button>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">S° is always positive, even for elements.</div>`;
+    addSoRow('soRRows'); addSoRow('soRRows');
+    addSoRow('soPRows'); addSoRow('soPRows');
   } else if (t === 'gibbs_k') {
     f.innerHTML = `
       <div class="field-row"><label>Solve for</label>
@@ -1188,6 +1490,17 @@ function updateThermoFields() {
       <div class="field-row"><label>ΔS (J/mol·K)</label><input id="gibbsDS" type="number" step="any" placeholder="e.g. -199" /></div>
       <div class="field-row"><label>T (K)</label><input id="gibbsT" type="number" step="any" placeholder="298.15" data-optional /></div>`;
   }
+}
+function addSoRow(containerId) {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `<input class="w-md" placeholder="formula" />
+    <span class="dyn-label">×</span>
+    <input class="w-sm" type="number" step="any" value="1" title="coefficient" />
+    <span class="dyn-label">S°</span>
+    <input class="w-md" type="number" step="any" placeholder="J/mol·K" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById(containerId).appendChild(row);
 }
 function addHfRow(containerId) {
   const row = document.createElement('div');
@@ -1396,6 +1709,13 @@ function updateKinFields() {
       </div>
       <div class="field-row"><label>k (s⁻¹)</label><input id="hlK" type="number" step="any" placeholder="— if solving for k" /></div>
       <div class="field-row"><label>t½ (s)</label><input id="hlT" type="number" step="any" placeholder="— if solving for t½" /></div>`;
+  } else if (t === 'arrhenius_graph') {
+    f.innerHTML = `
+      <div style="font-size:9px;color:var(--label-fg);margin-bottom:4px">Experiments (T in K, rate constant k)</div>
+      <div class="dynamic-rows" id="agRows"></div>
+      <button class="add-row-btn" onclick="addAgRow()">+ Point</button>
+      <div style="font-size:9px;color:var(--label-fg);margin-top:2px">Plots ln k against 1/T and fits a straight line: gradient = −Ea/R, intercept = ln A.</div>`;
+    addAgRow(); addAgRow(); addAgRow();
   } else if (t === 'integrated') {
     f.innerHTML = `
       <div class="field-row"><label>Order</label>
@@ -1426,6 +1746,17 @@ function updateKinFields() {
         </select>
       </div>`;
   }
+}
+
+function addAgRow() {
+  const row = document.createElement('div');
+  row.className = 'dyn-row';
+  row.innerHTML = `<span class="dyn-label">T (K)</span>
+    <input class="w-md" type="number" step="any" placeholder="300" />
+    <span class="dyn-label">k</span>
+    <input class="w-md" type="number" step="any" placeholder="1.0e-3" />
+    <button class="rem-row-btn" onclick="this.parentElement.remove()">x</button>`;
+  document.getElementById('agRows').appendChild(row);
 }
 
 /* ════════════════════════════════════════════════════════
@@ -1477,6 +1808,26 @@ const CALCS = {
 
   /* ── 2. Empirical Formula ────────────────────────── */
   async 2() {
+    const t = val('empType');
+    if (t === 'combustion') {
+      const d = await post('/api/empirical', { type: 'combustion', CO2: val('cbCO2'), H2O: val('cbH2O'),
+        sample: val('cbSample'), N: val('cbN') });
+      if (d.error) { showError(d.error); return; }
+      render(d);
+      return;
+    }
+    if (t === 'molecular') {
+      const elements = [], counts = [];
+      document.querySelectorAll('#molRows .dyn-row').forEach(r => {
+        const ins = r.querySelectorAll('input');
+        if (ins[0].value.trim()) { elements.push(ins[0].value.trim()); counts.push(ins[1].value || '1'); }
+      });
+      if (!elements.length) { showError('Add at least one element.'); return; }
+      const d = await post('/api/empirical', { type: 'molecular', elements, counts, Mr: val('molMr') });
+      if (d.error) { showError(d.error); return; }
+      render(d);
+      return;
+    }
     const rows = document.querySelectorAll('#empRows .dyn-row');
     const elements = [], masses = [];
     rows.forEach(r => {
@@ -1678,6 +2029,10 @@ const CALCS = {
     } else if (t === 'identify') {
       body.formula = val('abFormula');
       if (!body.formula) { showError('Enter a formula.'); return; }
+    } else if (t === 'salt') {
+      Object.assign(body, { kind: val('saltKind'), K: val('saltK'), conc: val('saltC') });
+    } else if (t === 'half_equivalence') {
+      body.pH = val('heQ');
     } else if (t === 'titration') {
       Object.assign(body, { solve: val('tiSolve'), ratio_analyte: val('tiRa'), ratio_titrant: val('tiRt'),
         C_titrant: val('tiCt'), V_titrant: val('tiVt'), V_analyte: val('tiVa'), C_analyte: val('tiCa'),
@@ -1723,6 +2078,18 @@ const CALCS = {
       });
       if (!broken.length && !formed.length) { showError('Add at least one bond.'); return; }
       const d = await post('/api/thermo', { type: 'bond', broken, formed });
+      if (d.error) { showError(d.error); return; }
+      render(d);
+    } else if (t === 'entropy') {
+      const species = [];
+      [['soRRows', 'reactant'], ['soPRows', 'product']].forEach(([id, role]) => {
+        document.querySelectorAll(`#${id} .dyn-row`).forEach(r => {
+          const ins = r.querySelectorAll('input');
+          if (ins[0].value.trim() || ins[2].value.trim())
+            species.push({ formula: ins[0].value.trim(), coeff: ins[1].value, S: ins[2].value, role });
+        });
+      });
+      const d = await post('/api/thermo', { type: 'entropy', species });
       if (d.error) { showError(d.error); return; }
       render(d);
     } else if (t === 'std_enthalpy') {
@@ -1827,6 +2194,15 @@ const CALCS = {
       const d = await post('/api/kinetics', { type: 'halflife', solve, k: val('hlK'), t_half: val('hlT') });
       if (d.error) { showError(d.error); return; }
       render(d);
+    } else if (t === 'arrhenius_graph') {
+      const points = [];
+      document.querySelectorAll('#agRows .dyn-row').forEach(r => {
+        const ins = r.querySelectorAll('input');
+        if (ins[0].value.trim() || ins[1].value.trim()) points.push({ T: ins[0].value, k: ins[1].value });
+      });
+      const d = await post('/api/kinetics', { type: 'arrhenius_graph', points });
+      if (d.error) { showError(d.error); return; }
+      render(d);
     } else if (t === 'integrated') {
       const d = await post('/api/kinetics', { type: 'integrated', order: val('irOrder'), solve: val('irSolve'),
         A0: val('irA0'), k: val('irK'), t: val('irT'), At: val('irAt') });
@@ -1838,4 +2214,79 @@ const CALCS = {
       render(d);
     }
   },
+
+  /* ── 18. Solutions ───────────────────────────────── */
+  async 18() {
+    const t = val('solType');
+    const body = { type: t, v_unit: val('solVU') };
+    if (t === 'dilution') {
+      body.solve = val('solSolve');
+      ['c1', 'V1', 'c2', 'V2'].forEach(k => { const v = val('sol_' + k); if (v) body[k] = v; });
+    } else {
+      Object.assign(body, { n: val('solN'), c: val('solC'), V: val('solV'), mass: val('solMass'),
+        M: val('solM'), value: val('solValue'), direction: val('solDir'), mass_mg: val('solMg') });
+    }
+    const d = await post('/api/solutions', body);
+    if (d.error) { showError(d.error); return; }
+    render(d);
+  },
+
+  /* ── 19. Isotopes ────────────────────────────────── */
+  async 19() {
+    const t = val('isoType');
+    let body = { type: t };
+    if (t === 'ar') {
+      const isotopes = [];
+      document.querySelectorAll('#isoRows .dyn-row').forEach(r => {
+        const ins = r.querySelectorAll('input');
+        if (ins[0].value.trim() || ins[1].value.trim())
+          isotopes.push({ mass: ins[0].value, abundance: ins[1].value });
+      });
+      if (isotopes.length < 2) { showError('Enter at least two isotopes.'); return; }
+      body.isotopes = isotopes;
+      body.symbol = val('isoSymbol');
+    } else {
+      Object.assign(body, { Ar: val('isoAr'), mass1: val('isoM1'), mass2: val('isoM2') });
+    }
+    const d = await post('/api/isotopes', body);
+    if (d.error) { showError(d.error); return; }
+    render(d);
+  },
+
+  /* ── 20. Uncertainty ─────────────────────────────── */
+  async 20() {
+    const t = val('uncType');
+    let body = { type: t };
+    if (t === 'add' || t === 'multiply') {
+      const measurements = [];
+      document.querySelectorAll('#uncRows .dyn-row').forEach(r => {
+        const sel = r.querySelector('select');
+        const ins = r.querySelectorAll('input');
+        if (ins[0].value.trim())
+          measurements.push({ value: ins[0].value, unc: ins[1].value, op: sel ? sel.value : '*' });
+      });
+      body.measurements = measurements;
+    } else {
+      Object.assign(body, { value: val('uncValue'), absolute: val('uncAbs'), percent: val('uncPct'),
+        power: val('uncPower'), experimental: val('uncExp'), accepted: val('uncAcc'), figures: val('uncFigs') });
+    }
+    const d = await post('/api/uncertainty', body);
+    if (d.error) { showError(d.error); return; }
+    render(d);
+  },
+
+  /* ── 21. Electron configuration ──────────────────── */
+  async 21() {
+    const d = await post('/api/electron_config', { element: val('ecElement'), charge: val('ecCharge') });
+    if (d.error) { showError(d.error); return; }
+    render(d);
+  },
+
+  /* ── 22. Index of hydrogen deficiency ────────────── */
+  async 22() {
+    const d = await post('/api/ihd', { formula: val('ihdFormula') });
+    if (d.error) { showError(d.error); return; }
+    render(d);
+  },
 };
+

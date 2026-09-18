@@ -181,6 +181,24 @@ def standard_enthalpy_rxn(species):
 
 # ── 5. GIBBS FREE ENERGY  ΔG = ΔH − TΔS ────────────────────────────────────
 
+def standard_entropy_rxn(species):
+    """
+    ΔS°rxn = Σ n·S°(products) − Σ n·S°(reactants)   in J/(mol·K).
+    species: list of dicts with 'formula', 'S' (J/mol·K), 'coeff', 'role'.
+    """
+    total = 0.0
+    for s in species:
+        role = str(s.get('role', '')).lower()
+        contribution = float(s['coeff']) * float(s['S'])
+        if role == 'product':
+            total += contribution
+        elif role == 'reactant':
+            total -= contribution
+        else:
+            raise ValueError(f"Role must be 'product' or 'reactant', got '{s.get('role')}'.")
+    return total
+
+
 def celsius_to_kelvin(T_C):
     return T_C + 273.15
 

@@ -6,7 +6,8 @@ sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), '..'
 
 from mole_conversions import (mass_to_moles, moles_to_mass, moles_to_particles,
                                particles_to_moles, moles_to_volume, volume_to_moles)
-from Empirical_Formula_Calculator import calculate_empirical_formula, display_empirical_formula
+from Empirical_Formula_Calculator import (calculate_empirical_formula, display_empirical_formula,
+                                          molecular_formula, combustion_analysis)
 from equation_balancer import balance_full, parse_equation
 from limiting_reactant import calculate_limiting_reactant
 from constants import capitalize_formula as cap
@@ -25,11 +26,17 @@ from gas_laws import (ideal_gas_find_P, ideal_gas_find_V, ideal_gas_find_n, idea
 from acid_base import (all_four, strong_acid_pH, strong_base_pH,
                        weak_acid_pH, weak_base_pH, buffer_pH, identify,
                        equivalence_moles, titration_find_concentration,
-                       titration_find_volume, equivalence_point_pH_description)
+                       titration_find_volume, equivalence_point_pH_description,
+                       salt_pH, pKa_from_half_equivalence)
+import solutions as sol
+import isotopes as iso
+import uncertainties as unc
+from electron_config import configuration_lines, electron_configuration, noble_gas_shorthand
+from organic_tools import ihd_lines, index_of_hydrogen_deficiency
 from thermodynamics import (cal_q, cal_m, cal_c, cal_dT, hess_law,
                              bond_enthalpy_dH, lookup_bond, gibbs_dG,
                              standard_enthalpy_rxn, gibbs_from_K, K_from_gibbs,
-                             spontaneity_analysis)
+                             spontaneity_analysis, standard_entropy_rxn)
 from ice_solver import (build_ice_table, reaction_quotient, compare_Q_K,
                         kc_to_kp, kp_to_kc, le_chatelier_concentration,
                         le_chatelier_pressure, le_chatelier_temperature,
@@ -38,7 +45,8 @@ from electrochemistry import (cell_potential, gibbs_from_cell, faraday_mass,
                                faraday_current, faraday_time, faraday_molar_mass,
                                nernst, spontaneity_check, cell_type)
 from kinetics import (determine_order, rate_constant_from_experiment, arrhenius_Ea,
-                      arrhenius_k2, k_units, irl_concentration, irl_time)
+                      arrhenius_k2, k_units, irl_concentration, irl_time,
+                      arrhenius_from_data)
 from constants import REDUCTION_POTENTIALS, get_reduction_potential
 from equation_balancer import parse_species
 from limiting_reactant import species_molar_mass
@@ -293,7 +301,52 @@ def api_mole():
 @app.route('/api/empirical', methods=['POST'])
 def api_empirical():
     d = request.json or {}
+    t = d.get('type') or 'masses'
     try:
+        if t == 'molecular':
+            elements = [cap(e.strip()) for e in d['elements']]
+            counts = [int(_num({'v': c}, 'v', f'subscript of {e}', positive=True))
+                      for e, c in zip(elements, d.get('counts', []))]
+            if len(counts) != len(elements) or not elements:
+                return jsonify(error='Give a subscript for each element.'), 400
+            empirical = dict(zip(elements, counts))
+            Mr = _num(d, 'Mr', 'molecular mass', positive=True)
+            molecular, n, emp_mass = molecular_formula(empirical, Mr)
+            emp_text = display_empirical_formula(empirical)
+            mol_text = display_empirical_formula(molecular)
+            detailed = [
+                f'Empirical formula: {emp_text}',
+                f'Empirical formula mass = {emp_mass:.3f} g/mol',
+                f'n = Mr ÷ empirical mass = {Mr:g} ÷ {emp_mass:.3f} = {Mr / emp_mass:.3f} ≈ {n}',
+                f'Molecular formula = ({emp_text})_{n} = {mol_text}',
+            ]
+            return jsonify(formula=mol_text, empirical=emp_text, multiplier=n,
+                           empirical_mass=emp_mass, answers=[_answer('n (multiplier)', n)],
+                           headline=f'Molecular formula: {mol_text}',
+                           compact=f'Molecular formula: {mol_text}', detailed=detailed, warnings=[])
+
+        if t == 'combustion':
+            co2 = _num(d, 'CO2', 'mass of CO2', positive=True, allow_zero=True)
+            h2o = _num(d, 'H2O', 'mass of H2O', positive=True, allow_zero=True)
+            sample = d.get('sample')
+            nitrogen = float(d['N']) if str(d.get('N') or '').strip() else 0.0
+            elements, masses, notes = combustion_analysis(
+                co2, h2o, sample if str(sample or '').strip() else None, nitrogen)
+            formula = calculate_empirical_formula(elements, masses)
+            display = display_empirical_formula(formula)
+            detailed = [
+                f'Given: {co2:g} g CO2, {h2o:g} g H2O'
+                + (f', sample {float(sample):g} g' if str(sample or '').strip() else ''),
+                'All the carbon ends up as CO2 and all the hydrogen as H2O:',
+                *[f'  {el}: {m:.4f} g' for el, m in zip(elements, masses)],
+                f'Empirical formula: {display}',
+            ]
+            answers = [_answer(f'mass of {el}', m, 'g') for el, m in zip(elements, masses)]
+            out = jsonify(formula=display, elements=elements, masses=masses, answers=answers,
+                          headline=f'Empirical formula: {display}',
+                          compact=f'Empirical formula: {display}', detailed=detailed, warnings=notes)
+            return out
+
         elements = [cap(e.strip()) for e in d['elements']]
         masses   = [float(m) for m in d['masses']]
         formula  = calculate_empirical_formula(elements, masses)
@@ -951,6 +1004,45 @@ def api_acid_base():
             return jsonify(result=result, unit=unit, compact=compact,
                            detailed=detailed, warnings=[])
 
+        elif t == 'salt':
+            kind = d.get('kind')
+            if kind not in ('weak_acid_salt', 'weak_base_salt'):
+                return jsonify(error='Choose the salt of a weak acid or of a weak base.'), 400
+            K_parent = _num(d, 'K', 'Ka or Kb of the parent', positive=True)
+            conc = _num(d, 'conc', 'concentration', positive=True)
+            pH, K_ion, x = salt_pH(kind, K_parent, conc)
+            _, pOH, H, OH = all_four(pH=pH)
+            if kind == 'weak_acid_salt':
+                detailed = [
+                    'Salt of a weak acid and a strong base (e.g. CH3COONa): the anion is a weak base.',
+                    f'Kb = Kw / Ka = 1.00e-14 / {K_parent:.4g} = {K_ion:.4e}',
+                    f'[OH⁻] = √(Kb × C) = √({K_ion:.4e} × {conc:g}) = {x:.4e} mol/dm³',
+                    f'pOH = {pOH:.4f}, so pH = 14 − pOH = {pH:.4f}',
+                    'The solution is basic (pH > 7).',
+                ]
+            else:
+                detailed = [
+                    'Salt of a weak base and a strong acid (e.g. NH4Cl): the cation is a weak acid.',
+                    f'Ka = Kw / Kb = 1.00e-14 / {K_parent:.4g} = {K_ion:.4e}',
+                    f'[H⁺] = √(Ka × C) = √({K_ion:.4e} × {conc:g}) = {x:.4e} mol/dm³',
+                    f'pH = {pH:.4f}',
+                    'The solution is acidic (pH < 7).',
+                ]
+            return jsonify(pH=pH, pOH=pOH, H=H, OH=OH, K_ion=K_ion,
+                           compact=f'pH = {pH:.4f}', detailed=detailed, warnings=[])
+
+        elif t == 'half_equivalence':
+            pH_half = _num(d, 'pH', 'pH at half-equivalence')
+            pKa, Ka = pKa_from_half_equivalence(pH_half)
+            detailed = [
+                'At the half-equivalence point half the weak acid has reacted, so [HA] = [A⁻].',
+                'Henderson-Hasselbalch: pH = pKa + log([A⁻]/[HA]) = pKa + log(1) = pKa',
+                f'pKa = pH at half-equivalence = {pKa:.4g}',
+                f'Ka = 10^(−pKa) = {Ka:.4e}',
+            ]
+            return jsonify(pKa=pKa, Ka=Ka, answers=[_answer('pKa', pKa), _answer('Ka', Ka)],
+                           compact=f'pKa = {pKa:.4g},  Ka = {Ka:.4e}', detailed=detailed, warnings=[])
+
         elif t == 'identify':
             identity = identify(d['formula'])
             compact  = f'{d["formula"]} → {identity}'
@@ -1084,6 +1176,41 @@ def api_thermo():
             return jsonify(result=result, sum_products=sp, sum_reactants=sr,
                            compact=f'ΔH°rxn = {result:.4g} kJ/mol', detailed=detailed, warnings=warnings)
 
+        elif t == 'entropy':
+            species = []
+            for row in d.get('species', []):
+                f = str(row.get('formula') or '').strip()
+                if not f and str(row.get('S') or '').strip() == '':
+                    continue
+                role = row.get('role')
+                if role not in ('reactant', 'product'):
+                    return jsonify(error='Each species must be a reactant or a product.'), 400
+                species.append({'formula': cap(f) or '?',
+                                'S': _num(row, 'S', f'S° of {f or "a species"}', positive=True),
+                                'coeff': _num(row, 'coeff', f'coefficient of {f or "a species"}', positive=True)
+                                         if str(row.get('coeff') or '').strip() else 1.0,
+                                'role': role})
+            if not any(x['role'] == 'reactant' for x in species) or \
+               not any(x['role'] == 'product' for x in species):
+                return jsonify(error='Add at least one reactant and one product.'), 400
+            result = standard_entropy_rxn(species)
+            prods = [x for x in species if x['role'] == 'product']
+            reacs = [x for x in species if x['role'] == 'reactant']
+            sp = sum(x['coeff'] * x['S'] for x in prods)
+            sr = sum(x['coeff'] * x['S'] for x in reacs)
+            line = lambda x: f'  {x["coeff"]:g} × S°({x["formula"]}) = {x["coeff"]:g} × {x["S"]:g} = {x["coeff"] * x["S"]:.4g} J/(mol·K)'
+            detailed = [
+                'Formula: ΔS°rxn = Σ n·S°(products) − Σ n·S°(reactants)',
+                'Products:', *[line(x) for x in prods], f'  Σ = {sp:.4g} J/(mol·K)',
+                'Reactants:', *[line(x) for x in reacs], f'  Σ = {sr:.4g} J/(mol·K)',
+                f'ΔS°rxn = {sp:.4g} − {sr:.4g} = {result:.4g} J/(mol·K)',
+                ('Entropy increases (more ways to arrange the particles).' if result > 0
+                 else 'Entropy decreases (fewer ways to arrange the particles).' if result < 0
+                 else 'No change in entropy.'),
+            ]
+            return jsonify(result=result, unit='J/(mol·K)', sum_products=sp, sum_reactants=sr,
+                           compact=f'ΔS°rxn = {result:.4g} J/(mol·K)', detailed=detailed, warnings=[])
+
         elif t == 'gibbs_k':
             solve = d.get('solve')
             T = _num(d, 'T', 'T', positive=True) if str(d.get('T') or '').strip() else 298.15
@@ -1158,6 +1285,278 @@ def api_thermo():
 
         else:
             return jsonify(error='Unknown type'), 400
+    except Exception as e:
+        return _err(e)
+
+
+# ── 18. Solutions: concentration & dilution ──────────────────────────────────
+@app.route('/api/solutions', methods=['POST'])
+def api_solutions():
+    d = request.json or {}
+    t = d.get('type')
+    try:
+        vu = d.get('v_unit') or 'cm3'
+        vlabel = {'dm3': 'dm³', 'cm3': 'cm³', 'm3': 'm³'}.get(vu, vu)
+
+        def volume_dm3(key='V', label='volume'):
+            return sol.volume_to_dm3(_num(d, key, label, positive=True), vu)
+
+        if t == 'concentration':
+            n = _num(d, 'n', 'moles', positive=True)
+            V = volume_dm3()
+            result = sol.concentration(n, V)
+            detailed = ['Formula: c = n / V', f'Given: n = {n:g} mol, V = {_num(d, "V", "volume"):g} {vlabel}',
+                        f'V = {V:.6g} dm³', f'c = {n:g} ÷ {V:.6g} = {result:.4g} mol/dm³']
+            unit = 'mol/dm³'
+        elif t == 'moles':
+            c = _num(d, 'c', 'concentration', positive=True)
+            V = volume_dm3()
+            result = sol.moles_from_concentration(c, V)
+            detailed = ['Formula: n = c × V', f'Given: c = {c:g} mol/dm³, V = {_num(d, "V", "volume"):g} {vlabel}',
+                        f'V = {V:.6g} dm³', f'n = {c:g} × {V:.6g} = {result:.4g} mol']
+            unit = 'mol'
+        elif t == 'volume':
+            n = _num(d, 'n', 'moles', positive=True)
+            c = _num(d, 'c', 'concentration', positive=True)
+            V_dm3 = sol.volume_from_concentration(n, c)
+            result = sol.volume_from_dm3(V_dm3, vu)
+            detailed = ['Formula: V = n / c', f'Given: n = {n:g} mol, c = {c:g} mol/dm³',
+                        f'V = {n:g} ÷ {c:g} = {V_dm3:.4g} dm³ = {result:.4g} {vlabel}']
+            unit = vlabel
+        elif t == 'from_mass':
+            m = _num(d, 'mass', 'mass', positive=True)
+            M, note = _molar_mass_input(d.get('M'))
+            V = volume_dm3()
+            result = sol.concentration_from_mass(m, M, V)
+            detailed = [*([note] if note else []), 'Formula: c = (mass ÷ M) ÷ V',
+                        f'n = {m:g} ÷ {M:.6g} = {m / M:.4g} mol',
+                        f'V = {V:.6g} dm³', f'c = {m / M:.4g} ÷ {V:.6g} = {result:.4g} mol/dm³']
+            unit = 'mol/dm³'
+        elif t == 'mass_needed':
+            c = _num(d, 'c', 'concentration', positive=True)
+            V = volume_dm3()
+            M, note = _molar_mass_input(d.get('M'))
+            result = sol.mass_for_solution(c, V, M)
+            detailed = [*([note] if note else []), 'Formula: mass = c × V × M',
+                        f'V = {V:.6g} dm³',
+                        f'mass = {c:g} × {V:.6g} × {M:.6g} = {result:.4g} g',
+                        'Weigh this out, dissolve it, and make the solution up to the mark.']
+            unit = 'g'
+        elif t == 'convert':
+            M, note = _molar_mass_input(d.get('M'))
+            if d.get('direction') == 'to_mol':
+                v = _num(d, 'value', 'mass concentration', positive=True)
+                result = sol.g_per_dm3_to_mol_per_dm3(v, M)
+                detailed = [*([note] if note else []), 'Formula: c = (g/dm³) ÷ M',
+                            f'c = {v:g} ÷ {M:.6g} = {result:.4g} mol/dm³']
+                unit = 'mol/dm³'
+            else:
+                v = _num(d, 'value', 'concentration', positive=True)
+                result = sol.mol_per_dm3_to_g_per_dm3(v, M)
+                detailed = [*([note] if note else []), 'Formula: g/dm³ = c × M',
+                            f'= {v:g} × {M:.6g} = {result:.4g} g/dm³']
+                unit = 'g/dm³'
+        elif t == 'dilution':
+            solve = d.get('solve')
+            if solve not in ('c1', 'V1', 'c2', 'V2'):
+                return jsonify(error='Choose c1, V1, c2 or V2 to solve for.'), 400
+            vals = {k: _num(d, k, k, positive=True) for k in ('c1', 'V1', 'c2', 'V2') if k != solve}
+            result = sol.dilution_solve(solve, **vals)
+            unit = 'mol/dm³' if solve.startswith('c') else vlabel
+            detailed = ['Formula: c₁V₁ = c₂V₂  (the moles of solute do not change)',
+                        'Given: ' + ', '.join(f'{k} = {v:g}' for k, v in vals.items()),
+                        f'{solve} = {result:.4g} {unit}']
+            if solve == 'V2':
+                detailed.append(f'Water to add = {result - vals["V1"]:.4g} {vlabel}')
+            elif solve == 'V1':
+                detailed.append(f'Water to add = {vals["V2"] - result:.4g} {vlabel}')
+            if solve.startswith('c'):
+                other = vals['c2'] if solve == 'c1' else vals['c1']
+                detailed.append(f'Dilution factor = {max(result, other) / min(result, other):.4g}×')
+        elif t == 'ppm':
+            mg = _num(d, 'mass_mg', 'mass in mg', positive=True)
+            V = volume_dm3()
+            result = sol.ppm_from_mass(mg, V)
+            detailed = ['For a dilute aqueous solution 1 dm³ ≈ 1 kg, so mg/dm³ ≈ mg/kg = ppm',
+                        f'{mg:g} mg ÷ {V:.6g} dm³ = {result:.4g} ppm']
+            unit = 'ppm'
+        else:
+            return jsonify(error='Unknown type'), 400
+        label = {'concentration': 'c', 'moles': 'n', 'volume': 'V', 'from_mass': 'c',
+                 'mass_needed': 'Mass needed', 'convert': 'Converted', 'ppm': 'Concentration'}.get(t, 'Result')
+        if t == 'dilution':
+            label = d.get('solve')
+        return jsonify(result=result, unit=unit, compact=f'{label} = {result:.4g} {unit}',
+                       detailed=detailed, warnings=[])
+    except Exception as e:
+        return _err(e)
+
+
+# ── 19. Isotopes & relative atomic mass ──────────────────────────────────────
+@app.route('/api/isotopes', methods=['POST'])
+def api_isotopes():
+    d = request.json or {}
+    t = d.get('type') or 'ar'
+    try:
+        if t == 'ar':
+            rows = [r for r in d.get('isotopes', [])
+                    if str(r.get('mass') or '').strip() or str(r.get('abundance') or '').strip()]
+            data = [(_num(r, 'mass', 'isotope mass', positive=True),
+                     _num(r, 'abundance', 'abundance', positive=True, allow_zero=True)) for r in rows]
+            Ar = iso.relative_atomic_mass(data)
+            percents = iso.percentage_abundances(data)
+            detailed = iso.mass_spectrum_summary(data, d.get('symbol', ''))
+            answers = [_answer('Ar', Ar)] + [
+                _answer(f'{m:g} abundance', p, '%') for (m, _), p in zip(data, percents)]
+            return jsonify(Ar=Ar, percents=percents, answers=answers,
+                           compact=f'Ar = {Ar:.4f}', detailed=detailed, warnings=[])
+        if t == 'abundance':
+            Ar = _num(d, 'Ar', 'Ar', positive=True)
+            m1 = _num(d, 'mass1', 'mass of isotope 1', positive=True)
+            m2 = _num(d, 'mass2', 'mass of isotope 2', positive=True)
+            p1, p2 = iso.abundance_from_Ar(Ar, m1, m2)
+            detailed = [
+                'Let x = % of the first isotope, so (100 − x) = % of the second.',
+                f'Ar = [x × {m1:g} + (100 − x) × {m2:g}] ÷ 100 = {Ar:g}',
+                f'x = 100(Ar − m₂) ÷ (m₁ − m₂) = 100({Ar:g} − {m2:g}) ÷ ({m1:g} − {m2:g})',
+                f'Isotope {m1:g}: {p1:.2f} %',
+                f'Isotope {m2:g}: {p2:.2f} %',
+            ]
+            return jsonify(percent1=p1, percent2=p2,
+                           answers=[_answer(f'{m1:g} abundance', p1, '%'),
+                                    _answer(f'{m2:g} abundance', p2, '%')],
+                           compact=f'{m1:g}: {p1:.2f} %,  {m2:g}: {p2:.2f} %',
+                           detailed=detailed, warnings=[])
+        return jsonify(error='Unknown type'), 400
+    except Exception as e:
+        return _err(e)
+
+
+# ── 20. Uncertainties & significant figures ──────────────────────────────────
+@app.route('/api/uncertainty', methods=['POST'])
+def api_uncertainty():
+    d = request.json or {}
+    t = d.get('type')
+    try:
+        if t == 'convert':
+            value = _num(d, 'value', 'measurement')
+            if str(d.get('absolute') or '').strip():
+                absolute = _num(d, 'absolute', 'absolute uncertainty', positive=True, allow_zero=True)
+                percent = unc.percentage_uncertainty(value, absolute)
+            elif str(d.get('percent') or '').strip():
+                percent = _num(d, 'percent', 'percentage uncertainty', positive=True, allow_zero=True)
+                absolute = unc.absolute_uncertainty(value, percent)
+            else:
+                return jsonify(error='Enter either the absolute or the percentage uncertainty.'), 400
+            detailed = [
+                '% uncertainty = absolute ÷ value × 100',
+                f'= {absolute:.4g} ÷ {abs(value):g} × 100 = {percent:.4g} %',
+                f'Written out: {unc.format_with_uncertainty(value, absolute)}',
+            ]
+            return jsonify(value=value, absolute=absolute, percent=percent,
+                           answers=[_answer('Absolute uncertainty', absolute),
+                                    _answer('Percentage uncertainty', percent, '%')],
+                           compact=unc.format_with_uncertainty(value, absolute),
+                           detailed=detailed, warnings=[])
+
+        if t in ('add', 'multiply'):
+            rows = [r for r in d.get('measurements', [])
+                    if str(r.get('value') or '').strip() != '']
+            if len(rows) < 2:
+                return jsonify(error='Enter at least two measurements.'), 400
+            values = [_num(r, 'value', 'measurement') for r in rows]
+            uncs = [_num(r, 'unc', 'uncertainty', positive=True, allow_zero=True) for r in rows]
+            if t == 'add':
+                result, absolute, percent = unc.combine_add_subtract(values, uncs)
+                detailed = ['Adding or subtracting: the ABSOLUTE uncertainties add.',
+                            *[f'  {v:g} ± {u:g}' for v, u in zip(values, uncs)],
+                            f'Result = {result:.4g}',
+                            f'Absolute uncertainty = ' + ' + '.join(f'{u:g}' for u in uncs) + f' = ± {absolute:.4g}',
+                            f'= {percent:.4g} % of the result']
+            else:
+                ops = [r.get('op', '*') for r in rows[1:]]
+                result, absolute, percent = unc.combine_multiply_divide(values, uncs, ops)
+                detailed = ['Multiplying or dividing: the PERCENTAGE uncertainties add.',
+                            *[f'  {v:g} ± {u:g} %' for v, u in zip(values, uncs)],
+                            'Calculation: ' + ' '.join(
+                                [f'{values[0]:g}'] + [f'{o} {v:g}' for o, v in zip(ops, values[1:])]),
+                            f'Result = {result:.4g}',
+                            f'Percentage uncertainty = ' + ' + '.join(f'{u:g}' for u in uncs) + f' = {percent:.4g} %',
+                            f'Absolute uncertainty = ± {absolute:.4g}']
+            return jsonify(result=result, absolute=absolute, percent=percent,
+                           answers=[_answer('Result', result), _answer('Uncertainty', absolute),
+                                    _answer('Percentage uncertainty', percent, '%')],
+                           compact=unc.format_with_uncertainty(result, absolute),
+                           detailed=detailed, warnings=[])
+
+        if t == 'power':
+            value = _num(d, 'value', 'value')
+            percent = _num(d, 'percent', 'percentage uncertainty', positive=True, allow_zero=True)
+            power = _num(d, 'power', 'power')
+            result, absolute, pct = unc.power_uncertainty(value, percent, power)
+            detailed = [f'Raising to a power multiplies the percentage uncertainty by |n|.',
+                        f'{value:g}^{power:g} = {result:.4g}',
+                        f'% uncertainty = {percent:g} × |{power:g}| = {pct:.4g} %',
+                        f'Absolute uncertainty = ± {absolute:.4g}']
+            return jsonify(result=result, absolute=absolute, percent=pct,
+                           answers=[_answer('Result', result), _answer('Percentage uncertainty', pct, '%')],
+                           compact=unc.format_with_uncertainty(result, absolute),
+                           detailed=detailed, warnings=[])
+
+        if t == 'error':
+            experimental = _num(d, 'experimental', 'experimental value')
+            accepted = _num(d, 'accepted', 'accepted value')
+            pct = unc.percentage_error(experimental, accepted)
+            detailed = ['% error = |experimental − accepted| ÷ |accepted| × 100',
+                        f'= |{experimental:g} − {accepted:g}| ÷ |{accepted:g}| × 100',
+                        f'= {pct:.4g} %',
+                        'This measures accuracy (how close to the true value), not precision.']
+            return jsonify(result=pct, unit='%', compact=f'Percentage error = {pct:.4g} %',
+                           detailed=detailed, warnings=[])
+
+        if t == 'sigfig':
+            value = _num(d, 'value', 'value')
+            figures = int(_num(d, 'figures', 'significant figures', positive=True))
+            rounded = unc.round_to_sig_figs(value, figures)
+            detailed = [f'{value:g} to {figures} significant figures', f'= {rounded:g}']
+            return jsonify(result=rounded, compact=f'{rounded:g}', detailed=detailed, warnings=[])
+
+        return jsonify(error='Unknown type'), 400
+    except Exception as e:
+        return _err(e)
+
+
+# ── 21. Electron configuration ───────────────────────────────────────────────
+@app.route('/api/electron_config', methods=['POST'])
+def api_electron_config():
+    d = request.json or {}
+    try:
+        element = str(d.get('element') or '').strip()
+        if not element:
+            return jsonify(error='Enter an element symbol, name or atomic number.'), 400
+        charge = int(_num(d, 'charge', 'charge')) if str(d.get('charge') or '').strip() else 0
+        text, config, info = electron_configuration(element, charge)
+        detailed = configuration_lines(element, charge)
+        return jsonify(configuration=text, shorthand=noble_gas_shorthand(element, charge),
+                       element=info['symbol'], number=info['number'],
+                       compact=text, headline=f'{info["symbol"]}: {text}',
+                       detailed=detailed, warnings=[])
+    except Exception as e:
+        return _err(e)
+
+
+# ── 22. Index of hydrogen deficiency ─────────────────────────────────────────
+@app.route('/api/ihd', methods=['POST'])
+def api_ihd():
+    d = request.json or {}
+    try:
+        formula = str(d.get('formula') or '').strip()
+        if not formula:
+            return jsonify(error='Enter a molecular formula, e.g. C6H6.'), 400
+        value = index_of_hydrogen_deficiency(formula)
+        detailed = ihd_lines(formula)
+        return jsonify(result=value, ihd=value, answers=[_answer('IHD', value)],
+                       compact=f'IHD = {value}', detailed=detailed, warnings=[])
     except Exception as e:
         return _err(e)
 
@@ -1526,6 +1925,33 @@ def api_kinetics():
                     f'k = {k_val:.4g} s⁻¹',
                 ]
                 return jsonify(k=k_val, compact=compact, detailed=detailed, warnings=[])
+
+        elif t == 'arrhenius_graph':
+            rows = [r for r in d.get('points', [])
+                    if str(r.get('T') or '').strip() or str(r.get('k') or '').strip()]
+            if len(rows) < 2:
+                return jsonify(error='Enter at least two (T, k) pairs.'), 400
+            temps = [_num(r, 'T', 'temperature', positive=True) for r in rows]
+            ks = [_num(r, 'k', 'rate constant', positive=True) for r in rows]
+            res = arrhenius_from_data(temps, ks)
+            detailed = [
+                'Graphical Arrhenius method: plot ln k (y) against 1/T (x)',
+                'Points:',
+                *[f'  T = {T:g} K → 1/T = {1/T:.6g} K⁻¹,  k = {k:g} → ln k = {math.log(k):.4f}'
+                  for T, k in zip(temps, ks)],
+                f'Line of best fit: ln k = {res["gradient"]:.4g} × (1/T) + {res["intercept"]:.4g}   (r² = {res["r2"]:.5f})',
+                'gradient = −Ea/R, so Ea = −R × gradient',
+                f'Ea = −8.314 × {res["gradient"]:.4g} = {res["Ea_J"]:.4g} J/mol = {res["Ea_kJ"]:.4g} kJ/mol',
+                f'intercept = ln A, so A = e^{res["intercept"]:.4g} = {res["A"]:.4g}',
+            ]
+            warnings = ([f'r² = {res["r2"]:.4f} — the points do not lie close to a straight line.']
+                        if res['r2'] < 0.95 else [])
+            return jsonify(Ea_J=res['Ea_J'], Ea_kJ=res['Ea_kJ'], A=res['A'], gradient=res['gradient'],
+                           intercept=res['intercept'], r2=res['r2'],
+                           answers=[_answer('Ea', res['Ea_kJ'], 'kJ/mol'), _answer('A', res['A']),
+                                    _answer('r²', res['r2'])],
+                           compact=f'Ea = {res["Ea_kJ"]:.4g} kJ/mol,  A = {res["A"]:.4g}',
+                           detailed=detailed, warnings=warnings)
 
         elif t == 'integrated':
             order = int(_num(d, 'order', 'order'))

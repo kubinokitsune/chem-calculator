@@ -85,6 +85,46 @@ def arrhenius_k2(k1: float, T1_K: float, T2_K: float, Ea_J: float) -> float:
 
 # Half-life (first order only) ─────────────────────────────────────────────────
 
+def arrhenius_from_data(temperatures_K: list, rate_constants: list) -> dict:
+    """
+    The graphical Arrhenius method: plot ln k against 1/T, fit a straight line.
+      gradient  = −Ea/R      →  Ea = −R × gradient
+      intercept = ln A       →  A  = e^intercept
+    Returns Ea (J/mol), A, gradient, intercept and r² for the fit.
+    """
+    if len(temperatures_K) != len(rate_constants):
+        raise ValueError("Give one rate constant for each temperature.")
+    if len(temperatures_K) < 2:
+        raise ValueError("At least two (T, k) pairs are needed.")
+    xs, ys = [], []
+    for T, k in zip(temperatures_K, rate_constants):
+        T, k = float(T), float(k)
+        if T <= 0:
+            raise ValueError("Temperatures must be above 0 K.")
+        if k <= 0:
+            raise ValueError("Rate constants must be greater than zero.")
+        xs.append(1.0 / T)
+        ys.append(math.log(k))
+    n = len(xs)
+    mean_x, mean_y = sum(xs) / n, sum(ys) / n
+    sxx = sum((x - mean_x) ** 2 for x in xs)
+    if sxx == 0:
+        raise ValueError("All the temperatures are the same — the graph needs a range of T.")
+    sxy = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+    gradient = sxy / sxx
+    intercept = mean_y - gradient * mean_x
+    ss_tot = sum((y - mean_y) ** 2 for y in ys)
+    ss_res = sum((y - (gradient * x + intercept)) ** 2 for x, y in zip(xs, ys))
+    r2 = 1.0 if ss_tot == 0 else 1 - ss_res / ss_tot
+    Ea = -R * gradient
+    try:
+        A = math.exp(intercept)
+    except OverflowError:
+        raise ValueError("The intercept is too large to give a sensible A — check the data.")
+    return {"Ea_J": Ea, "Ea_kJ": Ea / 1000, "A": A, "gradient": gradient,
+            "intercept": intercept, "r2": r2, "points": list(zip(xs, ys))}
+
+
 def half_life_from_k(k: float) -> float:
     """t½ = ln(2) / k   (first order)"""
     if k <= 0:

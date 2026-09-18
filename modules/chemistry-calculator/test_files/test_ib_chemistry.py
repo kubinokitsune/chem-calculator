@@ -51,6 +51,25 @@ def check(label, got, expected, rel=None):
         print(msg)
 
 
+def check_raises(label, fn, exc_type=ValueError):
+    """The call must raise; that is the correct behaviour for bad input."""
+    global PASS, FAIL
+    try:
+        fn()
+    except exc_type:
+        PASS += 1
+        print(f"  [PASS] {label}")
+        return
+    except Exception as e:
+        got = f"raised {type(e).__name__}: {e}"
+    else:
+        got = "no exception"
+    FAIL += 1
+    msg = f"  [FAIL] {label}\n         {got} (expected {exc_type.__name__})"
+    FAILURES.append(msg)
+    print(msg)
+
+
 def section(title):
     print(f"\n=== {title} ===")
 
@@ -242,6 +261,164 @@ check("HCl is polar covalent", classify_bond("H", "Cl")[0], "Polar Covalent")
 check("Cl2 is non-polar", classify_bond("Cl", "Cl")[0], "Nonpolar Covalent")
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+section("S1.4 Solutions: concentration and dilution")
+from solutions import (concentration, moles_from_concentration, volume_from_concentration,
+                       concentration_from_mass, mass_for_solution, g_per_dm3_to_mol_per_dm3,
+                       mol_per_dm3_to_g_per_dm3, dilution_solve, dilution_factor,
+                       ppm_from_mass, volume_to_dm3)
+
+check("0.0500 mol in 250 cm³", concentration(0.0500, volume_to_dm3(250, "cm3")), 0.200)
+check("n in 25.0 cm³ of 0.100 mol dm⁻³", moles_from_concentration(0.100, volume_to_dm3(25.0, "cm3")), 2.50e-3)
+check("volume of 0.0125 mol at 0.500 mol dm⁻³ (dm³)", volume_from_concentration(0.0125, 0.500), 0.0250)
+check("5.85 g NaCl (58.44) in 500 cm³", concentration_from_mass(5.85, 58.44, 0.500), 0.200)
+check("mass of NaCl for 250 cm³ of 0.100 mol dm⁻³", mass_for_solution(0.100, 0.250, 58.44), 1.461)
+check("g dm⁻³ → mol dm⁻³ (NaCl)", g_per_dm3_to_mol_per_dm3(5.844, 58.44), 0.1000)
+check("mol dm⁻³ → g dm⁻³ (NaCl)", mol_per_dm3_to_g_per_dm3(0.100, 58.44), 5.844)
+check("dilution: V₁ of 2.00 for 100 cm³ of 0.250", dilution_solve("V1", c1=2.00, c2=0.250, V2=100), 12.5)
+check("dilution: c₂ from 25.0 cm³ of 2.00 made up to 250 cm³",
+      dilution_solve("c2", c1=2.00, V1=25.0, V2=250), 0.200)
+check("dilution factor 2.00 → 0.250", dilution_factor(2.00, 0.250), 8.0)
+check("5.0 mg in 2.0 dm³ = 2.5 ppm", ppm_from_mass(5.0, 2.0), 2.5)
+check_raises("volume of zero rejected", lambda: concentration(1, 0), ValueError)
+check_raises("unknown volume unit rejected", lambda: volume_to_dm3(1, "gallons"), ValueError)
+
+section("S1.2 Isotopes and relative atomic mass")
+from isotopes import relative_atomic_mass, abundance_from_Ar, percentage_abundances
+
+check("Ar of chlorine", relative_atomic_mass([(34.969, 75.77), (36.966, 24.23)]), 35.45)
+check("Ar of magnesium (3 isotopes)",
+      relative_atomic_mass([(23.985, 78.99), (24.986, 10.00), (25.982, 11.01)]), 24.31)
+check("Ar from peak heights (not %)", relative_atomic_mass([(10.013, 19.9), (11.009, 80.1)]), 10.81)
+p1, p2 = abundance_from_Ar(63.546, 62.930, 64.928)
+check("copper-63 abundance from Ar", p1, 69.17)
+check("copper-65 abundance from Ar", p2, 30.83)
+check("abundances add to 100 %", p1 + p2, 100.0, rel=1e-9)
+check("peak heights converted to %", percentage_abundances([(10, 1), (11, 3)])[1], 75.0)
+check_raises("Ar outside the isotope masses rejected",
+             lambda: abundance_from_Ar(70.0, 62.930, 64.928), ValueError)
+check_raises("one isotope is not enough", lambda: relative_atomic_mass([(12.0, 100)]), ValueError)
+
+section("S1.4 Molecular formula and combustion analysis")
+from Empirical_Formula_Calculator import molecular_formula, combustion_analysis
+
+mol, n, emp_mass = molecular_formula({"C": 1, "H": 2, "O": 1}, 180.16)
+check("CH₂O with Mr 180.16 → C₆H₁₂O₆", display_empirical_formula(mol), "C6H12O6")
+check("  multiplier n = 6", n, 6)
+check("  empirical formula mass", emp_mass, 30.03)
+check("CH with Mr 78.11 → C₆H₆",
+      display_empirical_formula(molecular_formula({"C": 1, "H": 1}, 78.11)[0]), "C6H6")
+check("NO₂ with Mr 92.02 → N₂O₄",
+      display_empirical_formula(molecular_formula({"N": 1, "O": 2}, 92.02)[0]), "N2O4")
+check_raises("Mr smaller than the empirical mass rejected",
+             lambda: molecular_formula({"C": 1, "H": 2, "O": 1}, 12.0), ValueError)
+
+els, masses, notes = combustion_analysis(0.2641, 0.1081, 0.1802)
+check("combustion: 0.2641 g CO₂ + 0.1081 g H₂O from 0.1802 g → CH₂O",
+      display_empirical_formula(calculate_empirical_formula(els, masses)), "CH2O")
+els, masses, notes = combustion_analysis(1.3203, 0.2702, 0.3906)
+check("combustion of a hydrocarbon → CH (no oxygen)",
+      display_empirical_formula(calculate_empirical_formula(els, masses)), "CH")
+check("  and it says the compound has no oxygen", bool(notes), True)
+check_raises("C and H heavier than the sample is rejected",
+             lambda: combustion_analysis(1.0, 1.0, 0.1), ValueError)
+
+section("Tools: uncertainties and significant figures")
+from uncertainties import (percentage_uncertainty, absolute_uncertainty, combine_add_subtract,
+                           combine_multiply_divide, power_uncertainty, percentage_error,
+                           round_to_sig_figs, sig_figs_of, format_with_uncertainty)
+
+check("25.00 ± 0.05 is 0.2 %", percentage_uncertainty(25.00, 0.05), 0.200)
+check("0.2 % of 25.00 is ± 0.05", absolute_uncertainty(25.00, 0.2), 0.0500)
+r, a, p = combine_add_subtract([24.80, -1.20], [0.05, 0.05])
+check("subtracting burette readings: value", r, 23.60)
+check("  absolute uncertainties add", a, 0.100)
+r, a, p = combine_multiply_divide([0.100, 25.0], [0.5, 0.2])
+check("multiplying: value", r, 2.50)
+check("  percentage uncertainties add", p, 0.700)
+check("  absolute uncertainty", a, 0.0175)
+r, a, p = power_uncertainty(2.50, 1.2, 2)
+check("squaring doubles the % uncertainty", p, 2.40)
+check("  value squared", r, 6.25)
+check("percentage error vs accepted value", percentage_error(1.23, 1.20), 2.50)
+check("round 0.0824567 to 3 s.f.", round_to_sig_figs(0.0824567, 3), 0.0825)
+check("round 1234 to 2 s.f.", round_to_sig_figs(1234, 2), 1200.0)
+check("significant figures of '0.00420'", sig_figs_of("0.00420"), 3)
+check("significant figures of '1.0e3'", sig_figs_of("1.0e3"), 2)
+check("written with its uncertainty", format_with_uncertainty(0.08245, 0.0005), "0.0824 ± 0.0005")
+check_raises("negative uncertainty rejected", lambda: percentage_uncertainty(1.0, -0.1), ValueError)
+
+section("R1.4 Entropy from standard entropies")
+from thermodynamics import standard_entropy_rxn
+
+check("ΔS° of the Haber process", standard_entropy_rxn([
+    {"formula": "N2", "S": 191.6, "coeff": 1, "role": "reactant"},
+    {"formula": "H2", "S": 130.7, "coeff": 3, "role": "reactant"},
+    {"formula": "NH3", "S": 192.5, "coeff": 2, "role": "product"}]), -198.7, rel=1e-3)
+check("ΔS° of CaCO₃ → CaO + CO₂ (gas made, so positive)", standard_entropy_rxn([
+    {"formula": "CaCO3", "S": 92.9, "coeff": 1, "role": "reactant"},
+    {"formula": "CaO", "S": 39.7, "coeff": 1, "role": "product"},
+    {"formula": "CO2", "S": 213.7, "coeff": 1, "role": "product"}]), 160.5, rel=1e-3)
+
+section("R2.2 Arrhenius from a graph of ln k against 1/T")
+from kinetics import arrhenius_from_data
+_Ea, _A = 52_000.0, 3.5e8          # build data from a known Ea and A
+_temps = [290, 300, 310, 320, 330]
+_ks = [_A * math.exp(-_Ea / (8.314 * T)) for T in _temps]
+_fit = arrhenius_from_data(_temps, _ks)
+check("Ea recovered from the graph (kJ/mol)", _fit["Ea_kJ"], _Ea / 1000, rel=1e-3)
+check("A recovered from the intercept", _fit["A"] / _A, 1.0, rel=1e-3)
+check("straight line, r² = 1", _fit["r2"], 1.0, rel=1e-6)
+check_raises("a single point is not a graph", lambda: arrhenius_from_data([300], [1e-3]), ValueError)
+check_raises("all temperatures the same is rejected",
+             lambda: arrhenius_from_data([300, 300], [1e-3, 2e-3]), ValueError)
+
+section("R3.1 Salt solutions and pKa from half-equivalence")
+from acid_base import salt_pH, pKa_from_half_equivalence
+
+check("0.100 mol dm⁻³ CH₃COONa is basic", salt_pH("weak_acid_salt", 1.74e-5, 0.100)[0], 8.88)
+check("0.100 mol dm⁻³ NH₄Cl is acidic", salt_pH("weak_base_salt", 1.78e-5, 0.100)[0], 5.13)
+check("  Kb of ethanoate = Kw/Ka", salt_pH("weak_acid_salt", 1.74e-5, 0.100)[1], 5.747e-10)
+check("pKa from pH at half-equivalence", pKa_from_half_equivalence(4.76)[0], 4.76)
+check("  and the Ka that goes with it", pKa_from_half_equivalence(4.76)[1], 1.738e-5)
+check_raises("salt kind must be given", lambda: salt_pH("something", 1e-5, 0.1), ValueError)
+
+section("S1.3 Electron configuration")
+from electron_config import electron_configuration, noble_gas_shorthand, valence_electrons
+
+check("carbon", electron_configuration("C")[0], "1s² 2s² 2p²")
+check("calcium", electron_configuration("Ca")[0], "1s² 2s² 2p⁶ 3s² 3p⁶ 4s²")
+check("iron", electron_configuration("Fe")[0], "1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁶ 4s²")
+check("chromium is an exception (3d⁵ 4s¹)", electron_configuration("Cr")[0],
+      "1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁵ 4s¹")
+check("copper is an exception (3d¹⁰ 4s¹)", electron_configuration("Cu")[0],
+      "1s² 2s² 2p⁶ 3s² 3p⁶ 3d¹⁰ 4s¹")
+check("Fe²⁺ loses the 4s electrons first", electron_configuration("Fe", 2)[0],
+      "1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁶")
+check("Fe³⁺ is 3d⁵", electron_configuration("Fe", 3)[0], "1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁵")
+check("Cl⁻ has the argon configuration", electron_configuration("Cl", -1)[0],
+      electron_configuration("Ar")[0])
+check("Na⁺ has the neon configuration", electron_configuration("Na", 1)[0],
+      electron_configuration("Ne")[0])
+check("shorthand for iron", noble_gas_shorthand("Fe"), "[Ar] 3d⁶ 4s²")
+check("shorthand for bromine", noble_gas_shorthand("Br"), "[Ar] 3d¹⁰ 4s² 4p⁵")
+check("by name and by atomic number agree",
+      electron_configuration("iron")[0], electron_configuration(26)[0])
+check("chlorine has 7 outer electrons", valence_electrons("Cl")[0], 7)
+check_raises("unknown element rejected", lambda: electron_configuration("Xx"), ValueError)
+check_raises("removing more electrons than it has is rejected",
+             lambda: electron_configuration("H", 2), ValueError)
+
+section("S3.2 Index of hydrogen deficiency")
+from organic_tools import index_of_hydrogen_deficiency as IHD
+
+for formula, want in [("C6H6", 4), ("C6H14", 0), ("C6H12", 1), ("C2H4", 1), ("C2H2", 2),
+                      ("C3H6O", 1), ("C6H5Cl", 4), ("C6H5NO2", 5), ("C8H10N4O2", 6),
+                      ("C9H8O4", 6), ("CH4", 0), ("C4H6", 2)]:
+    check(f"IHD of {formula}", IHD(formula), want)
+check_raises("too many hydrogens rejected", lambda: IHD("C2H10"), ValueError)
+check_raises("a formula with no carbon is rejected", lambda: IHD("H2O"), ValueError)
+
 print("\n" + "=" * 60)
 print(f"  IB tests  Total: {PASS + FAIL}   Passed: {PASS}   Failed: {FAIL}")
 if FAILURES:

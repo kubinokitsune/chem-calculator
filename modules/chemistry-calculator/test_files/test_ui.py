@@ -115,10 +115,11 @@ class Page:
 
 
 MODULES = ["Mole Conv.", "Empirical Formula", "Lim. Reactant", "% Comp.", "Atom Economy", "% Yield",
-           "Oxidation #", "Ionic Bond", "Periodic Table", "Thermodynamics", "Kinetics", "ICE Solver",
-           "Acid-Base", "Electrochemistry", "Eqn Balancer", "Vol/Mass", "Gas Laws"]
-TYPE_SELECTS = ["moleType", "volType", "yieldType", "gasType", "abType", "thermoType",
-                "iceType", "ecType", "kinType"]
+           "Solutions", "Oxidation #", "Ionic Bond", "Periodic Table", "Electron Config",
+           "Thermodynamics", "Kinetics", "ICE Solver", "Acid-Base", "Electrochemistry",
+           "Eqn Balancer", "Vol/Mass", "Gas Laws", "Isotopes", "Uncertainty", "IHD (organic)"]
+TYPE_SELECTS = ["moleType", "empType", "volType", "yieldType", "gasType", "abType", "thermoType",
+                "iceType", "ecType", "kinType", "solType", "isoType", "uncType"]
 
 
 def main():
@@ -137,7 +138,7 @@ def main():
         record("title is the calculator", raw.title() == "Chemistry Calculator")
         record("stylesheet and script are separate files",
                raw.eval_on_selector_all("link[rel=stylesheet], script[src]", "els => els.length") == 2)
-        record("17 module buttons", raw.eval_on_selector_all(".mod-btn", "els => els.length") == 17)
+        record("22 module buttons", raw.eval_on_selector_all(".mod-btn", "els => els.length") == 22)
         record("no JavaScript errors on load", not p.errors, "; ".join(p.errors))
 
         section("Every module and option: example → calculate")

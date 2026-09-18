@@ -34,6 +34,11 @@ def show_menu():
     print("15. Equilibrium & ICE Table Solver")
     print("16. Electrochemistry Calculator")
     print("17. Kinetics Calculator")
+    print("18. Solutions (concentration & dilution)")
+    print("19. Isotopes & Relative Atomic Mass")
+    print("20. Uncertainties & Significant Figures")
+    print("21. Electron Configuration")
+    print("22. Index of Hydrogen Deficiency")
     print("0. Exit")
 
 
@@ -166,6 +171,39 @@ def open_kinetics():
         traceback.print_exc()
         return
     kinetics_menu()
+
+
+def _open(label, module_name, function_name):
+    """Import a module only when it is chosen, and report a clear error if it fails."""
+    print(f"\n[INFO] Opening {label}...", flush=True)
+    try:
+        module = __import__(module_name)
+        menu = getattr(module, function_name)
+    except Exception as e:
+        print(f"[ERROR] Failed to load {label}: {e}")
+        traceback.print_exc()
+        return
+    menu()
+
+
+def open_solutions():
+    _open("Solutions (concentration & dilution)", "solutions", "solutions_menu")
+
+
+def open_isotopes():
+    _open("Isotopes & Relative Atomic Mass", "isotopes", "isotopes_menu")
+
+
+def open_uncertainties():
+    _open("Uncertainties & Significant Figures", "uncertainties", "uncertainties_menu")
+
+
+def open_electron_config():
+    _open("Electron Configuration", "electron_config", "electron_config_menu")
+
+
+def open_organic_tools():
+    _open("Index of Hydrogen Deficiency", "organic_tools", "organic_tools_menu")
 
 
 def open_thermodynamics():
@@ -317,13 +355,18 @@ def main():
         "15": open_ice_solver,
         "16": open_electrochemistry,
         "17": open_kinetics,
+        "18": open_solutions,
+        "19": open_isotopes,
+        "20": open_uncertainties,
+        "21": open_electron_config,
+        "22": open_organic_tools,
         "0": None,
     }
 
     while True:
         show_menu()
         try:
-            choice = input("Select an option (0-17): ").strip()
+            choice = input("Select an option (0-22): ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nExiting the program.")
             break

@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/kubinokitsune/chem-calculator/actions/workflows/tests.yml/badge.svg)](https://github.com/kubinokitsune/chem-calculator/actions/workflows/tests.yml)
 
-An interactive physical chemistry calculator built for IB Chemistry. Covers 17 core topics through both a command-line interface and a browser-based web UI.
+An interactive physical chemistry calculator built for IB Chemistry. Covers 22 topics through both a command-line interface and a browser-based web UI.
 
 **Developer:** Felipe "Pipe" Fonseca
 **Project type:** IB Chemistry / personal STEM project
@@ -14,7 +14,7 @@ An interactive physical chemistry calculator built for IB Chemistry. Covers 17 c
 | # | Module | What it does |
 |---|--------|-------------|
 | 1 | **Mole Conversions** | Mass ↔ moles ↔ particles ↔ volume at STP (22.7 dm³/mol) |
-| 2 | **Empirical Formula** | Empirical formula from element masses or % composition |
+| 2 | **Empirical Formula** | From masses or % composition, from **combustion analysis**, and the **molecular formula** from Mr |
 | 3 | **Equation Balancer** | Balances molecular and ionic equations and half-equations (linear algebra + half-equation method), with acidic/basic solutions |
 | 4 | **Limiting Reactant** | Limiting reactant, leftovers and theoretical yield from moles or grams, with auto-balancing |
 | 5 | **Percent Composition** | Molar mass and per-element % composition from a formula |
@@ -25,11 +25,16 @@ An interactive physical chemistry calculator built for IB Chemistry. Covers 17 c
 | 10 | **Percentage Yield** | Solves for actual yield, theoretical yield, or % yield |
 | 11 | **Periodic Table** | Element lookup by name, symbol, or atomic number |
 | 12 | **Gas Laws** | Ideal, combined, mixing, Graham's and Dalton's laws in atm/kPa/Pa, L/dm³/cm³/m³, K/°C |
-| 13 | **Acid-Base Chemistry** | pH/pOH conversions, strong/weak acid-base, buffers, Ka/Kb, titration |
-| 14 | **Thermodynamics** | Calorimetry (q=mcΔT), Hess's Law, IB bond enthalpies, ΔH°rxn, ΔG=ΔH−TΔS, ΔG°=−RT ln K |
+| 13 | **Acid-Base Chemistry** | pH/pOH conversions, strong/weak acid-base, buffers, Ka/Kb, titration, salt pH, pKa from half-equivalence |
+| 14 | **Thermodynamics** | Calorimetry (q=mcΔT), Hess's Law, IB bond enthalpies, ΔH°rxn, ΔS°rxn, ΔG=ΔH−TΔS, ΔG°=−RT ln K |
 | 15 | **Equilibrium & ICE Solver** | ICE table builder (bisection solver), Kc↔Kp, Q vs K, Le Chatelier's principle |
 | 16 | **Electrochemistry** | Cell potential, ΔG°=−nFE°, Faraday's law, Nernst equation, spontaneity checker |
-| 17 | **Kinetics** | Rate law from initial rates, Arrhenius equation, half-life, integrated rate laws (0/1/2 order) |
+| 17 | **Kinetics** | Rate law from initial rates, Arrhenius equation (including the ln k vs 1/T graph method), half-life, integrated rate laws |
+| 18 | **Solutions** | c = n/V, dilutions (c₁V₁ = c₂V₂), standard solutions, g dm⁻³ ↔ mol dm⁻³, ppm |
+| 19 | **Isotopes** | Relative atomic mass from isotope abundances, and abundances from Ar |
+| 20 | **Uncertainties** | Absolute ↔ %, combining measurements, powers, % error, significant figures |
+| 21 | **Electron Configuration** | Full and noble-gas shorthand for atoms and ions, with the Cr/Cu exceptions |
+| 22 | **Index of Hydrogen Deficiency** | Rings and π bonds from a molecular formula |
 
 ---
 
@@ -84,6 +89,11 @@ python main.py
 15. Equilibrium & ICE Table Solver
 16. Electrochemistry
 17. Kinetics
+18. Solutions (concentration & dilution)
+19. Isotopes & Relative Atomic Mass
+20. Uncertainties & Significant Figures
+21. Electron Configuration
+22. Index of Hydrogen Deficiency
 0.  Exit
 ```
 
@@ -173,6 +183,11 @@ chem-calculator/
 │   │   ├── ice_solver.py
 │   │   ├── electrochemistry.py
 │   │   ├── kinetics.py
+│   │   ├── solutions.py
+│   │   ├── isotopes.py
+│   │   ├── uncertainties.py
+│   │   ├── electron_config.py
+│   │   ├── organic_tools.py
 │   │   ├── constants.py             # Shared physical/chemical constants
 │   │   ├── ui_interface/            # Flask web app
 │   │   │   ├── app.py               # REST API (one route per module)
