@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/kubinokitsune/chem-calculator/actions/workflows/tests.yml/badge.svg)](https://github.com/kubinokitsune/chem-calculator/actions/workflows/tests.yml)
 
-An interactive physical chemistry calculator built for IB Chemistry. Covers 22 topics through a command-line interface, a browser-based web UI, and a cut-down port that runs on a **Casio fx-CG50** graphing calculator (see [modules/casio-fx-cg50](modules/casio-fx-cg50/README.md)).
+An interactive physical chemistry calculator built for IB Chemistry. Covers 22 topics through a command-line interface, a browser-based web UI, and two versions for the **Casio fx-CG50** graphing calculator: a [Python port](modules/casio-fx-cg50/README.md) and a [native add-in](modules/casio-addin/README.md) with its own icon in the calculator's MENU.
 
 **Developer:** Felipe "Pipe" Fonseca
 **Project type:** IB Chemistry / personal STEM project
@@ -133,6 +133,7 @@ python test_files/test_api.py             # web page <-> Flask API contract
 python test_files/stress_new_features.py  # ~36 000 checks: gas units, ionic balancing, limiting reactant
 python test_files/test_ui.py              # clicks through the real page in a browser (needs playwright)
 python test_files/test_casio.py           # the Casio fx-CG50 port: every menu, plus its MicroPython limits
+make -C ../casio-addin/test               # the fx-CG50 add-in: 280 chemistry checks + 35 screen checks
 ```
 
 All of these run in GitHub Actions on every push.
@@ -209,6 +210,12 @@ chem-calculator/
 │   │   │   ├── test_ui.py           # browser click-through (playwright)
 │   │   │   └── test_casio.py        # drives the Casio port's menus
 │   │   └── requirements.txt
+│   ├── casio-addin/                 # native fx-CG50 add-in (C, fxSDK + gint)
+│   │   ├── src/core/                # the chemistry, plain C99, no calculator headers
+│   │   ├── src/ui/                  # softkeys, menus, entry fields
+│   │   ├── src/screens/             # one file per topic
+│   │   ├── test/                    # PC tests, incl. a fake screen and keypad
+│   │   └── CMakeLists.txt           # fxsdk build-cg -> ChemCalc.g3a
 │   ├── casio-fx-cg50/               # port for the Casio fx-CG50 (MicroPython)
 │   │   ├── chem.py                  # run this one on the calculator
 │   │   ├── chemcore.py              # masses, formula parsing, prompts
@@ -219,7 +226,7 @@ chem-calculator/
 │   └── user interface/              # C UI (in development)
 │       ├── main_menu.C
 │       └── include/ui.h
-├── .github/workflows/tests.yml      # runs all 9 suites on every push
+├── .github/workflows/tests.yml      # runs all 11 suites on every push
 ├── .gitignore
 └── README.md
 ```

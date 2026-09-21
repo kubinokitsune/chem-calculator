@@ -14,12 +14,12 @@ endif
 CFLAGS ?= -std=c99 -Wall -Wextra -Werror -Wno-format-truncation -O1 -g
 
 CORE = ../src/core/chem.c ../src/core/elements.c ../src/core/stoich.c \
-       ../src/core/solution.c ../src/core/balance.c ../src/core/energy.c
+       ../src/core/solution.c ../src/core/balance.c ../src/core/energy.c ../src/core/tools.c
 
 SCREENS = ../src/ui/ui.c ../src/screens/common.c ../src/screens/ptable.c \
           ../src/screens/stoich_screen.c ../src/screens/balance_screen.c \
           ../src/screens/gas_screen.c ../src/screens/aqua_screen.c \
-          ../src/screens/energy_screen.c
+          ../src/screens/energy_screen.c ../src/screens/tools_screen.c
 
 all: core screens
 

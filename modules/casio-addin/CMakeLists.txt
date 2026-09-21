@@ -18,6 +18,7 @@ set(SOURCES
   src/core/solution.c
   src/core/balance.c
   src/core/energy.c
+  src/core/tools.c
   src/screens/common.c
   src/screens/ptable.c
   src/screens/stoich_screen.c
@@ -25,6 +26,7 @@ set(SOURCES
   src/screens/gas_screen.c
   src/screens/aqua_screen.c
   src/screens/energy_screen.c
+  src/screens/tools_screen.c
 )
 
 add_executable(chemcalc ${SOURCES})

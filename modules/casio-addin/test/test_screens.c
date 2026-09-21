@@ -261,6 +261,91 @@ int main(void)
     showed("dG comes out at -32.96 kJ/mol", "-32.96");
     showed("and it is called spontaneous", "spontaneous");
 
+    section("7. The structure and data screens");
+
+    /* Electron configuration of iron, then of the Fe3+ ion. */
+    fake_reset();
+    menu_pick(1);                       /* Electron configuration */
+    fake_press_text("Fe");
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXE);                /* charge left blank = the atom */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("iron fills 3d6 4s2", "3d6 4s2");
+    showed("and the shorthand starts from argon", "[Ar]");
+
+    fake_reset();
+    menu_pick(1);
+    fake_press_text("Fe");
+    fake_press(KEY_EXE);
+    fake_press_number("3");
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("Fe3+ ends at 3d5", "3d5");
+
+    /* Oxidation numbers of permanganate. */
+    fake_reset();
+    menu_pick(2);                       /* Oxidation numbers */
+    fake_press_text("KMnO4");
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXE);                /* charge blank = a compound */
+    fake_press(KEY_EXE);                /* not a peroxide */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("manganese comes out +7", "+7");
+
+    /* Ionic formula: aluminium and oxygen. */
+    fake_reset();
+    menu_pick(3);                       /* Ionic formula */
+    fake_press_text("Al");
+    fake_press(KEY_EXE);
+    fake_press_number("3");
+    fake_press_text("O");
+    fake_press(KEY_EXE);
+    fake_press_number("2");
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("aluminium oxide is Al2O3", "Al2O3");
+
+    /* Ar of chlorine from its two isotopes. */
+    fake_reset();
+    menu_pick(4);                       /* Isotopes */
+    menu_pick(1);                       /* Ar from the abundances */
+    fake_press_number("2");             /* two isotopes */
+    fake_press_number("34.969");
+    fake_press_number("75.77");
+    fake_press_number("36.966");
+    fake_press_number("24.23");
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("chlorine comes out at 35.45", "35.45");
+
+    /* An uncertainty as a percentage. */
+    fake_reset();
+    menu_pick(5);                       /* Uncertainties */
+    menu_pick(1);                       /* absolute to percentage */
+    fake_press_number("25");
+    fake_press_number("0.05");
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("0.05 in 25.00 is 0.2 %", "0.2");
+
+    /* IHD of benzene. */
+    fake_reset();
+    menu_pick(6);                       /* IHD */
+    fake_press_text("C6H6");
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("benzene has an IHD of 4", "IHD = 4");
+
     printf("\n============================================================\n");
     printf("  Screen tests  Total: %d   Passed: %d   Failed: %d\n",
            passed + failed, passed, failed);

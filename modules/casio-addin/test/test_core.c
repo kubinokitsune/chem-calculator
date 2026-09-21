@@ -12,6 +12,7 @@
 #include "../src/core/solution.h"
 #include "../src/core/balance.h"
 #include "../src/core/energy.h"
+#include "../src/core/tools.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -680,6 +681,223 @@ int main(void)
         close_to("and k comes back", second, 0.0693, 1e-6);
         ok("a zero half-life is refused",
            energy_k_from_half_life(0.0, &value) == CHEM_ERR_RANGE, NULL);
+    }
+
+    section("10. Solutions and limiting reactant");
+
+    {
+        tools_limiting_t limiting;
+        double moles[3], value = 0.0;
+        int coefficients[3];
+
+        close_to("c = n/V: 0.5 mol in 2 dm3", tools_concentration(0.5, 2.0), 0.25, 1e-9);
+        close_to("n = cV: 0.25 mol/dm3 in 2 dm3",
+                 tools_moles_from_concentration(0.25, 2.0), 0.5, 1e-9);
+        close_to("no volume, no concentration", tools_concentration(0.5, 0.0), 0.0, 1e-9);
+
+        /* 1.0 mol/dm3, 25 cm3 diluted to 0.1 mol/dm3 needs 250 cm3 */
+        ok("dilution", tools_dilution(1.0, 25.0, 0.1, &value) == CHEM_OK, NULL);
+        close_to("c1V1 = c2V2 gives 250", value, 250.0, 1e-9);
+        ok("diluting to nothing is refused",
+           tools_dilution(1.0, 25.0, 0.0, &value) == CHEM_ERR_RANGE, NULL);
+
+        close_to("0.1 mol/dm3 of NaOH is 4.00 g/dm3",
+                 tools_mass_concentration(0.1, 40.00), 4.0, 1e-9);
+        close_to("1 mg in 1 kg is 1 ppm", tools_ppm(0.001, 1000.0), 1.0, 1e-9);
+
+        /* N2 + 3H2 -> 2NH3 with 2 mol N2 and 3 mol H2: hydrogen runs out */
+        moles[0] = 2.0; coefficients[0] = 1;
+        moles[1] = 3.0; coefficients[1] = 3;
+        ok("limiting reactant",
+           tools_limiting_reactant(moles, coefficients, 2, &limiting) == CHEM_OK, NULL);
+        int_is("hydrogen is limiting", limiting.limiting, 1);
+        close_to("the reaction runs once", limiting.reacting, 1.0, 1e-9);
+        close_to("1 mol of nitrogen is left", limiting.left_over[0], 1.0, 1e-9);
+        close_to("no hydrogen is left", limiting.left_over[1], 0.0, 1e-9);
+
+        /* exactly the right amounts leave nothing behind */
+        moles[0] = 1.0; coefficients[0] = 1;
+        moles[1] = 3.0; coefficients[1] = 3;
+        tools_limiting_reactant(moles, coefficients, 2, &limiting);
+        close_to("nothing is left over when the amounts match",
+                 limiting.left_over[0] + limiting.left_over[1], 0.0, 1e-9);
+        moles[0] = -1.0;
+        ok("a negative amount is refused",
+           tools_limiting_reactant(moles, coefficients, 2, &limiting) == CHEM_ERR_RANGE, NULL);
+    }
+
+    section("11. Electron configuration");
+
+    {
+        tools_subshell_t shells[TOOLS_MAX_SUBSHELLS];
+        char text[128];
+        int count;
+
+        count = tools_configuration(11, 0, shells, TOOLS_MAX_SUBSHELLS);
+        tools_configuration_text(shells, count, text, sizeof text);
+        text_is("sodium", text, "1s2 2s2 2p6 3s1");
+
+        count = tools_configuration(26, 0, shells, TOOLS_MAX_SUBSHELLS);
+        tools_configuration_text(shells, count, text, sizeof text);
+        text_is("iron", text, "1s2 2s2 2p6 3s2 3p6 3d6 4s2");
+
+        /* chromium takes one from 4s to half-fill 3d */
+        count = tools_configuration(24, 0, shells, TOOLS_MAX_SUBSHELLS);
+        tools_configuration_text(shells, count, text, sizeof text);
+        text_is("chromium is the exception", text, "1s2 2s2 2p6 3s2 3p6 3d5 4s1");
+
+        count = tools_configuration(29, 0, shells, TOOLS_MAX_SUBSHELLS);
+        tools_configuration_text(shells, count, text, sizeof text);
+        text_is("copper too", text, "1s2 2s2 2p6 3s2 3p6 3d10 4s1");
+
+        /* iron(III) loses 4s before 3d */
+        count = tools_configuration(26, 3, shells, TOOLS_MAX_SUBSHELLS);
+        tools_configuration_text(shells, count, text, sizeof text);
+        text_is("Fe3+ empties 4s first", text, "1s2 2s2 2p6 3s2 3p6 3d5");
+
+        count = tools_configuration(26, 2, shells, TOOLS_MAX_SUBSHELLS);
+        tools_configuration_text(shells, count, text, sizeof text);
+        text_is("Fe2+ as well", text, "1s2 2s2 2p6 3s2 3p6 3d6");
+
+        /* a simple anion just keeps filling */
+        count = tools_configuration(17, -1, shells, TOOLS_MAX_SUBSHELLS);
+        tools_configuration_text(shells, count, text, sizeof text);
+        text_is("chloride fills the 3p", text, "1s2 2s2 2p6 3s2 3p6");
+
+        count = tools_configuration(2, 0, shells, TOOLS_MAX_SUBSHELLS);
+        tools_configuration_text(shells, count, text, sizeof text);
+        text_is("helium", text, "1s2");
+
+        int_is("argon is the core before potassium", tools_noble_core(19), 18);
+        int_is("nothing comes before hydrogen", tools_noble_core(1), 0);
+        int_is("an impossible atomic number is refused",
+               tools_configuration(0, 0, shells, TOOLS_MAX_SUBSHELLS), -1);
+
+        /* the electrons must always add up to the atom or ion */
+        {
+            int z, wrong = 0;
+            for (z = 1; z <= 118; z++) {
+                int i, total = 0;
+                count = tools_configuration(z, 0, shells, TOOLS_MAX_SUBSHELLS);
+                for (i = 0; i < count; i++)
+                    total += shells[i].electrons;
+                if (total != z)
+                    wrong++;
+            }
+            int_is("every element keeps all its electrons", wrong, 0);
+        }
+    }
+
+    section("12. Oxidation numbers");
+
+    {
+        double numbers[CHEM_MAX_ATOMS];
+
+        chem_parse_formula("H2O", &formula, NULL, 0);
+        ok("water", tools_oxidation_numbers(&formula, 0, 0, numbers) == CHEM_OK, NULL);
+        close_to("H is +1", numbers[0], 1.0, 1e-9);
+        close_to("O is -2", numbers[1], -2.0, 1e-9);
+
+        chem_parse_formula("KMnO4", &formula, NULL, 0);
+        tools_oxidation_numbers(&formula, 0, 0, numbers);
+        close_to("manganese in permanganate is +7", numbers[1], 7.0, 1e-9);
+
+        chem_parse_formula("Cr2O7", &formula, NULL, 0);
+        tools_oxidation_numbers(&formula, -2, 0, numbers);
+        close_to("chromium in dichromate is +6", numbers[0], 6.0, 1e-9);
+
+        chem_parse_formula("H2SO4", &formula, NULL, 0);
+        tools_oxidation_numbers(&formula, 0, 0, numbers);
+        close_to("sulfur in sulfuric acid is +6", numbers[1], 6.0, 1e-9);
+
+        chem_parse_formula("Fe", &formula, NULL, 0);
+        tools_oxidation_numbers(&formula, 0, 0, numbers);
+        close_to("an element on its own is 0", numbers[0], 0.0, 1e-9);
+
+        /* peroxides are the exception oxygen gets */
+        chem_parse_formula("H2O2", &formula, NULL, 0);
+        tools_oxidation_numbers(&formula, 0, 1, numbers);
+        close_to("oxygen in a peroxide is -1", numbers[1], -1.0, 1e-9);
+
+        /* Fe3O4 has a fractional average, which is the right answer */
+        chem_parse_formula("Fe3O4", &formula, NULL, 0);
+        tools_oxidation_numbers(&formula, 0, 0, numbers);
+        close_to("iron in magnetite averages +8/3", numbers[0], 8.0 / 3.0, 1e-6);
+
+        /* two unknowns cannot be solved */
+        chem_parse_formula("PCl3", &formula, NULL, 0);
+        ok("P and Cl together still work (Cl is -1)",
+           tools_oxidation_numbers(&formula, 0, 0, numbers) == CHEM_OK, NULL);
+        close_to("phosphorus is +3", numbers[0], 3.0, 1e-9);
+    }
+
+    section("13. Ionic formulas, isotopes, uncertainties, IHD");
+
+    {
+        char text[32];
+        double ar = 0.0, first = 0.0, second = 0.0;
+        double masses[3], abundances[3], parts[3];
+
+        ok("sodium chloride",
+           tools_ionic_formula("Na", 1, "Cl", -1, text, sizeof text) == CHEM_OK, NULL);
+        text_is("is NaCl", text, "NaCl");
+        tools_ionic_formula("Mg", 2, "Cl", -1, text, sizeof text);
+        text_is("magnesium chloride is MgCl2", text, "MgCl2");
+        tools_ionic_formula("Al", 3, "O", -2, text, sizeof text);
+        text_is("aluminium oxide is Al2O3", text, "Al2O3");
+        tools_ionic_formula("Mg", 2, "O", -2, text, sizeof text);
+        text_is("magnesium oxide cancels to MgO", text, "MgO");
+        tools_ionic_formula("Ca", 2, "OH", -1, text, sizeof text);
+        text_is("calcium hydroxide brackets the group", text, "Ca(OH)2");
+        tools_ionic_formula("Na", 1, "SO4", -2, text, sizeof text);
+        text_is("sodium sulfate is Na2SO4", text, "Na2SO4");
+        ok("a negative cation charge is refused",
+           tools_ionic_formula("Na", -1, "Cl", -1, text, sizeof text) == CHEM_ERR_RANGE, NULL);
+
+        /* chlorine: 75.77 % of 34.969 and 24.23 % of 36.966 gives 35.45 */
+        masses[0] = 34.969; abundances[0] = 75.77;
+        masses[1] = 36.966; abundances[1] = 24.23;
+        ok("relative atomic mass",
+           tools_relative_atomic_mass(masses, abundances, 2, &ar) == CHEM_OK, NULL);
+        close_to("chlorine comes out at 35.45", ar, 35.45, 0.01);
+
+        /* and backwards: the abundances must come back from the Ar they made */
+        ok("abundances from Ar",
+           tools_abundances_from_ar(34.969, 36.966, ar, &first, &second) == CHEM_OK, NULL);
+        close_to("75.77 % of the lighter one comes back", first, 75.77, 0.01);
+        close_to("24.23 % of the heavier one comes back", second, 24.23, 0.01);
+        close_to("they add up to 100", first + second, 100.0, 1e-9);
+        ok("an Ar outside both masses is refused",
+           tools_abundances_from_ar(34.969, 36.966, 40.0, &first, &second) == CHEM_ERR_RANGE, NULL);
+
+        close_to("0.05 in 25.00 is 0.2 %",
+                 tools_percent_uncertainty(25.0, 0.05), 0.2, 1e-9);
+        close_to("0.2 % of 25.00 is 0.05",
+                 tools_absolute_uncertainty(25.0, 0.2), 0.05, 1e-9);
+        parts[0] = 0.05; parts[1] = 0.05;
+        close_to("adding measurements adds the absolute uncertainties",
+                 tools_combine_sum(parts, 2), 0.10, 1e-9);
+        parts[0] = 0.2; parts[1] = 0.5;
+        close_to("multiplying adds the percentages",
+                 tools_combine_product(parts, 2), 0.7, 1e-9);
+        close_to("a cube triples the percentage",
+                 tools_combine_power(0.2, 3), 0.6, 1e-9);
+        close_to("9.8 against 9.81 is 0.10 % out",
+                 tools_percent_error(9.8, 9.81), 0.1019, 0.001);
+
+        chem_parse_formula("C6H6", &formula, NULL, 0);
+        close_to("benzene has an IHD of 4", tools_ihd(&formula, 0), 4.0, 1e-9);
+        chem_parse_formula("C6H14", &formula, NULL, 0);
+        close_to("hexane has none", tools_ihd(&formula, 0), 0.0, 1e-9);
+        chem_parse_formula("C2H4", &formula, NULL, 0);
+        close_to("ethene has one", tools_ihd(&formula, 0), 1.0, 1e-9);
+        chem_parse_formula("C6H5Cl", &formula, NULL, 0);
+        close_to("a halogen counts like a hydrogen", tools_ihd(&formula, 0), 4.0, 1e-9);
+        chem_parse_formula("C6H5NO2", &formula, NULL, 0);
+        close_to("nitrobenzene is 5: four for the ring, one for the N=O",
+                 tools_ihd(&formula, 0), 5.0, 1e-9);
+        chem_parse_formula("C2H6O", &formula, NULL, 0);
+        close_to("oxygen makes no difference", tools_ihd(&formula, 0), 0.0, 1e-9);
     }
 
     printf("\n============================================================\n");

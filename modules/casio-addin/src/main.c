@@ -20,17 +20,19 @@ int main(void)
         "Energy, cells, rates",
         "Equation balancer",
         "Periodic table",
+        "Structure and data",
     };
     static int cursor;
 
     for (;;) {
-        switch (ui_menu("ChemCalc  -  IB chemistry", topics, 6, &cursor)) {
+        switch (ui_menu("ChemCalc  -  IB chemistry", topics, 7, &cursor)) {
         case 0: screen_stoichiometry(); break;
         case 1: screen_gases(); break;
         case 2: screen_acids(); break;
         case 3: screen_energy(); break;
         case 4: screen_balance(); break;
         case 5: screen_periodic_table(); break;
+        case 6: screen_tools(); break;
         default:
             return 1;        /* EXIT at the top level leaves the add-in */
         }

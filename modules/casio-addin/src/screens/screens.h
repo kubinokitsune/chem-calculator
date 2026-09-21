@@ -5,6 +5,7 @@
 #include "../core/chem.h"
 
 void screen_periodic_table(void);
+void screen_tools(void);
 void screen_stoichiometry(void);
 void screen_balance(void);
 void screen_gases(void);

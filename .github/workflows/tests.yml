@@ -39,6 +39,23 @@ jobs:
       - name: Casio fx-CG50 port
         run: python test_files/test_casio.py
 
+  addin:
+    name: fx-CG50 add-in (C core + screens)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: modules/casio-addin
+    steps:
+      - uses: actions/checkout@v4
+      - name: Chemistry core
+        run: make -C test core
+      - name: Menus and screens
+        run: make -C test screens
+      - name: The element table matches the desktop one
+        run: |
+          python3 test/gen_elements.py
+          git diff --exit-code src/core/elements.c
+
   browser:
     name: Browser click-through
     runs-on: ubuntu-latest
