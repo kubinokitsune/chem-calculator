@@ -1,4 +1,5 @@
 test_core
+test_screens
 *.o
-*.g3a
 build-cg/
+build-fx/
