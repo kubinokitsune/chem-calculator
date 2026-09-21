@@ -36,4 +36,16 @@ target_link_libraries(chemcalc Gint::Gint)
 if("${FXSDK_PLATFORM_LONG}" STREQUAL fxCG50)
   generate_g3a(TARGET chemcalc OUTPUT "ChemCalc.g3a"
     NAME "ChemCalc" ICONS assets-cg/icon-uns.png assets-cg/icon-sel.png)
+
+  # The calculator makes itself a main-memory (MCS) directory named after the
+  # add-in's INTERNAL name the first time it is started. generate_g3a leaves
+  # that name empty, and an add-in without one can fail to start again after
+  # its first run. Casio's convention is a short name beginning with '@'.
+  # --edit rewrites the header but leaves the checksums as they were, so the
+  # file has to be repaired afterwards or the calculator rejects it.
+  add_custom_command(TARGET chemcalc POST_BUILD
+    COMMAND fxgxa --edit "${CMAKE_CURRENT_SOURCE_DIR}/ChemCalc.g3a"
+                  --internal=@CHEMCAL
+    COMMAND fxgxa --repair "${CMAKE_CURRENT_SOURCE_DIR}/ChemCalc.g3a"
+    COMMENT "Setting the internal name to @CHEMCAL and repairing checksums")
 endif()
