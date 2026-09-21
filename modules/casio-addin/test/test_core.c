@@ -9,6 +9,9 @@
 
 #include "../src/core/chem.h"
 #include "../src/core/stoich.h"
+#include "../src/core/solution.h"
+#include "../src/core/balance.h"
+#include "../src/core/energy.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -59,6 +62,52 @@ static double mass_of(const char *formula)
     if (chem_molar_mass(formula, &value) != CHEM_OK)
         return -1.0;
     return value;
+}
+
+/* Balance an equation and check the answer the way a marker would: count the
+ * atoms of every element on both sides and compare. Returns 1 when the
+ * coefficients balance, so a wrong answer cannot pass by matching my
+ * expectation - it has to actually conserve atoms. */
+static int atoms_balance(const char *const *reactants, int n_reactants,
+                         const char *const *products, int n_products,
+                         const int *coefficients)
+{
+    chem_formula_t formula;
+    char symbols[BAL_MAX_ELEMENTS][CHEM_SYMBOL_LEN];
+    long left[BAL_MAX_ELEMENTS], right[BAL_MAX_ELEMENTS];
+    int n_elements = 0, i, j, k;
+
+    for (i = 0; i < BAL_MAX_ELEMENTS; i++) {
+        left[i] = 0;
+        right[i] = 0;
+    }
+    for (j = 0; j < n_reactants + n_products; j++) {
+        const char *text = (j < n_reactants) ? reactants[j] : products[j - n_reactants];
+        if (chem_parse_formula(text, &formula, NULL, 0) != CHEM_OK)
+            return 0;
+        if (coefficients[j] <= 0)
+            return 0;
+        for (k = 0; k < formula.n; k++) {
+            int found = -1;
+            for (i = 0; i < n_elements; i++) {
+                if (strcmp(symbols[i], formula.atoms[k].symbol) == 0)
+                    found = i;
+            }
+            if (found < 0) {
+                found = n_elements++;
+                strcpy(symbols[found], formula.atoms[k].symbol);
+            }
+            if (j < n_reactants)
+                left[found] += (long)coefficients[j] * formula.atoms[k].count;
+            else
+                right[found] += (long)coefficients[j] * formula.atoms[k].count;
+        }
+    }
+    for (i = 0; i < n_elements; i++) {
+        if (left[i] != right[i])
+            return 0;
+    }
+    return 1;
 }
 
 static const char *fmt(double value, int figures)
@@ -322,6 +371,316 @@ int main(void)
              stoich_percent_yield(0.0f, 5.0f), 0.0, 0.01);
     close_to("atom economy 44.01 of 100.09 is 44.0 %",
              stoich_atom_economy(44.01f, 100.09f), 43.97, 0.02);
+
+    section("6. Gases and equilibrium");
+
+    {
+        gas_state_t state, after, before;
+        double value;
+
+        /* 2.00 mol at 300 K in 5.00 dm3: p = nRT/V = 2 x 8.31 x 300 / 5 */
+        state.moles = 2.0; state.temperature = 300.0; state.volume = 5.0;
+        state.pressure = 0.0;
+        ok("pV = nRT solves for pressure", gas_ideal(&state, GAS_PRESSURE) == CHEM_OK, NULL);
+        close_to("p = 997 kPa", state.pressure, 997.2, 0.1);
+
+        /* the same numbers backwards must return the volume */
+        state.volume = 0.0;
+        ok("and back for volume", gas_ideal(&state, GAS_VOLUME) == CHEM_OK, NULL);
+        close_to("V = 5.00 dm3", state.volume, 5.0, 0.001);
+
+        /* 1 mol at STP (100 kPa, 273 K) is the booklet's 22.7 dm3 */
+        state.moles = 1.0; state.temperature = 273.0; state.pressure = 100.0;
+        state.volume = 0.0;
+        gas_ideal(&state, GAS_VOLUME);
+        close_to("1 mol at STP is 22.7 dm3", state.volume, 22.7, 0.02);
+
+        state.temperature = 0.0; state.moles = 0.0;
+        ok("solving for temperature with no moles is refused",
+           gas_ideal(&state, GAS_TEMPERATURE) == CHEM_ERR_RANGE, NULL);
+
+        /* Boyle: 100 kPa, 2 dm3 -> 4 dm3 at constant T gives 50 kPa */
+        before.pressure = 100.0; before.volume = 2.0; before.temperature = 300.0;
+        after.pressure = 0.0; after.volume = 4.0; after.temperature = 300.0;
+        ok("the combined gas law solves for pressure",
+           gas_combined(&before, &after, GAS_PRESSURE) == CHEM_OK, NULL);
+        close_to("halving to 50 kPa", after.pressure, 50.0, 0.001);
+
+        /* Charles: 273 K -> 546 K at constant p doubles the volume */
+        before.pressure = 100.0; before.volume = 1.0; before.temperature = 273.0;
+        after.pressure = 100.0; after.volume = 0.0; after.temperature = 546.0;
+        gas_combined(&before, &after, GAS_VOLUME);
+        close_to("doubling the temperature doubles the volume", after.volume, 2.0, 0.001);
+
+        /* Graham: hydrogen effuses 4 times faster than oxygen */
+        ok("Graham's law", gas_effusion_ratio(2.02, 32.00, &value) == CHEM_OK, NULL);
+        close_to("H2 effuses 3.98x faster than O2", value, 3.980, 0.01);
+        ok("a zero molar mass is refused",
+           gas_effusion_ratio(0.0, 32.0, &value) == CHEM_ERR_RANGE, NULL);
+    }
+
+    {
+        double kp = 0.0, kc = 0.0, x = 0.0;
+
+        /* Kc = 0.5 at 500 K with dn = -2 */
+        ok("Kc to Kp", eq_kc_to_kp(0.5, 500.0, -2, &kp) == CHEM_OK, NULL);
+        close_to("Kp = 2.90e-5", kp, 0.5 / (8.31 * 500.0 * 8.31 * 500.0), 1e-12);
+        ok("and back again", eq_kp_to_kc(kp, 500.0, -2, &kc) == CHEM_OK, NULL);
+        close_to("Kc comes back as 0.5", kc, 0.5, 1e-9);
+        int_is("dn = 0 leaves K alone",
+               (eq_kc_to_kp(3.7, 400.0, 0, &kp) == CHEM_OK
+                && fabs(kp - 3.7) < 1e-9) ? 1 : 0, 1);
+
+        /* H2 + I2 <-> 2HI is not this shape, so use A + B <-> C + D with K = 4:
+         * starting from 1 and 1, x^2/(1-x)^2 = 4 gives x = 2/3. */
+        ok("the ICE solver runs", eq_ice_extent(1.0, 1.0, 0.0, 0.0, 4.0, &x) == CHEM_OK, NULL);
+        close_to("x = 0.667 when K = 4", x, 2.0 / 3.0, 1e-6);
+
+        /* K = 1 from 1 and 1 must give exactly half */
+        eq_ice_extent(1.0, 1.0, 0.0, 0.0, 1.0, &x);
+        close_to("x = 0.5 when K = 1", x, 0.5, 1e-6);
+
+        /* a tiny K means almost nothing reacts */
+        eq_ice_extent(1.0, 1.0, 0.0, 0.0, 1e-10, &x);
+        ok("a tiny K barely moves", x < 1e-4 && x > 0, NULL);
+
+        /* with no reactant there is nothing to react */
+        eq_ice_extent(0.0, 1.0, 0.0, 0.0, 5.0, &x);
+        close_to("no reactant, no reaction", x, 0.0, 1e-9);
+        ok("a negative K is refused",
+           eq_ice_extent(1.0, 1.0, 0.0, 0.0, -1.0, &x) == CHEM_ERR_RANGE, NULL);
+    }
+
+    section("7. Acids and bases");
+
+    {
+        double ph = 0.0, kb = 0.0;
+
+        close_to("pH of 1e-3 mol dm-3 H+ is 3", aqua_ph_from_h(1e-3), 3.0, 1e-9);
+        close_to("[H+] at pH 3 is 1e-3", aqua_h_from_ph(3.0), 1e-3, 1e-12);
+        close_to("pOH at pH 3 is 11", aqua_poh_from_ph(3.0), 11.0, 1e-9);
+        close_to("[OH-] at pOH 11 is 1e-11", aqua_oh_from_poh(11.0), 1e-11, 1e-20);
+
+        ok("strong acid", aqua_strong_acid_ph(0.10, 1, &ph) == CHEM_OK, NULL);
+        close_to("0.10 mol dm-3 HCl has pH 1.00", ph, 1.0, 0.001);
+        aqua_strong_acid_ph(0.050, 2, &ph);
+        close_to("0.050 mol dm-3 H2SO4 has pH 1.00", ph, 1.0, 0.001);
+        ok("strong base", aqua_strong_base_ph(0.10, 1, &ph) == CHEM_OK, NULL);
+        close_to("0.10 mol dm-3 NaOH has pH 13.00", ph, 13.0, 0.001);
+        ok("a zero concentration is refused",
+           aqua_strong_acid_ph(0.0, 1, &ph) == CHEM_ERR_RANGE, NULL);
+
+        /* ethanoic acid, Ka = 1.74e-5, 0.100 mol dm-3: the booklet answer is 2.88 */
+        ok("weak acid", aqua_weak_acid_ph(1.74e-5, 0.100, &ph) == CHEM_OK, NULL);
+        close_to("0.100 mol dm-3 ethanoic acid has pH 2.88", ph, 2.88, 0.01);
+
+        /* ammonia, Kb = 1.78e-5, 0.100 mol dm-3: pH 11.13 */
+        ok("weak base", aqua_weak_base_ph(1.78e-5, 0.100, &ph) == CHEM_OK, NULL);
+        close_to("0.100 mol dm-3 ammonia has pH 11.13", ph, 11.13, 0.01);
+
+        /* equal acid and salt: pH = pKa */
+        ok("buffer", aqua_buffer_ph(1.74e-5, 0.10, 0.10, &ph) == CHEM_OK, NULL);
+        close_to("an equal buffer sits at pKa 4.76", ph, 4.76, 0.01);
+        aqua_buffer_ph(1.74e-5, 0.10, 0.20, &ph);
+        close_to("twice the salt adds log10(2)", ph, 4.76 + 0.301, 0.01);
+
+        close_to("pKa of 1.74e-5 is 4.76", aqua_pka_from_ka(1.74e-5), 4.76, 0.01);
+        close_to("Ka of pKa 4.76 is 1.74e-5", aqua_ka_from_pka(4.76), 1.74e-5, 1e-7);
+        ok("Kb from Ka", aqua_kb_from_ka(1.74e-5, &kb) == CHEM_OK, NULL);
+        close_to("Ka x Kb = Kw", 1.74e-5 * kb, 1.00e-14, 1e-20);
+    }
+
+    section("8. Balancing equations");
+
+    {
+        int c[BAL_MAX_SPECIES];
+        char detail[160];
+
+        /* H2 + O2 -> H2O */
+        {
+            static const char *const r[] = {"H2", "O2"};
+            static const char *const p[] = {"H2O"};
+            ok("H2 + O2 -> H2O balances",
+               bal_balance(r, 2, p, 1, c) == CHEM_OK && atoms_balance(r, 2, p, 1, c), NULL);
+            snprintf(detail, sizeof detail, "got %d, %d -> %d", c[0], c[1], c[2]);
+            ok("as 2, 1 -> 2", c[0] == 2 && c[1] == 1 && c[2] == 2, detail);
+        }
+        /* propane burning: C3H8 + 5O2 -> 3CO2 + 4H2O */
+        {
+            static const char *const r[] = {"C3H8", "O2"};
+            static const char *const p[] = {"CO2", "H2O"};
+            ok("propane burns", bal_balance(r, 2, p, 2, c) == CHEM_OK
+               && atoms_balance(r, 2, p, 2, c), NULL);
+            snprintf(detail, sizeof detail, "got %d, %d -> %d, %d", c[0], c[1], c[2], c[3]);
+            ok("as 1, 5 -> 3, 4", c[0] == 1 && c[1] == 5 && c[2] == 3 && c[3] == 4, detail);
+        }
+        /* iron(III) oxide + carbon monoxide */
+        {
+            static const char *const r[] = {"Fe2O3", "CO"};
+            static const char *const p[] = {"Fe", "CO2"};
+            ok("the blast furnace reaction", bal_balance(r, 2, p, 2, c) == CHEM_OK
+               && atoms_balance(r, 2, p, 2, c), NULL);
+            snprintf(detail, sizeof detail, "got %d, %d -> %d, %d", c[0], c[1], c[2], c[3]);
+            ok("as 1, 3 -> 2, 3", c[0] == 1 && c[1] == 3 && c[2] == 2 && c[3] == 3, detail);
+        }
+        /* a neutralisation with brackets */
+        {
+            static const char *const r[] = {"Ca(OH)2", "HCl"};
+            static const char *const p[] = {"CaCl2", "H2O"};
+            ok("Ca(OH)2 + HCl", bal_balance(r, 2, p, 2, c) == CHEM_OK
+               && atoms_balance(r, 2, p, 2, c), NULL);
+            snprintf(detail, sizeof detail, "got %d, %d -> %d, %d", c[0], c[1], c[2], c[3]);
+            ok("as 1, 2 -> 1, 2", c[0] == 1 && c[1] == 2 && c[2] == 1 && c[3] == 2, detail);
+        }
+        /* one that needs bigger numbers: C8H18 + 25O2 -> 16CO2 + 18H2O */
+        {
+            static const char *const r[] = {"C8H18", "O2"};
+            static const char *const p[] = {"CO2", "H2O"};
+            ok("octane burns", bal_balance(r, 2, p, 2, c) == CHEM_OK
+               && atoms_balance(r, 2, p, 2, c), NULL);
+            snprintf(detail, sizeof detail, "got %d, %d -> %d, %d", c[0], c[1], c[2], c[3]);
+            ok("as 2, 25 -> 16, 18",
+               c[0] == 2 && c[1] == 25 && c[2] == 16 && c[3] == 18, detail);
+        }
+        /* three products */
+        {
+            static const char *const r[] = {"KMnO4", "HCl"};
+            static const char *const p[] = {"KCl", "MnCl2", "H2O", "Cl2"};
+            ok("permanganate and hydrochloric acid",
+               bal_balance(r, 2, p, 4, c) == CHEM_OK && atoms_balance(r, 2, p, 4, c), NULL);
+            snprintf(detail, sizeof detail, "got %d, %d -> %d, %d, %d, %d",
+                     c[0], c[1], c[2], c[3], c[4], c[5]);
+            ok("as 2, 16 -> 2, 2, 8, 5",
+               c[0] == 2 && c[1] == 16 && c[2] == 2 && c[3] == 2 && c[4] == 8 && c[5] == 5,
+               detail);
+        }
+        /* already balanced, 1 : 1 : 1 */
+        {
+            static const char *const r[] = {"NaOH", "HCl"};
+            static const char *const p[] = {"NaCl", "H2O"};
+            ok("a 1:1 reaction stays 1:1",
+               bal_balance(r, 2, p, 2, c) == CHEM_OK
+               && c[0] == 1 && c[1] == 1 && c[2] == 1 && c[3] == 1, NULL);
+        }
+        /* photosynthesis, which has a common factor to cancel */
+        {
+            static const char *const r[] = {"CO2", "H2O"};
+            static const char *const p[] = {"C6H12O6", "O2"};
+            ok("photosynthesis", bal_balance(r, 2, p, 2, c) == CHEM_OK
+               && atoms_balance(r, 2, p, 2, c), NULL);
+            snprintf(detail, sizeof detail, "got %d, %d -> %d, %d", c[0], c[1], c[2], c[3]);
+            ok("as 6, 6 -> 1, 6",
+               c[0] == 6 && c[1] == 6 && c[2] == 1 && c[3] == 6, detail);
+        }
+        /* impossible: the atoms cannot match */
+        {
+            static const char *const r[] = {"H2"};
+            static const char *const p[] = {"O2"};
+            ok("an impossible equation is refused",
+               bal_balance(r, 1, p, 1, c) == CHEM_ERR_RANGE, NULL);
+        }
+        /* a bad formula is reported, not balanced */
+        {
+            static const char *const r[] = {"Qz2", "O2"};
+            static const char *const p[] = {"H2O"};
+            ok("an unknown element is reported",
+               bal_balance(r, 2, p, 1, c) == CHEM_ERR_UNKNOWN_ELEMENT, NULL);
+        }
+    }
+
+    section("9. Energy, cells and rates");
+
+    {
+        double value = 0.0, second = 0.0;
+
+        /* the booklet's bond enthalpies, and a bond written backwards */
+        int_is("C-H is 414 kJ mol-1", energy_bond_enthalpy("C-H"), 414);
+        int_is("O=O is 498", energy_bond_enthalpy("O=O"), 498);
+        int_is("N#N is 945", energy_bond_enthalpy("N#N"), 945);
+        int_is("H-O reads the same as O-H", energy_bond_enthalpy("H-O"), 463);
+        int_is("Cl-C reads the same as C-Cl", energy_bond_enthalpy("Cl-C"), 324);
+        int_is("an unknown bond is 0", energy_bond_enthalpy("Xx-Yy"), 0);
+        int_is("an empty bond is 0", energy_bond_enthalpy(""), 0);
+
+        /* 100 g of water warmed by 25 K: q = 100 x 4.18 x 25 = 10450 J */
+        close_to("q = m c dT", energy_heat(100.0, CHEM_C_WATER, 25.0), 10450.0, 0.1);
+
+        /* that heat from 0.0200 mol gives -523 kJ mol-1 (exothermic) */
+        ok("molar enthalpy", energy_molar_enthalpy(10450.0, 0.0200, &value) == CHEM_OK, NULL);
+        close_to("dH = -523 kJ mol-1", value, -522.5, 0.1);
+        ok("zero moles is refused",
+           energy_molar_enthalpy(100.0, 0.0, &value) == CHEM_ERR_RANGE, NULL);
+
+        /* H2 + Cl2 -> 2HCl: broken 436 + 242, formed 2 x 431 */
+        close_to("bond enthalpies give -184 kJ mol-1",
+                 energy_from_bonds(436 + 242, 2 * 431), -184.0, 0.001);
+
+        /* dG = dH - T dS: -92.2 kJ, -198.8 J/K, 298 K -> -33.0 kJ mol-1 */
+        close_to("dG = dH - T dS", energy_gibbs(-92.2, 298.0, -198.8), -32.96, 0.01);
+        /* dS in J K-1 mol-1 must be divided by 1000, not used raw */
+        close_to("a positive dS at 500 K", energy_gibbs(100.0, 500.0, 200.0), 0.0, 0.001);
+
+        ok("the crossover temperature",
+           energy_crossover_temperature(-92.2, -198.8, &value) == CHEM_OK, NULL);
+        close_to("dG = 0 at 464 K", value, 463.8, 0.5);
+        ok("a zero entropy change has no crossover",
+           energy_crossover_temperature(10.0, 0.0, &value) == CHEM_ERR_RANGE, NULL);
+
+        /* dG and K are inverses of each other */
+        ok("dG from K", energy_gibbs_from_k(1.0e5, 298.0, &value) == CHEM_OK, NULL);
+        close_to("K = 1e5 gives dG = -28.5 kJ mol-1", value, -28.52, 0.05);
+        ok("K from dG", energy_k_from_gibbs(value, 298.0, &second) == CHEM_OK, NULL);
+        close_to("and K comes back as 1e5", second, 1.0e5, 1.0);
+        ok("K = 1 gives dG = 0",
+           energy_gibbs_from_k(1.0, 298.0, &value) == CHEM_OK && fabs(value) < 1e-9, NULL);
+        ok("a negative K is refused",
+           energy_gibbs_from_k(-1.0, 298.0, &value) == CHEM_ERR_RANGE, NULL);
+        ok("an impossible K is refused rather than overflowing",
+           energy_k_from_gibbs(-1.0e6, 298.0, &value) == CHEM_ERR_RANGE, NULL);
+
+        /* the Daniell cell: Cu2+/Cu 0.34, Zn2+/Zn -0.76, so E = 1.10 V */
+        ok("a half-cell is looked up", energy_half_cell("Cu2+/Cu", &value) == CHEM_OK, NULL);
+        ok("and another", energy_half_cell("Zn2+/Zn", &second) == CHEM_OK, NULL);
+        close_to("the Daniell cell is 1.10 V", value - second, 1.10, 0.001);
+        ok("an unknown half-cell is refused",
+           energy_half_cell("Xx2+/Xx", &value) == CHEM_ERR_RANGE, NULL);
+
+        /* dG = -nFE: 2 electrons at 1.10 V is -212 kJ mol-1 */
+        close_to("dG = -nFE", energy_gibbs_from_cell(2, 1.10), -212.3, 0.1);
+
+        /* Faraday: 1.50 A for 20.0 minutes depositing copper (Mr 63.55, 2+) */
+        ok("electrolysis",
+           energy_electrolysis_mass(1.50, 1200.0, 63.55, 2, &value) == CHEM_OK, NULL);
+        close_to("0.593 g of copper", value, 0.5927, 0.001);
+        ok("a charge of zero is refused",
+           energy_electrolysis_mass(1.5, 1200.0, 63.55, 0, &value) == CHEM_ERR_RANGE, NULL);
+
+        /* Arrhenius, and reading Ea back from two rate constants */
+        ok("the rate constant",
+           energy_rate_constant(1.0e11, 50.0, 298.0, &value) == CHEM_OK, NULL);
+        ok("k is positive and small", value > 0 && value < 1.0e11, NULL);
+        ok("Ea from two temperatures",
+           energy_activation_from_two(1.0e-3, 300.0, 1.0e-2, 310.0, &second) == CHEM_OK, NULL);
+        close_to("Ea = 178 kJ mol-1", second, 177.9, 0.5);
+        ok("the same temperature twice is refused",
+           energy_activation_from_two(1e-3, 300.0, 1e-2, 300.0, &value) == CHEM_ERR_RANGE, NULL);
+
+        /* the Arrhenius pair must be consistent: feeding Ea back reproduces k2 */
+        {
+            double a_factor, k_back;
+            energy_activation_from_two(1.0e-3, 300.0, 1.0e-2, 310.0, &second);
+            a_factor = 1.0e-3 / exp(-second * 1000.0 / (8.31 * 300.0));
+            energy_rate_constant(a_factor, second, 310.0, &k_back);
+            close_to("and it reproduces the second rate constant", k_back, 1.0e-2, 1e-6);
+        }
+
+        ok("half-life from k", energy_half_life(0.0693, &value) == CHEM_OK, NULL);
+        close_to("k = 0.0693 s-1 gives 10.0 s", value, 10.002, 0.01);
+        ok("k from half-life", energy_k_from_half_life(value, &second) == CHEM_OK, NULL);
+        close_to("and k comes back", second, 0.0693, 1e-6);
+        ok("a zero half-life is refused",
+           energy_k_from_half_life(0.0, &value) == CHEM_ERR_RANGE, NULL);
+    }
 
     printf("\n============================================================\n");
     printf("  Core tests  Total: %d   Passed: %d   Failed: %d\n",
