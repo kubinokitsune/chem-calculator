@@ -5,11 +5,16 @@ source of truth: the Python port (chemptab.py) and this C table are both built
 from them, so the three cannot drift apart.
 """
 import io
+import os
 import sys
 from decimal import Decimal, ROUND_HALF_UP
 
-ROOT = "C:/Users/pipef/OneDrive/Desktop/chem calculator project/chem Calculator/"
-sys.path.insert(0, ROOT + "modules/chemistry-calculator")
+# Work the paths out from this file, so the script runs wherever the
+# repository happens to sit - including on a build machine.
+HERE = os.path.dirname(os.path.abspath(__file__))
+ADDIN = os.path.dirname(HERE)
+MODULES = os.path.dirname(ADDIN)
+sys.path.insert(0, os.path.join(MODULES, "chemistry-calculator"))
 
 from Periodic_table import ELEMENTS
 from ionic_bonding_calculator import ELECTRONEGATIVITIES as EN
@@ -46,6 +51,6 @@ for z, symbol, name, mass, en in rows:
               % (symbol, name, mass, en, "" if z % 10 else "   /* Z=%d */" % z))
 out.write("};\n")
 
-path = ROOT + "modules/casio-addin/src/core/elements.c"
+path = os.path.join(ADDIN, "src", "core", "elements.c")
 io.open(path, "w", encoding="ascii", newline="\n").write(out.getvalue())
 print("wrote %s (%d elements)" % (path, len(rows)))
