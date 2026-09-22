@@ -9,41 +9,103 @@
 #include <stdio.h>
 #include <string.h>
 
-/* The fx-CG50 screen is 396 x 224. gint's default font is 8 px wide and
- * 9 px tall, so a line is 11 px with a little air. */
-#define ROW_HEIGHT   13
-#define TITLE_HEIGHT 20
-#define FOOT_HEIGHT  18
-#define BODY_TOP     (TITLE_HEIGHT + 4)
-#define BODY_BOTTOM  (DHEIGHT - FOOT_HEIGHT - 2)
+/* The fx-CG50 screen is 396 x 224 and gint's font is 8 x 9, so a row of text
+ * needs about 15 px to sit comfortably. */
+#define ROW_HEIGHT   15
+#define TITLE_HEIGHT 26
+#define FOOT_HEIGHT  22
+#define BODY_TOP     (TITLE_HEIGHT + 6)
+#define BODY_BOTTOM  (DHEIGHT - FOOT_HEIGHT - 4)
 #define BODY_ROWS    ((BODY_BOTTOM - BODY_TOP) / ROW_HEIGHT)
+#define SCROLL_X     (DWIDTH - 8)
 
-#define COLOUR_TITLE  C_RGB(4, 10, 20)
-#define COLOUR_FOOT   C_RGB(24, 24, 26)
-#define COLOUR_PICK   C_RGB(18, 26, 31)
-#define COLOUR_RULE   C_RGB(20, 20, 22)
+/* Colours are 5-6-5: C_RGB takes 0-31 for each. */
+#define COL_BAR       C_RGB(3, 9, 18)      /* the deep blue title bar */
+#define COL_BAR_EDGE  C_RGB(8, 20, 30)     /* the lighter line under it */
+#define COL_ACCENT    C_RGB(0, 24, 20)     /* teal, for the accent line */
+#define COL_TEXT      C_RGB(3, 3, 6)
+#define COL_MUTED     C_RGB(14, 14, 17)
+#define COL_STRIPE    C_RGB(30, 30, 31)    /* every other row */
+#define COL_PICK      C_RGB(5, 16, 28)     /* the selected row */
+#define COL_PANEL     C_RGB(26, 30, 31)    /* the answer panel */
+#define COL_PANEL_EDGE C_RGB(16, 24, 29)
+#define COL_FIELD     C_RGB(29, 29, 31)
+#define COL_KEY       C_RGB(6, 6, 9)       /* the softkey tabs */
+#define COL_RULE      C_RGB(20, 20, 23)
+
+/* ---- small drawing helpers ---------------------------------------------- */
+
+/* Text drawn twice, a pixel apart, reads as bold with only one font. */
+static void bold(int x, int y, int colour, const char *text)
+{
+    dtext(x, y, colour, text);
+    dtext(x + 1, y, colour, text);
+}
+
+/* A filled box with its corners knocked off, which reads as rounded. */
+static void panel(int x1, int y1, int x2, int y2, int fill, int edge)
+{
+    drect(x1, y1, x2, y2, fill);
+    if (edge >= 0) {
+        drect(x1, y1, x2, y1, edge);
+        drect(x1, y2, x2, y2, edge);
+        drect(x1, y1, x1, y2, edge);
+        drect(x2, y1, x2, y2, edge);
+    }
+}
+
+static void scrollbar(int first, int shown, int total)
+{
+    int track_top = BODY_TOP, track_bottom = BODY_BOTTOM;
+    int height = track_bottom - track_top;
+    int bar_top, bar_height;
+
+    if (total <= shown)
+        return;
+    bar_height = height * shown / total;
+    if (bar_height < 12)
+        bar_height = 12;
+    bar_top = track_top + (height - bar_height) * first / (total - shown);
+
+    drect(SCROLL_X, track_top, SCROLL_X + 3, track_bottom, C_RGB(28, 28, 30));
+    panel(SCROLL_X, bar_top, SCROLL_X + 3, bar_top + bar_height, COL_BAR_EDGE, -1);
+}
 
 void ui_frame(const char *title)
 {
     dclear(C_WHITE);
-    drect(0, 0, DWIDTH - 1, TITLE_HEIGHT - 1, COLOUR_TITLE);
-    dtext_opt(6, TITLE_HEIGHT / 2, C_WHITE, C_NONE, DTEXT_LEFT, DTEXT_MIDDLE,
-              title, -1);
+    drect(0, 0, DWIDTH - 1, TITLE_HEIGHT - 3, COL_BAR);
+    drect(0, TITLE_HEIGHT - 2, DWIDTH - 1, TITLE_HEIGHT - 2, COL_BAR_EDGE);
+    drect(0, TITLE_HEIGHT - 1, DWIDTH - 1, TITLE_HEIGHT - 1, COL_ACCENT);
+    bold(8, TITLE_HEIGHT / 2 - 5, C_WHITE, title);
+}
+
+/* A short note on the right of the title bar: a position, a mode, an arrow. */
+static void ui_badge(const char *text)
+{
+    int width;
+
+    if (text == NULL || text[0] == 0)
+        return;
+    dsize(text, NULL, &width, NULL);
+    panel(DWIDTH - width - 14, 4, DWIDTH - 6, TITLE_HEIGHT - 6, COL_BAR_EDGE, -1);
+    dtext(DWIDTH - width - 10, TITLE_HEIGHT / 2 - 5, C_WHITE, text);
 }
 
 void ui_softkeys(const char *const *labels)
 {
     int i, width = DWIDTH / 6;
 
-    drect(0, DHEIGHT - FOOT_HEIGHT, DWIDTH - 1, DHEIGHT - 1, COLOUR_FOOT);
+    drect(0, DHEIGHT - FOOT_HEIGHT, DWIDTH - 1, DHEIGHT - 1, C_WHITE);
     for (i = 0; i < 6; i++) {
-        int x = i * width;
-        if (i > 0)
-            drect(x, DHEIGHT - FOOT_HEIGHT, x, DHEIGHT - 1, C_WHITE);
-        if (labels != NULL && labels[i] != NULL && labels[i][0] != 0) {
-            dtext_opt(x + width / 2, DHEIGHT - FOOT_HEIGHT / 2, C_WHITE, C_NONE,
-                      DTEXT_CENTER, DTEXT_MIDDLE, labels[i], -1);
-        }
+        int x = i * width + 2;
+        int right = x + width - 5;
+
+        if (labels == NULL || labels[i] == NULL || labels[i][0] == 0)
+            continue;
+        panel(x, DHEIGHT - FOOT_HEIGHT + 2, right, DHEIGHT - 3, COL_KEY, -1);
+        dtext_opt((x + right) / 2, DHEIGHT - FOOT_HEIGHT / 2, C_WHITE, C_NONE,
+                  DTEXT_CENTER, DTEXT_MIDDLE, labels[i], -1);
     }
 }
 
@@ -70,18 +132,27 @@ int ui_menu(const char *title, const char *const *items, int count, int *cursor)
         for (i = 0; i < BODY_ROWS && top + i < count; i++) {
             int y = BODY_TOP + i * ROW_HEIGHT;
             int picked = (top + i == here);
-            char label[UI_LINE_LEN + 8];
+            char number[8];
 
             if (picked)
-                drect(2, y - 1, DWIDTH - 3, y + ROW_HEIGHT - 2, COLOUR_PICK);
-            snprintf(label, sizeof label, "%d %s", top + i + 1, items[top + i]);
-            dtext(8, y, picked ? C_WHITE : C_BLACK, label);
+                panel(4, y - 2, SCROLL_X - 4, y + ROW_HEIGHT - 4, COL_PICK, -1);
+            else if ((top + i) & 1)
+                drect(4, y - 2, SCROLL_X - 4, y + ROW_HEIGHT - 4, COL_STRIPE);
+
+            snprintf(number, sizeof number, "%d", top + i + 1);
+            dtext(10, y, picked ? C_WHITE : COL_MUTED, number);
+            if (picked) {
+                bold(26, y, C_WHITE, items[top + i]);
+                dtext(SCROLL_X - 16, y, C_WHITE, ">");
+            } else {
+                dtext(26, y, COL_TEXT, items[top + i]);
+            }
         }
         if (count > BODY_ROWS) {
             char position[16];
             snprintf(position, sizeof position, "%d/%d", here + 1, count);
-            dtext_opt(DWIDTH - 6, TITLE_HEIGHT / 2, C_WHITE, C_NONE,
-                      DTEXT_RIGHT, DTEXT_MIDDLE, position, -1);
+            ui_badge(position);
+            scrollbar(top, BODY_ROWS, count);
         }
         ui_softkeys(keys);
         dupdate();
@@ -190,24 +261,22 @@ static char digit_for_key(int key)
 /* Draw the shared parts of an entry screen. */
 static void entry_screen(const char *title, const char *prompt,
                          const char *text, const char *mode,
-                         const char *const *keys)
+                         const char *const *keys, const char *hint)
 {
-    int caret;
+    int caret, box_top = BODY_TOP + ROW_HEIGHT + 2;
 
     ui_frame(title);
-    dtext(8, BODY_TOP, C_BLACK, prompt);
+    ui_badge(mode);
+    dtext(10, BODY_TOP, COL_MUTED, prompt);
 
-    drect(8, BODY_TOP + ROW_HEIGHT + 4, DWIDTH - 9, BODY_TOP + ROW_HEIGHT + 26,
-          C_RGB(29, 29, 31));
-    dtext(14, BODY_TOP + ROW_HEIGHT + 11, C_BLACK, text);
+    panel(8, box_top, DWIDTH - 9, box_top + 26, COL_FIELD, COL_PANEL_EDGE);
+    bold(16, box_top + 9, COL_TEXT, text);
 
     dsize(text, NULL, &caret, NULL);
-    drect(14 + caret, BODY_TOP + ROW_HEIGHT + 10, 15 + caret,
-          BODY_TOP + ROW_HEIGHT + 20, C_BLACK);
+    drect(17 + caret, box_top + 7, 18 + caret, box_top + 19, COL_BAR_EDGE);
 
-    if (mode != NULL)
-        dtext_opt(DWIDTH - 6, TITLE_HEIGHT / 2, C_WHITE, C_NONE,
-                  DTEXT_RIGHT, DTEXT_MIDDLE, mode, -1);
+    if (hint != NULL)
+        dtext(10, box_top + 36, COL_MUTED, hint);
     ui_softkeys(keys);
 }
 
@@ -231,7 +300,7 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
         keys[5] = "OK";
 
         entry_screen(title, prompt, buffer, alpha ? (small ? "abc" : "ABC") : "123",
-                     keys);
+                     keys, "[DEL] rub out   [EXE] accept   [EXIT] back");
         dupdate();
 
         event = getkey();
@@ -301,10 +370,9 @@ int ui_number_input(const char *title, const char *prompt, double *value,
         key_event_t event;
         char letter = 0;
 
-        entry_screen(title, prompt, text, "123", keys);
-        if (allow_blank)
-            dtext(8, BODY_BOTTOM - ROW_HEIGHT, C_RGB(12, 12, 14),
-                  "[EXE] alone = solve for this");
+        entry_screen(title, prompt, text, "123", keys,
+                     allow_blank ? "[EXE] alone = solve for this one"
+                                 : "[EXP] powers of ten   [(-)] minus");
         dupdate();
 
         event = getkey();
@@ -355,11 +423,13 @@ int ui_number_input(const char *title, const char *prompt, double *value,
 static char page_title[UI_LINE_LEN];
 static char page[UI_MAX_LINES][UI_LINE_LEN];
 static int page_used;
+static int page_last_rule;      /* lines after this one are the answers */
 
 void ui_result_begin(const char *title)
 {
     snprintf(page_title, sizeof page_title, "%s", title);
     page_used = 0;
+    page_last_rule = -1;
 }
 
 void ui_result_line(const char *text)
@@ -392,6 +462,7 @@ void ui_result_value(const char *label, double value, const char *unit)
 void ui_result_rule(void)
 {
     ui_result_line("\x01");        /* drawn as a horizontal line */
+    page_last_rule = page_used - 1;
 }
 
 void ui_result_show(void)
@@ -404,17 +475,40 @@ void ui_result_show(void)
         int i;
 
         ui_frame(page_title);
+
+        /* Everything after the last rule is the answer, so it gets a panel of
+         * its own and heavier text: that is what the eye should land on. */
+        if (page_last_rule >= 0 && page_last_rule >= top
+            && page_last_rule < top + BODY_ROWS) {
+            int first = page_last_rule + 1 - top;
+            int last = page_used - 1 - top;
+
+            if (last >= BODY_ROWS)
+                last = BODY_ROWS - 1;
+            if (last >= first)
+                panel(6, BODY_TOP + first * ROW_HEIGHT - 3, SCROLL_X - 4,
+                      BODY_TOP + (last + 1) * ROW_HEIGHT - 4,
+                      COL_PANEL, COL_PANEL_EDGE);
+        }
+
         for (i = 0; i < BODY_ROWS && top + i < page_used; i++) {
             int y = BODY_TOP + i * ROW_HEIGHT;
+            int answer = (page_last_rule >= 0 && top + i > page_last_rule);
+
             if (page[top + i][0] == '\x01')
-                drect(8, y + ROW_HEIGHT / 2, DWIDTH - 9, y + ROW_HEIGHT / 2,
-                      COLOUR_RULE);
+                drect(10, y + ROW_HEIGHT / 2 - 2, SCROLL_X - 8,
+                      y + ROW_HEIGHT / 2 - 2, COL_RULE);
+            else if (answer)
+                bold(12, y, COL_TEXT, page[top + i]);
             else
-                dtext(8, y, C_BLACK, page[top + i]);
+                dtext(12, y, COL_TEXT, page[top + i]);
         }
         if (page_used > BODY_ROWS) {
-            dtext_opt(DWIDTH - 6, TITLE_HEIGHT / 2, C_WHITE, C_NONE,
-                      DTEXT_RIGHT, DTEXT_MIDDLE, "v", -1);
+            char position[16];
+            snprintf(position, sizeof position, "%d/%d",
+                     top + 1, page_used - BODY_ROWS + 1);
+            ui_badge(position);
+            scrollbar(top, BODY_ROWS, page_used);
         }
         ui_softkeys(keys);
         dupdate();
@@ -432,10 +526,14 @@ void ui_result_show(void)
 void ui_message(const char *title, const char *message)
 {
     static const char *const keys[6] = {"", "", "", "", "", "BACK"};
+    int width, middle = DHEIGHT / 2;
 
     ui_frame(title);
-    dtext_opt(DWIDTH / 2, DHEIGHT / 2, C_BLACK, C_NONE, DTEXT_CENTER,
-              DTEXT_MIDDLE, message, -1);
+    dsize(message, NULL, &width, NULL);
+    panel(DWIDTH / 2 - width / 2 - 14, middle - 18, DWIDTH / 2 + width / 2 + 14,
+          middle + 18, COL_PANEL, COL_PANEL_EDGE);
+    dtext_opt(DWIDTH / 2, middle, COL_TEXT, C_NONE, DTEXT_CENTER, DTEXT_MIDDLE,
+              message, -1);
     ui_softkeys(keys);
     dupdate();
     getkey();

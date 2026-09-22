@@ -29,5 +29,6 @@ void dtext_opt(int x, int y, int fg, int bg, int halign, int valign,
                const char *text, int size);
 void dsize(const char *text, const font_t *font, int *width, int *height);
 void dupdate(void);
+void dpixel(int x, int y, int colour);
 
 #endif

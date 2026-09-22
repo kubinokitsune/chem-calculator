@@ -900,6 +900,88 @@ int main(void)
         close_to("oxygen makes no difference", tools_ihd(&formula, 0), 0.0, 1e-9);
     }
 
+    section("14. Printing numbers the calculator's own way");
+
+    /* chem_format does its own digits with whole-number arithmetic instead of
+     * asking the C library for "%f". The calculator's library is not the one
+     * these tests run against, so this is what makes a number printed there
+     * the same as a number printed here. */
+    text_is("a decade boundary from below", fmt(999999.0, 4), "1e6");
+    text_is("and just above it", fmt(1000000.0, 4), "1e6");
+    text_is("999500 already has four figures", fmt(999500.0, 4), "999500");
+    text_is("and so does 999400", fmt(999400.0, 4), "999400");
+    text_is("999950 rounds up into seven digits", fmt(999950.0, 4), "1e6");
+    text_is("the smallest fixed number", fmt(0.001, 4), "0.001");
+    text_is("just below goes scientific", fmt(0.0001, 4), "1e-4");
+    text_is("0.00009999 too", fmt(0.00009999, 4), "9.999e-5");
+    /* A "half" written in decimal is usually not a half once it is stored:
+     * 1.0005 is held as 1.000499999..., so it rounds down. The C library does
+     * exactly the same, and these three record that rather than pretend. */
+    text_is("1.0005 is stored just under a half", fmt(1.0005, 4), "1");
+    text_is("9.995 likewise", fmt(9.995, 3), "9.99");
+    text_is("0.09995 likewise", fmt(0.09995, 3), "0.0999");
+    text_is("a true half does round up", fmt(1.5, 1), "2");
+    text_is("and so does 0.125 at two figures", fmt(0.125, 2), "0.13");
+    text_is("one figure", fmt(1234.0, 1), "1000");
+    text_is("two figures", fmt(1234.0, 2), "1200");
+    text_is("six figures", fmt(1234.5678, 6), "1234.57");
+    text_is("a negative small number", fmt(-0.0456, 3), "-0.0456");
+    text_is("a negative big one", fmt(-1.23e9, 3), "-1.23e9");
+    text_is("Avogadro", fmt(6.02e23, 3), "6.02e23");
+    text_is("Kw", fmt(1.0e-14, 3), "1e-14");
+    text_is("a whole number keeps no point", fmt(100.0, 4), "100");
+    text_is("trailing zeros go", fmt(2.50, 4), "2.5");
+    text_is("but a leading zero stays", fmt(0.25, 4), "0.25");
+
+    /* Whatever is printed has to read back as the same number, to within the
+     * rounding that was asked for. Ten thousand values, none of them chosen
+     * by me, is a better check of that than any list I could write. */
+    {
+        unsigned int seed = 12345u;
+        int checked = 0, wrong = 0, figures;
+        char printed[32], detail[160];
+
+        for (i = 0; i < 10000; i++) {
+            double value, back, allowed;
+            int exponent;
+
+            /* a spread of magnitudes, positive and negative */
+            seed = seed * 1103515245u + 12345u;
+            exponent = (int)((seed >> 16) % 24) - 12;
+            seed = seed * 1103515245u + 12345u;
+            value = (double)((seed >> 8) % 1000000u) / 1000000.0;
+            seed = seed * 1103515245u + 12345u;
+            value = (value + 0.1) * pow(10.0, exponent);
+            if ((seed >> 20) & 1)
+                value = -value;
+            figures = 3 + (int)((seed >> 12) % 4);
+
+            chem_format(value, figures, printed, sizeof printed);
+            if (sscanf(printed, "%lf", &back) != 1) {
+                if (wrong == 0)
+                    snprintf(detail, sizeof detail,
+                             "%.17g printed as \"%s\", which is not a number",
+                             value, printed);
+                wrong++;
+                continue;
+            }
+            /* half of the last significant figure, with a little room for the
+             * rounding of the exponent itself */
+            allowed = fabs(value) * pow(10.0, 1 - figures) * 0.51;
+            if (fabs(back - value) > allowed) {
+                if (wrong == 0)
+                    snprintf(detail, sizeof detail,
+                             "%.17g to %d figures printed as \"%s\"",
+                             value, figures, printed);
+                wrong++;
+            }
+            checked++;
+        }
+        ok("10 000 random numbers print and read back correctly", wrong == 0,
+           wrong ? detail : NULL);
+        int_is("and all of them were checked", checked, 10000);
+    }
+
     printf("\n============================================================\n");
     printf("  Core tests  Total: %d   Passed: %d   Failed: %d\n",
            passed + failed, passed, failed);

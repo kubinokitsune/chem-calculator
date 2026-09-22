@@ -142,8 +142,13 @@ static void screen_bond(void)
 
     gap = (a->en > b->en) ? a->en - b->en : b->en - a->en;
     ui_result_begin("Bond type");
-    snprintf(line, sizeof line, "%s %.2f      %s %.2f",
-             a->symbol, (double)a->en, b->symbol, (double)b->en);
+    {
+        char first_en[16], second_en[16];
+        chem_format(a->en, 3, first_en, sizeof first_en);
+        chem_format(b->en, 3, second_en, sizeof second_en);
+        snprintf(line, sizeof line, "%s %s      %s %s",
+                 a->symbol, first_en, b->symbol, second_en);
+    }
     ui_result_line(line);
     ui_result_value("Difference", gap, "");
     ui_result_rule();

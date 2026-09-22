@@ -440,34 +440,54 @@ int chem_atom_count(const chem_formula_t *formula, const char *symbol)
 
 /* ---- numbers ------------------------------------------------------------ */
 
-/* Drop trailing zeros from a fixed-point string: "12.300" -> "12.3". */
-static void trim_zeros(char *text)
+/* Write `count` significant digits of `magnitude` (which must be positive)
+ * into `digits`, and return the exponent of the first one. The digits are
+ * produced with whole-number arithmetic: the calculator's C library is not the
+ * one the tests run against, and a number printed there has to be the number
+ * printed here. */
+static int significant_digits(double magnitude, int count, char *digits)
 {
-    int len = (int)strlen(text);
+    long long scaled, limit;
+    int exponent, i;
 
-    if (strchr(text, '.') == NULL)
-        return;
-    while (len > 0 && text[len - 1] == '0')
-        text[--len] = 0;
-    if (len > 0 && text[len - 1] == '.')
-        text[--len] = 0;
+    exponent = (int)floor(log10(magnitude));
+    scaled = (long long)floor(magnitude / pow(10.0, exponent - count + 1) + 0.5);
+
+    /* Rounding can carry into another decade: 9.99 to 3 figures is 10.0. */
+    limit = 1;
+    for (i = 0; i < count; i++)
+        limit *= 10;
+    if (scaled >= limit) {
+        scaled /= 10;
+        exponent++;
+    }
+    /* And the other way: log10 can be one out at a decade boundary. */
+    if (scaled < limit / 10 && scaled > 0) {
+        exponent--;
+        scaled = (long long)floor(magnitude / pow(10.0, exponent - count + 1) + 0.5);
+    }
+
+    for (i = count - 1; i >= 0; i--) {
+        digits[i] = (char)('0' + (int)(scaled % 10));
+        scaled /= 10;
+    }
+    digits[count] = 0;
+    return exponent;
 }
 
 void chem_format(double value, int figures, char *out, int len)
 {
-    double magnitude, mantissa, scale;
-    int exponent, decimals;
-    char digits[32];
+    char digits[24], text[40];
+    double magnitude;
+    int exponent, negative, used = 0, i;
 
     if (len <= 0)
         return;
     if (figures < 1)
         figures = 1;
-    if (value != value) {                      /* not a number */
-        snprintf(out, (size_t)len, "n/a");
-        return;
-    }
-    if (value > 1e308 || value < -1e308) {
+    if (figures > 17)
+        figures = 17;
+    if (value != value || value > 1e308 || value < -1e308) {
         snprintf(out, (size_t)len, "n/a");
         return;
     }
@@ -476,27 +496,64 @@ void chem_format(double value, int figures, char *out, int len)
         return;
     }
 
-    /* Round to `figures` significant figures first; the rounding itself can
-     * move the number up a decade (9.99 -> 10.0), so read the exponent again. */
-    magnitude = value < 0 ? -value : value;
-    exponent = (int)floor(log10(magnitude));
-    scale = pow(10.0, exponent - figures + 1);
-    magnitude = floor(magnitude / scale + 0.5) * scale;
-    exponent = (int)floor(log10(magnitude));
-    value = (value < 0) ? -magnitude : magnitude;
+    negative = (value < 0);
+    magnitude = negative ? -value : value;
+    exponent = significant_digits(magnitude, figures, digits);
+
+    if (negative)
+        text[used++] = '-';
 
     if (exponent >= 6 || exponent <= -4) {
-        mantissa = value / pow(10.0, exponent);
-        snprintf(digits, sizeof digits, "%.*f", figures - 1, mantissa);
-        trim_zeros(digits);
-        snprintf(out, (size_t)len, "%se%d", digits, exponent);
+        /* Scientific: one digit, the point, the rest, then the exponent. */
+        text[used++] = digits[0];
+        if (figures > 1) {
+            int last = figures - 1;
+            while (last > 0 && digits[last] == '0')
+                last--;
+            if (last > 0) {
+                text[used++] = '.';
+                for (i = 1; i <= last; i++)
+                    text[used++] = digits[i];
+            }
+        }
+        text[used] = 0;
+        snprintf(out, (size_t)len, "%se%d", text, exponent);
         return;
     }
 
-    decimals = figures - 1 - exponent;
-    if (decimals < 0)
-        decimals = 0;
-    snprintf(digits, sizeof digits, "%.*f", decimals, value);
-    trim_zeros(digits);
-    snprintf(out, (size_t)len, "%s", digits);
+    if (exponent >= figures - 1) {
+        /* A whole number, possibly with zeros put back on the end. */
+        for (i = 0; i < figures; i++)
+            text[used++] = digits[i];
+        for (i = figures; i <= exponent; i++)
+            text[used++] = '0';
+        text[used] = 0;
+    } else if (exponent >= 0) {
+        int last = figures - 1;
+
+        while (last > exponent && digits[last] == '0')
+            last--;
+        for (i = 0; i <= exponent; i++)
+            text[used++] = digits[i];
+        if (last > exponent) {
+            text[used++] = '.';
+            for (i = exponent + 1; i <= last; i++)
+                text[used++] = digits[i];
+        }
+        text[used] = 0;
+    } else {
+        /* Smaller than one: "0.", then the leading zeros, then the digits. */
+        int last = figures - 1;
+
+        while (last > 0 && digits[last] == '0')
+            last--;
+        text[used++] = '0';
+        text[used++] = '.';
+        for (i = -1; i > exponent; i--)
+            text[used++] = '0';
+        for (i = 0; i <= last; i++)
+            text[used++] = digits[i];
+        text[used] = 0;
+    }
+    snprintf(out, (size_t)len, "%s", text);
 }

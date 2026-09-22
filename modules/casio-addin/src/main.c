@@ -9,6 +9,7 @@
 #include "ui/ui.h"
 
 #include <gint/display.h>
+#include <gint/gint.h>
 #include <gint/keyboard.h>
 
 int main(void)
@@ -23,6 +24,12 @@ int main(void)
         "Structure and data",
     };
     static int cursor;
+
+    /* Without this, leaving the add-in stops it from starting again until
+     * some other application has been opened: the OS tries to *resume* the
+     * add-in, which immediately exits once more. This makes gint jump back to
+     * the entry point instead, so ChemCalc simply starts afresh. */
+    gint_setrestart(1);
 
     for (;;) {
         switch (ui_menu("ChemCalc  -  IB chemistry", topics, 7, &cursor)) {
