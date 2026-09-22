@@ -7,6 +7,11 @@ An interactive physical chemistry calculator built for IB Chemistry. Covers 22 t
 **Developer:** Felipe "Pipe" Fonseca
 **Project type:** IB Chemistry / personal STEM project
 
+> **Before an exam:** examination boards generally require a calculator's
+> memory to be cleared and no add-ins installed. Putting these on a calculator
+> you take into an exam is very likely against the rules — see
+> [NOTICE.md](NOTICE.md). Not affiliated with the IB.
+
 ---
 
 ## Modules
@@ -233,4 +238,9 @@ chem-calculator/
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+MIT — see [LICENSE](LICENSE), and [NOTICE.md](NOTICE.md) for the disclaimer,
+exam rules and trademark note.
+
+The [physical calculator](https://github.com/kubinokitsune/chemcalc-handheld)
+built on this engine is licensed noncommercially: build one for yourself, do
+not sell it. This engine stays MIT.
