@@ -130,7 +130,7 @@ int main(void)
     int_is("oganesson is Z=118", chem_symbol_z("Og"), 118);
     close_to("Ar(C) = 12.01", chem_element(6)->mass, 12.01, 0.001);
     close_to("Ar(Fe) = 55.85", chem_element(26)->mass, 55.85, 0.001);
-    close_to("Ar(S) = 32.07 (the IB booklet value)", chem_element(16)->mass, 32.07, 0.001);
+    close_to("Ar(S) = 32.07, the IB booklet value", chem_element(16)->mass, 32.07, 0.001);
     text_is("Z=26 is called Iron", chem_element(26)->name, "Iron");
     text_is("IB spelling: aluminium", chem_element(13)->name, "Aluminium");
     text_is("IB spelling: caesium", chem_element(55)->name, "Caesium");

@@ -23,7 +23,7 @@ ELEMENTS = [
     (13, 'Al', 'aluminum', 26.982),
     (14, 'Si', 'silicon', 28.085),
     (15, 'P', 'phosphorus', 30.974),
-    (16, 'S', 'sulfur', 32.06),
+    (16, 'S', 'sulfur', 32.07),
     (17, 'Cl', 'chlorine', 35.45),
     (18, 'Ar', 'argon', 39.948),
     (19, 'K', 'potassium', 39.098),

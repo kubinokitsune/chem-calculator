@@ -215,17 +215,15 @@ chem-calculator/
 │   │   ├── src/ui/                  # softkeys, menus, entry fields
 │   │   ├── src/screens/             # one file per topic
 │   │   ├── test/                    # PC tests, incl. a fake screen and keypad
-│   │   └── CMakeLists.txt           # fxsdk build-cg -> ChemCalc.g3a
-│   ├── casio-fx-cg50/               # port for the Casio fx-CG50 (MicroPython)
-│   │   ├── chem.py                  # run this one on the calculator
-│   │   ├── chemcore.py              # masses, formula parsing, prompts
-│   │   ├── chemstoi.py  chemgas.py  chemaqua.py  chemener.py
-│   │   ├── chemstruct.py  chemtools.py  chembal.py
-│   │   ├── chemptab.py              # all 118 elements + group/period/block
-│   │   └── README.md                # how to copy it onto the calculator
-│   └── user interface/              # C UI (in development)
-│       ├── main_menu.C
-│       └── include/ui.h
+│   │   ├── CMakeLists.txt           # fxsdk build-cg -> ChemCalc.g3a
+│   │   └── ChemCalc.g3a             # the built app: copy this to the calculator
+│   └── casio-fx-cg50/               # port for the Casio fx-CG50 (MicroPython)
+│       ├── chem.py                  # run this one on the calculator
+│       ├── chemcore.py              # masses, formula parsing, prompts
+│       ├── chemstoi.py  chemgas.py  chemaqua.py  chemener.py
+│       ├── chemstruct.py  chemtools.py  chembal.py
+│       ├── chemptab.py              # all 118 elements + group/period/block
+│       └── README.md                # how to copy it onto the calculator
 ├── .github/workflows/tests.yml      # runs all 11 suites on every push
 ├── .gitignore
 └── README.md

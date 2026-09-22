@@ -20,15 +20,13 @@ from Periodic_table import ELEMENTS
 from ionic_bonding_calculator import ELECTRONEGATIVITIES as EN
 
 IB_SPELLING = {"aluminum": "aluminium", "cesium": "caesium"}
-BOOKLET = {"S": "32.07"}          # the IB data booklet value
 NO_EN = ("He", "Ne", "Ar")        # no Pauling value is defined
 
 rows = []
 for z, symbol, name, weight in ELEMENTS:
     name = IB_SPELLING.get(name, name).capitalize()
-    mass = BOOKLET.get(
-        symbol,
-        str(Decimal(repr(weight)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)))
+    mass = str(Decimal(repr(weight)).quantize(Decimal("0.01"),
+                                              rounding=ROUND_HALF_UP))
     en = EN.get(symbol)
     en = 0.0 if (en is None or symbol in NO_EN or en == 0.0) else en
     rows.append((z, symbol, name, mass, en))

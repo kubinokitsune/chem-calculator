@@ -283,7 +283,6 @@ section("2b. The periodic table")
 equal("periodic table has 118 elements", chemptab.count(), 118)
 desk_by_z = dict((z, (sym, name, w)) for z, sym, name, w in desk_pt.ELEMENTS)
 IB_SPELLING = {"aluminum": "aluminium", "cesium": "caesium"}
-BOOKLET = {"S": 32.07}     # where IB differs from the IUPAC conventional value
 seen = set()
 bad_mass, bad_name, bad_symbol = [], [], []
 for z in range(1, 119):
@@ -294,7 +293,7 @@ for z in range(1, 119):
     want_name = IB_SPELLING.get(desk_name, desk_name).capitalize()
     if name != want_name:
         bad_name.append((z, name, want_name))
-    want_mass = BOOKLET.get(symbol, desk_w)
+    want_mass = desk_w
     if abs(ar - want_mass) > 0.0051:   # 55.845 rounds up to 55.85
         bad_mass.append((symbol, ar, want_mass))
     seen.add(symbol)
