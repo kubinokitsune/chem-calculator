@@ -15,6 +15,7 @@ static void screen_configuration(void)
     double charge = 0.0;
     int z, count, core;
 
+    ui_example("Fe, charge 0 -> ...3d6 4s2; charge 3 -> 3d5");
     if (!ui_text_input("Electron configuration", "Element:", text, (int)sizeof text))
         return;
     z = chem_find_element(text);
@@ -88,6 +89,7 @@ static void screen_oxidation(void)
     char line[UI_LINE_LEN];
     int peroxide = 0, i;
 
+    ui_example("KMnO4 -> K +1, Mn +7, O -2");
     if (!ask_formula("Oxidation numbers", "Formula:", text, (int)sizeof text,
                      &formula))
         return;
@@ -125,6 +127,7 @@ static void screen_ionic(void)
     char cation[16] = "", anion[16] = "", formula[32];
     double cation_charge = 0.0, anion_charge = 0.0;
 
+    ui_example("Al charge 3, O charge 2 -> Al2O3");
     if (!ui_text_input("Ionic formula", "Cation, e.g. Ca or NH4:", cation,
                        (int)sizeof cation))
         return;
@@ -164,6 +167,7 @@ static void screen_isotopes(void)
 
     if (choice < 0)
         return;
+    ui_example("34.969 at 75.77 %, 36.966 at 24.23 % -> 35.45");
 
     if (choice == 0) {
         if (!ui_number_input("Isotopes", "How many isotopes? (2-6)", &how_many, 0))
@@ -232,6 +236,7 @@ static void screen_uncertainty(void)
 
     if (choice < 0)
         return;
+    ui_example("25.00 give or take 0.05 -> 0.2 %");
 
     switch (choice) {
     case 0:
@@ -306,6 +311,7 @@ static void screen_ihd(void)
     chem_formula_t formula;
     double ihd;
 
+    ui_example("C6H6 -> 4 (a ring and three double bonds)");
     if (!ask_formula("Index of hydrogen deficiency", "Molecular formula:", text,
                      (int)sizeof text, &formula))
         return;
@@ -334,10 +340,18 @@ void screen_tools(void)
         "Uncertainties",
         "Index of hydrogen deficiency",
     };
+    static const char *const hints[] = {
+        "Fe -> 1s2 2s2 2p6 3s2 3p6 3d6 4s2",
+        "KMnO4 -> manganese is +7",
+        "Al 3+ with O 2- -> Al2O3",
+        "chlorine's two isotopes -> Ar 35.45",
+        "25.00 +/- 0.05 -> 0.2 %",
+        "C6H6 -> 4 rings and pi bonds",
+    };
     static int cursor;
 
     for (;;) {
-        switch (ui_menu("Structure and data", items, 6, &cursor)) {
+        switch (ui_menu_hints("Structure and data", items, hints, 6, &cursor)) {
         case 0: screen_configuration(); break;
         case 1: screen_oxidation(); break;
         case 2: screen_ionic(); break;

@@ -51,6 +51,7 @@ void screen_balance(void)
     int n_left, n_right, i;
     chem_error_t error;
 
+    ui_example("C3H8, O2 -> CO2, H2O gives 1, 5, 3, 4");
     n_left = collect("Balancer", "Reactant", left_store, left);
     if (n_left <= 0)
         return;

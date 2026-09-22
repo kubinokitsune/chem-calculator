@@ -18,14 +18,23 @@ static void screen_moles(void)
         "Moles to volume at STP",
         "Volume at STP to moles",
     };
+    static const char *const hints[] = {
+        "CaCO3, 10 g -> 0.0999 mol",
+        "H2O, 2 mol -> 36.04 g",
+        "0.25 mol -> 1.505e23 particles",
+        "3.01e23 particles -> 0.5 mol",
+        "0.5 mol -> 11.35 dm3 at STP",
+        "11.35 dm3 at STP -> 0.5 mol",
+    };
     static int cursor;
     char text[32] = "";
     chem_formula_t formula;
     double mass, moles = 0.0, value = 0.0;
-    int choice = ui_menu("Moles", items, 6, &cursor);
+    int choice = ui_menu_hints("Moles", items, hints, 6, &cursor);
 
     if (choice < 0)
         return;
+    ui_example("CaCO3 then 10 gives 0.0999 mol");
 
     if (choice <= 1) {
         if (!ask_formula("Moles", "Formula:", text, (int)sizeof text, &formula))
@@ -82,6 +91,7 @@ static void screen_percent(void)
     char line[UI_LINE_LEN];
     int i;
 
+    ui_example("H2O -> 11.2 % H and 88.8 % O");
     if (!ask_formula("Percent composition", "Formula:", text, (int)sizeof text,
                      &formula))
         return;
@@ -113,6 +123,7 @@ static void screen_empirical(void)
     float empirical_mass = 0.0f;
     int n, i;
 
+    ui_example("C 40, H 6.7, O 53.3 -> CH2O, Mr 180 -> C6H12O6");
     if (!ui_number_input("Empirical formula", "How many elements? (2-6)",
                          &how_many, 0))
         return;
@@ -193,6 +204,8 @@ static void screen_yield(void)
 {
     double actual = 0.0, theoretical = 0.0;
 
+    ui_example("4.2 g made of 5.0 g possible -> 84 %");
+
     if (!ask_positive("Percentage yield", "Actual yield:", &actual))
         return;
     if (!ask_positive("Percentage yield", "Theoretical yield:", &theoretical))
@@ -211,6 +224,8 @@ static void screen_atom_economy(void)
     char wanted[32] = "", other[32] = "";
     chem_formula_t formula;
     double wanted_mass, total;
+
+    ui_example("want CO2, other product H2O -> 71.0 %");
 
     if (!ask_formula("Atom economy", "Wanted product:", wanted,
                      (int)sizeof wanted, &formula))
@@ -256,10 +271,17 @@ void screen_stoichiometry(void)
         "Percentage yield",
         "Atom economy",
     };
+    static const char *const hints[] = {
+        "10 g of CaCO3 -> 0.0999 mol",
+        "H2O -> 11.2 % H, 88.8 % O",
+        "40 % C, 6.7 % H, 53.3 % O -> CH2O",
+        "4.2 g of a possible 5.0 g -> 84 %",
+        "mass wanted / mass of everything made",
+    };
     static int cursor;
 
     for (;;) {
-        switch (ui_menu("Stoichiometry", items, 5, &cursor)) {
+        switch (ui_menu_hints("Stoichiometry", items, hints, 5, &cursor)) {
         case 0: screen_moles(); break;
         case 1: screen_percent(); break;
         case 2: screen_empirical(); break;

@@ -26,6 +26,16 @@ void ui_softkeys(const char *const *labels);
  * -1 when the user pressed EXIT. */
 int ui_menu(const char *title, const char *const *items, int count, int *cursor);
 
+/* The same, with a one-line example for each entry, shown along the bottom as
+ * the highlight moves. `hints` may be NULL, and so may any entry in it. */
+int ui_menu_hints(const char *title, const char *const *items,
+                  const char *const *hints, int count, int *cursor);
+
+/* Set the worked example shown on the entry screens that follow, e.g.
+ * "10 g of CaCO3 is 0.0999 mol". Pass NULL to clear it. Each screen sets its
+ * own before it starts asking questions. */
+void ui_example(const char *text);
+
 /* ---- entry fields ------------------------------------------------------- */
 
 /* Type a formula or any other text. The keypad's printed letters are used

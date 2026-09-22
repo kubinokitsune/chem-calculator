@@ -23,6 +23,15 @@ int main(void)
         "Periodic table",
         "Structure and data",
     };
+    static const char *const about[] = {
+        "moles, formulas, yield, atom economy",
+        "pV = nRT, gas laws, Kc and Kp, ICE",
+        "pH, strong and weak, buffers, Ka and Kb",
+        "calorimetry, dG, cells, rates",
+        "C3H8 + O2 -> CO2 + H2O",
+        "118 elements, groups, bond types",
+        "configurations, oxidation numbers, errors",
+    };
     static int cursor;
 
     /* Without this, leaving the add-in stops it from starting again until
@@ -32,7 +41,8 @@ int main(void)
     gint_setrestart(1);
 
     for (;;) {
-        switch (ui_menu("ChemCalc  -  IB chemistry", topics, 7, &cursor)) {
+        switch (ui_menu_hints("ChemCalc  -  IB chemistry", topics, about, 7,
+                              &cursor)) {
         case 0: screen_stoichiometry(); break;
         case 1: screen_gases(); break;
         case 2: screen_acids(); break;

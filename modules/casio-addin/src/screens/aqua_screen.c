@@ -25,6 +25,7 @@ static void screen_converter(void)
 
     if (choice < 0)
         return;
+    ui_example("pH 3 -> pOH 11, [H+] 1e-3, [OH-] 1e-11");
     switch (choice) {
     case 0:
         if (!ask_number("pH converter", "pH:", &value))
@@ -64,6 +65,7 @@ static void screen_strong(void)
 
     if (choice < 0)
         return;
+    ui_example("0.1 mol/dm3 HCl, 1 H+ per formula -> pH 1");
     if (!ask_positive("Strong acid or base", "Concentration (mol/dm3):", &concentration))
         return;
     if (!ask_positive("Strong acid or base",
@@ -93,6 +95,7 @@ static void screen_weak(void)
 
     if (choice < 0)
         return;
+    ui_example("Ka 1.74e-5, c 0.1 -> pH 2.88 (ethanoic)");
     if (!ask_positive("Weak acid or base", (choice == 0) ? "Ka:" : "Kb:", &k))
         return;
     if (!ask_positive("Weak acid or base", "Concentration (mol/dm3):", &concentration))
@@ -116,6 +119,8 @@ static void screen_weak(void)
 static void screen_buffer(void)
 {
     double ka = 0.0, acid = 0.0, salt = 0.0, ph = 0.0;
+
+    ui_example("Ka 1.74e-5, acid 0.1, salt 0.1 -> pH 4.76");
 
     if (!ask_positive("Buffer", "Ka of the acid:", &ka))
         return;
@@ -149,6 +154,7 @@ static void screen_ka_kb(void)
 
     if (choice < 0)
         return;
+    ui_example("Ka 1.74e-5 -> pKa 4.76, Kb 5.75e-10");
     if (choice == 1) {
         if (!ask_number("Ka, Kb, pKa, pKb", "pKa:", &value))
             return;
@@ -200,10 +206,17 @@ void screen_acids(void)
         "Buffer",
         "Ka, Kb, pKa, pKb",
     };
+    static const char *const hints[] = {
+        "pH 3 -> pOH 11 and [H+] 1e-3",
+        "0.1 mol/dm3 HCl -> pH 1",
+        "ethanoic acid 0.1 mol/dm3 -> pH 2.88",
+        "equal acid and salt -> pH = pKa",
+        "Ka 1.74e-5 -> pKa 4.76",
+    };
     static int cursor;
 
     for (;;) {
-        switch (ui_menu("Acids and bases", items, 5, &cursor)) {
+        switch (ui_menu_hints("Acids and bases", items, hints, 5, &cursor)) {
         case 0: screen_converter(); break;
         case 1: screen_strong(); break;
         case 2: screen_weak(); break;

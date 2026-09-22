@@ -39,6 +39,10 @@ Nothing else needs to be copied, and the Python version can stay alongside it.
 - In a number field, `(-)` makes a value negative and `EXP` starts a power of
   ten, so `1.74` `EXP` `(-)` `5` is 1.74 × 10⁻⁵.
 - Where a screen says *blank to skip*, pressing EXE on the empty field moves on.
+- **Every menu entry and every question carries a worked example**, shown in a
+  panel marked *e.g.* — scroll a menu and the example changes with the
+  highlight, so you can see what an option does before opening it, and what a
+  field wants while you are typing into it.
 
 ## What it covers
 

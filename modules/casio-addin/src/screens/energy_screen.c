@@ -12,6 +12,8 @@ static void screen_calorimetry(void)
     double mass = 0.0, capacity = CHEM_C_WATER, delta_t = 0.0, moles = 0.0;
     double heat, molar = 0.0;
 
+    ui_example("100 g, c 4.18, 25 K rise -> 10450 J");
+
     if (!ask_positive("Calorimetry", "Mass of solution (g):", &mass))
         return;
     if (!ask_positive("Calorimetry", "c (J/g/K), water 4.18:", &capacity))
@@ -69,6 +71,7 @@ static void screen_bonds(void)
 {
     double broken = 0.0, formed = 0.0;
 
+    ui_example("break H-H and Cl-Cl, form 2 H-Cl -> -184");
     ui_message("Bond enthalpies", "First the bonds broken");
     if (!collect_bonds("Bonds broken", &broken))
         return;
@@ -99,6 +102,7 @@ static void screen_gibbs(void)
 
     if (choice < 0)
         return;
+    ui_example("dH -92.2, dS -198.8, 298 K -> dG -32.96");
 
     switch (choice) {
     case 0:
@@ -177,6 +181,7 @@ static void screen_cells(void)
     for (i = 0; i < energy_half_cell_count && i < 32; i++)
         names[i] = energy_half_cells[i].half_cell;
 
+    ui_example("Cu2+/Cu reduced, Zn2+/Zn oxidised -> 1.10 V");
     choice = ui_menu("Half-cell being reduced", names, energy_half_cell_count, &cursor);
     if (choice < 0)
         return;
@@ -208,6 +213,8 @@ static void screen_faraday(void)
     char text[24] = "";
     chem_formula_t formula;
     double current = 0.0, seconds = 0.0, charge = 2.0, mass = 0.0;
+
+    ui_example("Cu, 1.5 A, 1200 s, charge 2 -> 0.593 g");
 
     if (!ask_formula("Electrolysis", "Element deposited:", text, (int)sizeof text,
                      &formula))
@@ -249,6 +256,7 @@ static void screen_rates(void)
 
     if (choice < 0)
         return;
+    ui_example("k 1e-3 at 300 K, 1e-2 at 310 K -> Ea 178");
 
     switch (choice) {
     case 0:
@@ -322,10 +330,18 @@ void screen_energy(void)
         "Electrolysis (Faraday)",
         "Rates and Arrhenius",
     };
+    static const char *const hints[] = {
+        "100 g of water, 25 K rise -> 10450 J",
+        "H2 + Cl2 -> 2HCl gives -184 kJ/mol",
+        "dH -92.2, dS -198.8 at 298 K -> -32.96",
+        "Cu2+/Cu against Zn2+/Zn -> 1.10 V",
+        "1.5 A for 1200 s on Cu2+ -> 0.593 g",
+        "two rate constants -> the activation energy",
+    };
     static int cursor;
 
     for (;;) {
-        switch (ui_menu("Energy, cells, rates", items, 6, &cursor)) {
+        switch (ui_menu_hints("Energy, cells, rates", items, hints, 6, &cursor)) {
         case 0: screen_calorimetry(); break;
         case 1: screen_bonds(); break;
         case 2: screen_gibbs(); break;

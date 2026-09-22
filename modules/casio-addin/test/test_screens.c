@@ -346,6 +346,64 @@ int main(void)
     screen_tools();
     showed("benzene has an IHD of 4", "IHD = 4");
 
+    section("8. Every procedure shows an example");
+
+    /* A student who has never used the calculator should be able to tell what
+     * a field wants from the screen itself. Each menu carries an example for
+     * the highlighted entry, and each procedure puts one on its entry screens. */
+    fake_reset();
+    fake_press(KEY_1);                  /* highlight the first entry */
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("the stoichiometry menu shows an example", "e.g.");
+    showed("and it is a worked one", "10 g of CaCO3 -> 0.0999 mol");
+
+    fake_reset();
+    fake_press(KEY_3);                  /* and the third one has its own */
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("each entry has its own example",
+           "40 % C, 6.7 % H, 53.3 % O -> CH2O");
+
+    fake_reset();
+    menu_pick(1);                       /* Moles */
+    fake_press(KEY_EXIT);               /* leave the sub-menu */
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("the moles menu explains each choice", "CaCO3, 10 g -> 0.0999 mol");
+
+    fake_reset();
+    menu_pick(2);                       /* Percent composition */
+    fake_press(KEY_EXIT);               /* leave the formula field */
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("the formula field carries its example too",
+           "H2O -> 11.2 % H and 88.8 % O");
+
+    fake_reset();
+    fake_press(KEY_2);
+    fake_press(KEY_EXIT);
+    screen_acids();
+    showed("acids and bases have examples", "0.1 mol/dm3 HCl -> pH 1");
+
+    fake_reset();
+    fake_press(KEY_1);
+    fake_press(KEY_EXIT);
+    screen_energy();
+    showed("so does energy", "100 g of water, 25 K rise -> 10450 J");
+
+    fake_reset();
+    fake_press(KEY_2);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("and structure and data", "KMnO4 -> manganese is +7");
+
+    fake_reset();
+    fake_press(KEY_EXIT);               /* the balancer asks straight away */
+    screen_balance();
+    showed("the balancer says what to type",
+           "C3H8, O2 -> CO2, H2O gives 1, 5, 3, 4");
+
     printf("\n============================================================\n");
     printf("  Screen tests  Total: %d   Passed: %d   Failed: %d\n",
            passed + failed, passed, failed);

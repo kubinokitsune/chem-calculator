@@ -111,7 +111,24 @@ void ui_softkeys(const char *const *labels)
 
 /* ---- menus -------------------------------------------------------------- */
 
+/* The example shown on entry screens, set by each procedure as it starts. */
+static char current_example[UI_LINE_LEN + 20];
+
+void ui_example(const char *text)
+{
+    if (text == NULL || text[0] == 0)
+        current_example[0] = 0;
+    else
+        snprintf(current_example, sizeof current_example, "%s", text);
+}
+
 int ui_menu(const char *title, const char *const *items, int count, int *cursor)
+{
+    return ui_menu_hints(title, items, NULL, count, cursor);
+}
+
+int ui_menu_hints(const char *title, const char *const *items,
+                  const char *const *hints, int count, int *cursor)
 {
     static const char *const keys[6] = {"", "", "", "", "", "BACK"};
     int top = 0, here = (cursor != NULL) ? *cursor : 0;
@@ -153,6 +170,14 @@ int ui_menu(const char *title, const char *const *items, int count, int *cursor)
             snprintf(position, sizeof position, "%d/%d", here + 1, count);
             ui_badge(position);
             scrollbar(top, BODY_ROWS, count);
+        }
+        /* The example for whatever is highlighted, along the bottom: it says
+         * what the option is for without having to open it. */
+        if (hints != NULL && hints[here] != NULL && hints[here][0] != 0) {
+            int y = BODY_BOTTOM - 14;
+            panel(4, y - 3, DWIDTH - 5, y + 14, COL_PANEL, COL_PANEL_EDGE);
+            dtext(10, y, COL_MUTED, "e.g.");
+            dtext(44, y, COL_TEXT, hints[here]);
         }
         ui_softkeys(keys);
         dupdate();
@@ -275,8 +300,14 @@ static void entry_screen(const char *title, const char *prompt,
     dsize(text, NULL, &caret, NULL);
     drect(17 + caret, box_top + 7, 18 + caret, box_top + 19, COL_BAR_EDGE);
 
+    if (current_example[0] != 0) {
+        int y = box_top + 38;
+        panel(8, y - 4, DWIDTH - 9, y + 15, COL_PANEL, COL_PANEL_EDGE);
+        dtext(14, y, COL_MUTED, "e.g.");
+        dtext(48, y, COL_TEXT, current_example);
+    }
     if (hint != NULL)
-        dtext(10, box_top + 36, COL_MUTED, hint);
+        dtext(10, BODY_BOTTOM - 12, COL_MUTED, hint);
     ui_softkeys(keys);
 }
 

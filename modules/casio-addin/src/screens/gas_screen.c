@@ -11,14 +11,21 @@ static void screen_ideal(void)
     static const char *const items[] = {
         "Find pressure", "Find volume", "Find amount", "Find temperature",
     };
+    static const char *const hints[] = {
+        "5 dm3, 2 mol, 300 K -> 997 kPa",
+        "100 kPa, 1 mol, 273 K -> 22.7 dm3",
+        "100 kPa, 22.7 dm3, 273 K -> 1 mol",
+        "997 kPa, 5 dm3, 2 mol -> 300 K",
+    };
     static int cursor;
     gas_state_t state;
     gas_unknown_t unknown;
-    int choice = ui_menu("pV = nRT", items, 4, &cursor);
+    int choice = ui_menu_hints("pV = nRT", items, hints, 4, &cursor);
 
     if (choice < 0)
         return;
     unknown = (gas_unknown_t)choice;
+    ui_example("p in kPa, V in dm3, T in kelvin");
 
     state.pressure = state.volume = state.moles = state.temperature = 0.0;
     if (unknown != GAS_PRESSURE && !ask_positive("pV = nRT", "p (kPa):", &state.pressure))
@@ -59,6 +66,7 @@ static void screen_combined(void)
         return;
     unknown = (choice == 0) ? GAS_PRESSURE
             : (choice == 1) ? GAS_VOLUME : GAS_TEMPERATURE;
+    ui_example("100 kPa, 2 dm3, 300 K -> 4 dm3 gives 50 kPa");
 
     before.moles = after.moles = 0.0;
     before.pressure = before.volume = before.temperature = 0.0;
@@ -96,6 +104,7 @@ static void screen_combined(void)
 static void screen_graham(void)
 {
     char first[24] = "", second[24] = "";
+    ui_example("H2 against O2 -> H2 is 3.98x faster");
     chem_formula_t formula;
     double mass_1, mass_2, ratio = 0.0;
 
@@ -128,6 +137,7 @@ static void screen_kc_kp(void)
 
     if (choice < 0)
         return;
+    ui_example("Kc 0.5, 500 K, dn -2 -> Kp 2.90e-5");
     if (!ask_positive("Kc and Kp", (choice == 0) ? "Kc:" : "Kp:", &k))
         return;
     if (!ask_positive("Kc and Kp", "T (K):", &temperature))
@@ -154,6 +164,7 @@ static void screen_ice(void)
 {
     double a = 0.0, b = 0.0, c = 0.0, d = 0.0, k = 0.0, x = 0.0;
 
+    ui_example("A 1, B 1, C 0, D 0, Kc 4 -> x = 0.667");
     ui_message("ICE table", "A + B <-> C + D");
     if (!ask_number("ICE table", "[A] at the start:", &a))
         return;
@@ -193,10 +204,17 @@ void screen_gases(void)
         "Kc and Kp",
         "ICE table",
     };
+    static const char *const hints[] = {
+        "2 mol in 5 dm3 at 300 K -> 997 kPa",
+        "100 kPa, 2 dm3 -> 4 dm3 gives 50 kPa",
+        "H2 effuses 3.98x faster than O2",
+        "Kc 0.5 at 500 K, dn -2 -> Kp 2.90e-5",
+        "start 1 and 1, Kc 4 -> x = 0.667",
+    };
     static int cursor;
 
     for (;;) {
-        switch (ui_menu("Gases and equilibrium", items, 5, &cursor)) {
+        switch (ui_menu_hints("Gases and equilibrium", items, hints, 5, &cursor)) {
         case 0: screen_ideal(); break;
         case 1: screen_combined(); break;
         case 2: screen_graham(); break;

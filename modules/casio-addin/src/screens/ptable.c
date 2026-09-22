@@ -40,6 +40,8 @@ static void screen_lookup(void)
     char text[24] = "";
     int z;
 
+    ui_example("Fe, or iron, or 26 - all find iron");
+
     for (;;) {
         if (!ui_text_input("Element lookup", "Symbol, name or number:", text,
                            (int)sizeof text))
@@ -82,6 +84,8 @@ static void screen_group(void)
     double value = 0.0;
     char title[UI_LINE_LEN];
 
+    ui_example("17 lists the halogens: F, Cl, Br, I, At");
+
     for (;;) {
         if (!ui_number_input("List a group", "Group (1-18):", &value, 0))
             return;
@@ -99,6 +103,8 @@ static void screen_period(void)
     double value = 0.0;
     char title[UI_LINE_LEN];
 
+    ui_example("3 lists Na through to Ar");
+
     for (;;) {
         if (!ui_number_input("List a period", "Period (1-7):", &value, 0))
             return;
@@ -114,11 +120,13 @@ static void screen_period(void)
 static void screen_bond(void)
 {
     char first[16] = "", second[16] = "";
+
     const chem_element_t *a, *b;
     int za, zb;
     double gap;
     char line[UI_LINE_LEN];
 
+    ui_example("Na then Cl: a gap of 2.23, so ionic");
     if (!ui_text_input("Bond type", "First element:", first, (int)sizeof first))
         return;
     za = chem_find_element(first);
@@ -169,10 +177,16 @@ void screen_periodic_table(void)
         "List a period",
         "Bond type from electronegativity",
     };
+    static const char *const hints[] = {
+        "Fe -> iron, 55.85, group 8, period 4",
+        "17 -> F, Cl, Br, I, At, Ts",
+        "3 -> Na, Mg, Al, Si, P, S, Cl, Ar",
+        "Na and Cl -> ionic",
+    };
     static int cursor;
 
     for (;;) {
-        switch (ui_menu("Periodic table", items, 4, &cursor)) {
+        switch (ui_menu_hints("Periodic table", items, hints, 4, &cursor)) {
         case 0: screen_lookup(); break;
         case 1: screen_group(); break;
         case 2: screen_period(); break;
