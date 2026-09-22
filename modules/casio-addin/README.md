@@ -105,7 +105,7 @@ make -C test core     # the chemistry only
 make -C test screens  # the menus and screens
 ```
 
-315 checks at present: 280 for the chemistry and 35 for the screens. The
+349 checks at present: 305 for the chemistry and 44 for the screens. The
 expected values are the same hand-worked IB figures the desktop calculator and
 the Python port are tested against, so the three cannot quietly disagree.
 
