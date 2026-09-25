@@ -42,18 +42,52 @@ gunicorn --bind 127.0.0.1:5000 wsgi:application            # Linux/macOS
 
 ## Deploying
 
-**PythonAnywhere** (simplest — persistent, no cold starts, no Docker):
+### PythonAnywhere (the one this project uses)
 
-1. Create a web app, choose **Flask** + Python 3.13.
-2. Source directory: `modules/chemistry-calculator/ui_interface`
-3. Point the WSGI config file at `wsgi.py`'s `application`.
-4. `pip install -r modules/chemistry-calculator/requirements.txt`
+Always-on, no cold starts, no Docker. Free tier gives
+`<username>.pythonanywhere.com`.
 
-**Render** (nicer git-push deploys; free tier sleeps when idle, so the first
-request after a pause is slow):
+**1. Get the code** — in a PythonAnywhere **Bash console**:
+
+```bash
+git clone https://github.com/kubinokitsune/chem-calculator.git
+cd chem-calculator
+pip3.13 install --user -r modules/chemistry-calculator/requirements.txt
+```
+
+**2. Create the web app** — *Web* tab → *Add a new web app* → **Manual
+configuration** (**not** the "Flask" option, which scaffolds its own app) →
+Python 3.13.
+
+**3. Point it at the code** — still on the *Web* tab:
+
+| Field | Value |
+|---|---|
+| Source code | `/home/<username>/chem-calculator/modules/chemistry-calculator/ui_interface` |
+| Working directory | same as above |
+
+**4. WSGI file** — click the *WSGI configuration file* link, delete everything,
+and paste the contents of [`deploy/pythonanywhere_wsgi.py`](deploy/pythonanywhere_wsgi.py),
+changing `USERNAME` to your username.
+
+**5. Static files** (so CSS and fonts are served directly, not through Flask):
+
+| URL | Directory |
+|---|---|
+| `/static/` | `/home/<username>/chem-calculator/modules/chemistry-calculator/ui_interface/static/` |
+
+**6.** Hit **Reload**, then open the site.
+
+**To deploy updates later:** in a Bash console, `cd chem-calculator && git pull`,
+then press **Reload** on the Web tab.
+
+### Render (alternative)
+
+Nicer git-push deploys, but the free tier sleeps when idle, so the first request
+after a pause takes ~50 s.
 
 1. New Web Service from the repo.
-2. Build: `pip install -r modules/chemistry-calculator/requirements.txt`
+2. Build: `pip install -r requirements.txt`
 3. Start: leave blank — the `Procfile` is used.
 
 `$PORT` is supplied by the host; the Procfile already reads it.
