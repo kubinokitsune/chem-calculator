@@ -1,2 +1,8 @@
 sympy
 flask
+
+# Production WSGI servers. Flask's built-in server is for development only.
+# gunicorn is Linux/macOS (what hosting providers run); waitress is the
+# cross-platform one, so it also works for testing this on Windows.
+gunicorn; sys_platform != 'win32'
+waitress; sys_platform == 'win32'

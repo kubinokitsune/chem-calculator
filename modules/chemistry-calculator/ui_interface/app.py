@@ -74,6 +74,36 @@ class StrictJSONProvider(DefaultJSONProvider):
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.json = StrictJSONProvider(app)
 
+# Formulas and equations are short; a request body this big is either a mistake
+# or an attempt to make the parsers chew on something enormous. Flask answers
+# 413 on its own once the body exceeds this.
+app.config['MAX_CONTENT_LENGTH'] = 64 * 1024
+
+# Longest plausible input is a full equation with hydrates and phases, well
+# under this. The balancer and formula parsers build matrices from what they
+# are given, so cost grows with length -- cap it rather than trusting callers.
+_MAX_FIELD_LEN = 512
+
+
+@app.before_request
+def _reject_oversized_fields():
+    """Reject absurdly long string inputs before any parser sees them.
+
+    Public deployments get hostile input eventually, and every /api route feeds
+    strings to the chemistry parsers. One guard here beats 22 scattered checks.
+    """
+    if request.method != 'POST' or not request.path.startswith('/api/'):
+        return None
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return None
+    for key, value in body.items():
+        if isinstance(value, str) and len(value) > _MAX_FIELD_LEN:
+            return jsonify(error=f"'{key}' is too long "
+                                 f"(max {_MAX_FIELD_LEN} characters)"), 400
+    return None
+
+
 R_GAS = 8.314   # J/mol·K
 F_CONST = 96485  # C/mol
 
