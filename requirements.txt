@@ -1,0 +1,4 @@
+# Hosting platforms detect a Python project by a requirements.txt at the repo
+# root, but the real one lives with the calculator module. Defer to it so there
+# is still only one list to maintain.
+-r modules/chemistry-calculator/requirements.txt
