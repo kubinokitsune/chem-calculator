@@ -29,16 +29,29 @@ server and must not face the internet.
   whose cost grows with input length, so one guard covers all 22 of them.
 - Debug mode is opt-in (`CHEMCALC_DEBUG=1`) and binding defaults to
   `127.0.0.1`. Neither should change for a local run.
+- **Per-IP rate limiting** (Flask-Limiter): each visitor gets 90 requests/min
+  and 1200/hour per route, keyed on the real client IP from `X-Forwarded-For`;
+  over that returns `429`. Static assets are exempt. It is optional at runtime —
+  if Flask-Limiter is not installed the app runs unthrottled rather than failing
+  to boot.
 
-Verified: normal request 200, 600-char field 400, 100 KB body 413.
+Verified: normal request 200, 600-char field 400, 100 KB body 413, and the
+limiter isolates per IP (one flooder is blocked while other visitors are not).
 
 ## Running it locally with a production server
 
 ```bash
 cd modules/chemistry-calculator/ui_interface
-waitress-serve --listen=127.0.0.1:5000 wsgi:application    # Windows
 gunicorn --bind 127.0.0.1:5000 wsgi:application            # Linux/macOS
+waitress-serve --listen=127.0.0.1:5000 wsgi:application    # Windows
 ```
+
+> **Testing rate limiting locally:** gunicorn passes `X-Forwarded-For` through,
+> so the limiter keys on the real IP with no extra flags — this is how it runs
+> in production. **waitress strips the header by default**, which collapses every
+> visitor onto one shared counter; to test per-IP behaviour under waitress add
+> `--trusted-proxy=127.0.0.1 --trusted-proxy-headers=x-forwarded-for`. This
+> matters only for local testing on Windows, never in production.
 
 ## Deploying
 

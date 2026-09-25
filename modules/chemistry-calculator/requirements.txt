@@ -6,3 +6,7 @@ flask
 # cross-platform one, so it also works for testing this on Windows.
 gunicorn; sys_platform != 'win32'
 waitress; sys_platform == 'win32'
+
+# Per-IP rate limiting for the public deployment. Optional at runtime -- the app
+# degrades to unthrottled if it is missing -- but installed by default.
+flask-limiter

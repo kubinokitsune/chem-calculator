@@ -104,6 +104,57 @@ def _reject_oversized_fields():
     return None
 
 
+# --- per-IP rate limiting -------------------------------------------------
+# The size/length guards above stop one huge request; they do nothing about a
+# flood of small ones. On a shared 4-core box a scripted client hammering the
+# equation balancer is real CPU pressure, so cap how often any single visitor
+# may call. Flask-Limiter is optional: if it isn't installed the app still runs
+# unthrottled rather than failing to boot, which keeps local dev and CI simple.
+
+def _client_ip() -> str:
+    """The real visitor IP behind Tailscale Funnel.
+
+    gunicorn sees every request coming from 127.0.0.1 (the in-container Funnel
+    proxy), so remote_addr is useless as a key. The proxy records the true peer
+    in X-Forwarded-For. Take the RIGHTMOST entry: a client can prepend a forged
+    value, but the proxy appends the address it actually saw, so the last hop is
+    the one we can trust. Falls back to remote_addr if the header is absent.
+    """
+    xff = request.headers.get('X-Forwarded-For', '')
+    if xff:
+        return xff.split(',')[-1].strip()
+    return request.remote_addr or 'unknown'
+
+
+try:
+    from flask_limiter import Limiter
+
+    limiter = Limiter(
+        key_func=_client_ip,
+        # Per IP, per route. A person clicking through calculations stays well
+        # under this; a scanner or load test does not.
+        default_limits=["90 per minute", "1200 per hour"],
+        # In-memory means each gunicorn worker counts separately, so the real
+        # ceiling is roughly this times the worker count. That is fine here --
+        # the goal is to blunt abuse, not to enforce an exact quota, and a
+        # shared store (Redis) would be a heavy dependency for a calculator.
+        storage_uri="memory://",
+        headers_enabled=True,   # tell honest clients their remaining budget
+    )
+    limiter.init_app(app)
+    # Static assets (CSS, JS, fonts) load several-per-page; never throttle them,
+    # or a fast refresh would strip the page's own styling.
+    limiter.exempt(app.view_functions['static'])
+
+    @app.errorhandler(429)
+    def _rate_limited(e):
+        # JSON so app.js surfaces it cleanly instead of choking on an HTML page.
+        return jsonify(error="Too many requests — slow down and try again shortly."), 429
+
+except ImportError:
+    app.logger.warning("flask_limiter not installed; running WITHOUT rate limiting")
+
+
 R_GAS = 8.314   # J/mol·K
 F_CONST = 96485  # C/mol
 
