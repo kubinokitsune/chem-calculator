@@ -1,11 +1,23 @@
 # Chemistry Calculator
 
 [![tests](https://github.com/kubinokitsune/chem-calculator/actions/workflows/tests.yml/badge.svg)](https://github.com/kubinokitsune/chem-calculator/actions/workflows/tests.yml)
+&nbsp;[![live demo](https://img.shields.io/badge/live%20demo-try%20it-1f9d55)](https://chemcalc.tailf1d903.ts.net)
 
-An interactive physical chemistry calculator built for IB Chemistry. Covers 22 topics through a command-line interface, a browser-based web UI, and two versions for the **Casio fx-CG50** graphing calculator: a [Python port](modules/casio-fx-cg50/README.md) and a [native add-in](modules/casio-addin/README.md) with its own icon in the calculator's MENU.
+**One physical-chemistry engine — 22 IB topics — running on four front-ends:**
+a command-line app, a browser web UI, a MicroPython port for the **Casio fx-CG50**
+graphing calculator, and a [native C add-in](modules/casio-addin/README.md) with
+its own icon in the calculator's MENU. The chemistry is written once and shared
+across all four, so a fix lands everywhere at once.
 
-**Developer:** Felipe "Pipe" Fonseca
-**Project type:** IB Chemistry / personal STEM project
+### 🧪 [Try the web version live →](https://chemcalc.tailf1d903.ts.net)
+
+No install — it's self-hosted and public. (Or run any front-end locally, below.)
+
+<p align="center">
+  <img src="docs/web-ui.jpg" alt="The CHEMCALC FX-17 web UI — 22 modules grouped by IB topic" width="420">
+</p>
+
+**Developer:** Felipe "Pipe" Fonseca · **Project type:** IB Chemistry / personal STEM project
 
 > **Before an exam:** examination boards generally require a calculator's
 > memory to be cleared and no add-ins installed. Putting these on a calculator
@@ -158,11 +170,12 @@ Also `stress_test.py`, `test_ice_solver.py` and `test_thermodynamics.py`. No use
 
 | Layer | Technology |
 |-------|-----------|
-| Language | Python 3 |
-| Equation balancing | sympy |
-| Web interface | Flask + HTML/JS (CHEMCALC FX-17) |
+| Core engine | Python 3 (CLI + web) · sympy for equation balancing |
+| Web interface | Flask + HTML/JS (CHEMCALC FX-17); rate-limited + input-guarded for public hosting |
+| fx-CG50 port | MicroPython (runs on the calculator itself) |
+| fx-CG50 add-in | **C** (C99 core + fxSDK/gint), built to `ChemCalc.g3a` |
 | Shared constants | `constants.py` (R, F, Avogadro, molar volume, reduction potentials, formula capitalisation) |
-| C UI prototype | C (in development) |
+| Hosting | Self-hosted behind Tailscale Funnel ([details](DEPLOY.md)) |
 
 ---
 
