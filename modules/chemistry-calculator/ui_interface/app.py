@@ -146,6 +146,15 @@ try:
     # or a fast refresh would strip the page's own styling.
     limiter.exempt(app.view_functions['static'])
 
+    @limiter.request_filter
+    def _exempt_direct():
+        # A request with no X-Forwarded-For reached the app directly, not through
+        # the public Funnel proxy that stamps that header on every real visit.
+        # That means the test suite or local dev -- never an outside client --
+        # so don't rate-limit it. (In production nothing can reach the app except
+        # through the proxy, so this exempts no real traffic.)
+        return not request.headers.get('X-Forwarded-For')
+
     @app.errorhandler(429)
     def _rate_limited(e):
         # JSON so app.js surfaces it cleanly instead of choking on an HTML page.
