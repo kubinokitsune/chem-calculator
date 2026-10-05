@@ -3,6 +3,8 @@ constants.py — shared physical/chemical constants for all calculator modules.
 Import what you need: from constants import R, BOND_ENTHALPIES, get_bond_enthalpy, ...
 """
 
+from Periodic_table import ELEMENTS as _TABLE
+
 # ── Universal Constants ────────────────────────────────────────────────────────
 R            = 8.314          # J/mol·K  (ideal gas constant)
 R_ATM        = 0.08206        # L·atm/mol·K
@@ -128,17 +130,8 @@ def get_reduction_potential(half_cell: str) -> float:
 
 # ── Formula Capitalizer ────────────────────────────────────────────────────────
 
-# All valid element symbols (H through Og, 118 elements)
-_ELEMENTS = {
-    "H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S",
-    "Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga",
-    "Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd",
-    "Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm",
-    "Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os",
-    "Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa",
-    "U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg",
-    "Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og",
-}
+# All valid element symbols, from the one element table in Periodic_table.py.
+_ELEMENTS = {symbol for _z, symbol, _name, _mass in _TABLE}
 
 # Two-letter symbols whose letters are also two valid single-element symbols,
 # where the split reading is far more common in lowercase input:
