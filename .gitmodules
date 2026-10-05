@@ -1,0 +1,3 @@
+[submodule "graphify-out"]
+	path = graphify-out
+	url = https://github.com/kubinokitsune/chemcalc-graph.git
