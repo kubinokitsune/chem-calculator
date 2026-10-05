@@ -221,7 +221,6 @@ chem-calculator/
 │   │   │   ├── stress_test.py
 │   │   │   ├── stress_new_features.py
 │   │   │   ├── test_api.py
-│   │   │   ├── test_calculator.py
 │   │   │   ├── test_ib_chemistry.py
 │   │   │   ├── test_ice_solver.py
 │   │   │   ├── test_thermodynamics.py
