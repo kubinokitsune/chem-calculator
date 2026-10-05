@@ -3,12 +3,14 @@
 The browser UI is a Flask app with a Python backend (`/api/*` routes do the
 chemistry), so it needs a Python host — **GitHub Pages cannot run it.**
 
-## Why not self-host it at home
+## Self-hosting at home, safely
 
-It's tempting to expose it from a home server through a tunnel. Don't: a public
-web app on a home LAN means any bug in the app is a foothold on the network the
-rest of your machines live on. A hosted platform isolates it — worst case you
-redeploy, and nothing of yours was ever reachable.
+A public web app on a home network means any bug in the app is a foothold on
+the network everything else lives on. This project is self-hosted anyway, so
+the setup below is built around containing that: the app runs alone in its own
+unprivileged container as a non-root user, and it's published through
+Tailscale Funnel, so no router port is ever opened. If the app were broken
+into, there would be nothing next to it.
 
 ## What's already set up
 
@@ -55,44 +57,36 @@ waitress-serve --listen=127.0.0.1:5000 wsgi:application    # Windows
 
 ## Deploying
 
-### PythonAnywhere (the one this project uses)
+### Proxmox container + Tailscale Funnel (the one this project uses)
 
-Always-on, no cold starts, no Docker. Free tier gives
-`<username>.pythonanywhere.com`.
+Always on, free, no domain, no port forward.
 
-**1. Get the code** — in a PythonAnywhere **Bash console**:
+| Piece | Setup |
+|---|---|
+| Container | Proxmox LXC `chemcalc`: unprivileged, 1 core, 1 GB RAM, starts on boot, holds nothing else |
+| Code | `/opt/chem-calculator` (a clone of this repo), venv at `/opt/venv` |
+| App server | `chemcalc.service`: gunicorn, 2 workers × 4 threads, bound to `127.0.0.1:5000`, run as the non-root `chemcalc` user with `ProtectSystem=strict`, `NoNewPrivileges` and `MemoryMax=768M` |
+| Public URL | `tailscale funnel --bg 5000` inside the container; Tailscale runs in userspace-networking mode because an unprivileged LXC has no `/dev/net/tun` |
+| Logs | `/var/log/chemcalc/access.log` with the real client IP first (`X-Forwarded-For`), rotated daily and kept for 14 days |
+
+**To deploy updates**, on the Proxmox host:
 
 ```bash
-git clone https://github.com/kubinokitsune/chem-calculator.git
-cd chem-calculator
-pip3.13 install --user -r modules/chemistry-calculator/requirements.txt
+pct exec <ctid> -- sh -c 'cd /opt/chem-calculator && git pull && systemctl restart chemcalc'
 ```
 
-**2. Create the web app** — *Web* tab → *Add a new web app* → **Manual
-configuration** (**not** the "Flask" option, which scaffolds its own app) →
-Python 3.13.
+Funnel's proxy sets `X-Forwarded-For`, so the per-IP rate limit keys on real
+visitors. Funnel traffic never reaches the host's firewall, so abusive clients
+are throttled by the app's limiter (429), not banned.
 
-**3. Point it at the code** — still on the *Web* tab:
+### PythonAnywhere (alternative)
 
-| Field | Value |
-|---|---|
-| Source code | `/home/<username>/chem-calculator/modules/chemistry-calculator/ui_interface` |
-| Working directory | same as above |
-
-**4. WSGI file** — click the *WSGI configuration file* link, delete everything,
-and paste the contents of [`deploy/pythonanywhere_wsgi.py`](deploy/pythonanywhere_wsgi.py),
-changing `USERNAME` to your username.
-
-**5. Static files** (so CSS and fonts are served directly, not through Flask):
-
-| URL | Directory |
-|---|---|
-| `/static/` | `/home/<username>/chem-calculator/modules/chemistry-calculator/ui_interface/static/` |
-
-**6.** Hit **Reload**, then open the site.
-
-**To deploy updates later:** in a Bash console, `cd chem-calculator && git pull`,
-then press **Reload** on the Web tab.
+No server of your own; the free tier gives `<username>.pythonanywhere.com`, but
+free apps are disabled after a month without activity. Create a **Manual
+configuration** web app (not the "Flask" option), point *Source code* and
+*Working directory* at `modules/chemistry-calculator/ui_interface`, paste
+[`deploy/pythonanywhere_wsgi.py`](deploy/pythonanywhere_wsgi.py) into the WSGI
+file (set `USERNAME`), map `/static/` to that folder's `static/`, and Reload.
 
 ### Render (alternative)
 
