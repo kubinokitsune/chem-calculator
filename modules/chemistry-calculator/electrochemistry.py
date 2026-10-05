@@ -6,6 +6,7 @@ Covers: cell potential, Gibbs energy, Faraday's law, Nernst equation,
 
 import math
 from constants import F, R, REDUCTION_POTENTIALS, get_reduction_potential
+from constants import ask_float as _get_float
 
 # ── Pure calculation functions (no I/O) ───────────────────────────────────────
 
@@ -186,21 +187,6 @@ def _get_n(prompt: str = "  Electrons transferred (n): ") -> int:
             print("  [ERROR] n must be a positive integer.")
         except ValueError:
             print("  [ERROR] Enter a whole number.")
-
-
-def _get_float(prompt: str, positive: bool = False, label: str = None) -> float:
-    label = label or prompt.strip().rstrip(':')
-    while True:
-        raw = input(prompt).strip()
-        try:
-            val = float(raw)
-        except ValueError:
-            print(f"  [ERROR] Invalid input: expected a number for {label}.")
-            continue
-        if positive and val <= 0:
-            print(f"  [ERROR] {label} must be greater than zero.")
-            continue
-        return val
 
 
 # ── Sub-menus ──────────────────────────────────────────────────────────────────

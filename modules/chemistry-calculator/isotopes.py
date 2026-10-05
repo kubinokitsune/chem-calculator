@@ -8,6 +8,7 @@ mass spectrum — both work, because the total is divided out.
 """
 
 import math
+from constants import ask_float as _get_float
 
 
 def _check(isotopes):
@@ -78,21 +79,6 @@ def mass_spectrum_summary(isotopes, symbol=""):
 
 
 # ── Menu ─────────────────────────────────────────────────────────────────────
-
-def _get_float(prompt, label=None, positive=False):
-    label = label or prompt.strip().rstrip(':')
-    while True:
-        raw = input(prompt).strip()
-        try:
-            v = float(raw)
-        except ValueError:
-            print(f"  [ERROR] Invalid input: expected a number for {label}.")
-            continue
-        if positive and v <= 0:
-            print(f"  [ERROR] {label} must be greater than zero.")
-            continue
-        return v
-
 
 def isotopes_menu():
     while True:

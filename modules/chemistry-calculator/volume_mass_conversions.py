@@ -1,6 +1,8 @@
 # volume_mass_conversions.py
 
 
+from constants import try_float as _get_float
+
 def mass_to_volume(mass, density):
     """V = m / d"""
     return mass / density
@@ -14,19 +16,6 @@ def volume_to_mass(volume, density):
 def density_from_mv(mass, volume):
     """d = m / V"""
     return mass / volume
-
-
-def _get_float(prompt, label, positive=False):
-    raw = input(prompt).strip()
-    try:
-        val = float(raw)
-    except ValueError:
-        print(f"  [ERROR] Invalid input: expected a number for {label}.")
-        return None
-    if positive and val <= 0:
-        print(f"  [ERROR] {label} must be greater than zero.")
-        return None
-    return val
 
 
 def volume_mass_menu():

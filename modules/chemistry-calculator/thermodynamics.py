@@ -8,6 +8,7 @@ import math
 import re
 
 from constants import R
+from constants import ask_float as _get_float
 
 # ── IB data-booklet bond enthalpies (kJ/mol) ────────────────────────────────
 # Keys are canonical: always put the lighter/more common element first,
@@ -265,21 +266,6 @@ def spontaneity_analysis(dH_kJ, dS_J_per_K):
 
 
 # ── Input helper ─────────────────────────────────────────────────────────────
-
-def _get_float(prompt, label=None, positive=False):
-    label = label or prompt.strip().rstrip(':')
-    while True:
-        raw = input(prompt).strip()
-        try:
-            val = float(raw)
-        except ValueError:
-            print(f"  [ERROR] Invalid input: expected a number for {label}.")
-            continue
-        if positive and val <= 0:
-            print(f"  [ERROR] {label} must be greater than zero.")
-            continue
-        return val
-
 
 def _get_temp_K(prompt):
     while True:

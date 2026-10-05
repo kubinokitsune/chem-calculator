@@ -9,6 +9,7 @@ IB rules used here:
 """
 
 import math
+from constants import ask_float as _get_float
 
 
 def _finite(name, value):
@@ -155,16 +156,6 @@ def format_with_uncertainty(value, absolute, figures=None):
 
 
 # ── Menu ─────────────────────────────────────────────────────────────────────
-
-def _get_float(prompt, label=None):
-    label = label or prompt.strip().rstrip(':')
-    while True:
-        raw = input(prompt).strip()
-        try:
-            return float(raw)
-        except ValueError:
-            print(f"  [ERROR] Invalid input: expected a number for {label}.")
-
 
 def uncertainties_menu():
     while True:

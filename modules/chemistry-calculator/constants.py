@@ -203,3 +203,42 @@ def capitalize_formula(formula: str) -> str:
             result.append(ch)
             i += 1
     return "".join(result)
+
+
+# ── Reading numbers at the keyboard ────────────────────────────────────────────
+# The menus ask for numbers in one of two ways, and they are kept apart on
+# purpose: some re-ask until the answer is usable, others give up after one try
+# and let the caller decide (their callers check for None).
+
+def ask_float(prompt, label=None, positive=False):
+    """Ask until a number is typed. positive=True refuses zero and negatives too."""
+    label = label or prompt.strip().rstrip(':')
+    while True:
+        raw = input(prompt).strip()
+        try:
+            val = float(raw)
+        except ValueError:
+            print(f"  [ERROR] Invalid input: expected a number for {label}.")
+            continue
+        if positive and val <= 0:
+            print(f"  [ERROR] {label} must be greater than zero.")
+            continue
+        return val
+
+
+def try_float(prompt, label=None, positive=False, allow_blank=False):
+    """Ask once. Returns None for an unusable answer, and "" for an empty one
+    when allow_blank is set."""
+    label = label or prompt.strip().rstrip(':')
+    raw = input(prompt).strip()
+    if allow_blank and not raw:
+        return ""
+    try:
+        val = float(raw)
+    except ValueError:
+        print(f"  [ERROR] Invalid input: expected a number for {label}.")
+        return None
+    if positive and val <= 0:
+        print(f"  [ERROR] {label} must be greater than zero.")
+        return None
+    return val

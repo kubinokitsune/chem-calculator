@@ -2,6 +2,7 @@
 # acid_base.py
 
 import math
+from constants import ask_float as _get_float
 
 Kw = 1.0e-14  # at 25°C
 
@@ -216,21 +217,6 @@ def equivalence_point_pH_description(acid_type, base_type):
 
 
 # ── Input helper ─────────────────────────────────────────────────────────────
-
-def _get_float(prompt, label=None, positive=False):
-    label = label or prompt.strip().rstrip(':')
-    while True:
-        raw = input(prompt).strip()
-        try:
-            val = float(raw)
-        except ValueError:
-            print(f"  [ERROR] Invalid input: expected a number for {label}.")
-            continue
-        if positive and val <= 0:
-            print(f"  [ERROR] {label} must be greater than zero.")
-            continue
-        return val
-
 
 # ── Sub-menus ────────────────────────────────────────────────────────────────
 

@@ -1,6 +1,8 @@
 
 #mole_conversions.py
 
+from constants import try_float as _get_float
+
 Avogrado_number = 6.022e23  # particles per mole
 Molar_Volume_At_STP = 22.7  # liters per mole at STP (IUPAC: 0 °C, 100 kPa)
 
@@ -28,21 +30,6 @@ def moles_to_volume(moles):
 def volume_to_moles(volume):
     """Convert volume (liters) at STP to moles."""
     return volume / Molar_Volume_At_STP
-
-
-# ── Input helpers ──────────────────────────────────────────────────────────────
-
-def _get_float(prompt, label, positive=False):
-    raw = input(prompt).strip()
-    try:
-        val = float(raw)
-    except ValueError:
-        print(f"  [ERROR] Invalid input: expected a number for {label}.")
-        return None
-    if positive and val <= 0:
-        print(f"  [ERROR] {label} must be greater than zero.")
-        return None
-    return val
 
 
 def mole_conversions_menu():

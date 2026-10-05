@@ -2,6 +2,8 @@
 # Formula: % Yield = (Actual Yield / Theoretical Yield) x 100
 
 
+from constants import try_float as _get_float
+
 def calc_percentage_yield(actual, theoretical):
     return (actual / theoretical) * 100
 
@@ -12,19 +14,6 @@ def calc_actual_yield(pct_yield, theoretical):
 
 def calc_theoretical_yield(actual, pct_yield):
     return actual / (pct_yield / 100)
-
-
-def _get_float(prompt, label, positive=False):
-    raw = input(prompt).strip()
-    try:
-        val = float(raw)
-    except ValueError:
-        print(f"  [ERROR] Invalid input: expected a number for {label}.")
-        return None
-    if positive and val <= 0:
-        print(f"  [ERROR] {label} must be greater than zero.")
-        return None
-    return val
 
 
 def percentage_yield_menu():

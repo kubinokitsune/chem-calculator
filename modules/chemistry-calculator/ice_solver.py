@@ -4,6 +4,7 @@
 # Covers: ICE table builder, Kc/Kp converter, Q vs K, Le Chatelier predictor
 
 import math
+from constants import ask_float as _get_float
 
 R_ATM = 0.08206  # L·atm / (mol·K)
 
@@ -316,21 +317,6 @@ def le_chatelier_catalyst():
 
 
 # ── Input helper ─────────────────────────────────────────────────────────────
-
-def _get_float(prompt, label=None, positive=False):
-    label = label or prompt.strip().rstrip(':')
-    while True:
-        raw = input(prompt).strip()
-        try:
-            val = float(raw)
-        except ValueError:
-            print(f"  [ERROR] Invalid input: expected a number for {label}.")
-            continue
-        if positive and val <= 0:
-            print(f"  [ERROR] {label} must be greater than zero.")
-            continue
-        return val
-
 
 def _get_int(prompt, label="value"):
     while True:

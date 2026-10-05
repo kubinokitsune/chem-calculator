@@ -6,6 +6,7 @@ Covers: rate law from initial rates, Arrhenius equation, half-life (1st order),
 
 import math
 from constants import R
+from constants import ask_float as _get_float
 
 # ── Pure calculation functions ─────────────────────────────────────────────────
 
@@ -196,21 +197,6 @@ def irl_time(order: int, A0: float, At: float, k: float) -> float:
 
 
 # ── Input helpers ──────────────────────────────────────────────────────────────
-
-def _get_float(prompt: str, positive: bool = False, label: str = None) -> float:
-    label = label or prompt.strip().rstrip(':')
-    while True:
-        raw = input(prompt).strip()
-        try:
-            val = float(raw)
-        except ValueError:
-            print(f"  [ERROR] Invalid input: expected a number for {label}.")
-            continue
-        if positive and val <= 0:
-            print(f"  [ERROR] {label} must be greater than zero.")
-            continue
-        return val
-
 
 def _get_int(prompt: str, minimum: int = 0) -> int:
     while True:

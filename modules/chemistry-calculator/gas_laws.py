@@ -5,6 +5,7 @@ import math
 
 R = 0.08206  # L·atm / (mol·K)
 from constants import MOLAR_VOLUME_STP  # 22.7 L/mol at STP (0 °C, 100 kPa), same as mole_conversions
+from constants import ask_float as _get_float
 
 
 # ── Ideal Gas Law: PV = nRT ──────────────────────────────────────────────────
@@ -212,21 +213,6 @@ def dalton_mole_fraction(moles_i, total_moles):
 
 
 # ── Menu helpers ─────────────────────────────────────────────────────────────
-
-def _get_float(prompt, label=None, positive=False):
-    label = label or prompt.strip().rstrip(':')
-    while True:
-        raw = input(prompt).strip()
-        try:
-            val = float(raw)
-        except ValueError:
-            print(f"  [ERROR] Invalid input: expected a number for {label}.")
-            continue
-        if positive and val <= 0:
-            print(f"  [ERROR] {label} must be greater than zero.")
-            continue
-        return val
-
 
 def _get_temp_K(prompt):
     """Get a temperature in K with absolute-zero check."""

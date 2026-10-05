@@ -3,6 +3,7 @@ import math
 
 from constants import capitalize_formula
 from percent_composition_calculator import MOLAR_MASS
+from constants import try_float as _get_float
 
 
 def _get_int(prompt, label, minimum=1):
@@ -16,21 +17,6 @@ def _get_int(prompt, label, minimum=1):
     except ValueError:
         print(f"  [ERROR] Invalid input: expected a whole number for {label}.")
         return None
-
-
-def _get_float(prompt, label, positive=False, allow_blank=False):
-    raw = input(prompt).strip()
-    if allow_blank and not raw:
-        return ""
-    try:
-        val = float(raw)
-    except ValueError:
-        print(f"  [ERROR] Invalid input: expected a number for {label}.")
-        return None
-    if positive and val <= 0:
-        print(f"  [ERROR] {label} must be greater than zero.")
-        return None
-    return val
 
 
 # ── Core calculation ─────────────────────────────────────────────────────────

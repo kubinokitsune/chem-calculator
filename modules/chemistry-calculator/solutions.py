@@ -6,6 +6,8 @@ mol dm⁻³ or g dm⁻³.  1 dm³ = 1000 cm³ = 1 L.
 """
 
 import math
+from functools import partial
+from constants import ask_float
 
 VOLUME_UNITS = {"dm3": 1.0, "cm3": 1e-3, "L": 1.0, "mL": 1e-3, "m3": 1000.0}
 _VOLUME_ALIASES = {
@@ -136,19 +138,9 @@ def water_to_add(V1, V2):
 
 # ── Menu ─────────────────────────────────────────────────────────────────────
 
-def _get_float(prompt, label=None, positive=True):
-    label = label or prompt.strip().rstrip(':')
-    while True:
-        raw = input(prompt).strip()
-        try:
-            v = float(raw)
-        except ValueError:
-            print(f"  [ERROR] Invalid input: expected a number for {label}.")
-            continue
-        if positive and v <= 0:
-            print(f"  [ERROR] {label} must be greater than zero.")
-            continue
-        return v
+# Everything this module asks for is a positive quantity, so refuse
+# zero and negatives unless a call says otherwise.
+_get_float = partial(ask_float, positive=True)
 
 
 def _get_volume(prompt):
