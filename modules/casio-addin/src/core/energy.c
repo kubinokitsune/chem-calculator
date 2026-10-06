@@ -1,6 +1,6 @@
 /* energy.c - see energy.h. Plain C99.
  *
- * The bond enthalpies and standard electrode potentials are the IB data
+ * The bond enthalpies and standard electrode potentials are the IB Chemistry data
  * booklet values, the same numbers the desktop calculator and the Python port
  * use.
  */

@@ -10,7 +10,7 @@ import re
 from constants import R
 from constants import ask_float as _get_float
 
-# ── IB data-booklet bond enthalpies (kJ/mol) ────────────────────────────────
+# ── IB Chemistry data booklet bond enthalpies (kJ/mol) ──────────────────────
 # Keys are canonical: always put the lighter/more common element first,
 # separated by "-" for single bonds and "=" / "#" for double/triple.
 BOND_ENTHALPIES = {
@@ -23,9 +23,9 @@ BOND_ENTHALPIES = {
     "C=O":  804,
     "C-N":  305,
     "C=N":  615,
-    "C#N":  887,
-    "C-F":  485,
-    "C-Cl": 339,
+    "C#N":  890,
+    "C-F":  492,
+    "C-Cl": 324,
     "C-Br": 285,
     "C-I":  213,
     "C-S":  272,
@@ -33,24 +33,24 @@ BOND_ENTHALPIES = {
     "H-H":  436,
     "H-O":  463,
     "H-N":  391,
-    "H-F":  562,
+    "H-F":  567,
     "H-Cl": 431,
     "H-Br": 366,
-    "H-I":  299,
-    "H-S":  338,
+    "H-I":  298,
+    "H-S":  364,
     # O bonds
     "O=O":  498,
-    "O-O":  146,
+    "O-O":  144,
     "O-N":  201,
     "O=N":  607,
     # N bonds
-    "N-N":  163,
-    "N=N":  418,
+    "N-N":  158,
+    "N=N":  470,
     "N#N":  945,
     "N-F":  272,
     "N-Cl": 200,
     # Halogen bonds
-    "F-F":  158,
+    "F-F":  159,
     "Cl-Cl":242,
     "Br-Br":193,
     "I-I":  151,
@@ -59,7 +59,7 @@ BOND_ENTHALPIES = {
     "Br-F": 237,
     "I-Cl": 208,
     # S bonds
-    "S-S":  264,
+    "S-S":  266,
     "S=O":  523,
 }
 

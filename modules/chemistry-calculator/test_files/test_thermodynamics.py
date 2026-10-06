@@ -152,15 +152,15 @@ check("Hess 1-step flip",     hess_law([-241.8], [-1]), 241.8, tol=1e-9)
 section("3. BOND ENTHALPY")
 
 # CH4 + 2O2 → CO2 + 2H2O
-# Bonds broken: 4 C-H (413) + 2 O=O (498) = 1652 + 996 = 2648 kJ
-# Bonds formed: 2 C=O (805) + 4 O-H (463) = 1610 + 1852 = 3462 kJ
-# ΔH ≈ 2648 - 3462 = -814 kJ
-broken = [("C-H", 4, 413), ("O=O", 2, 498)]
-formed = [("C=O", 2, 805), ("O-H", 4, 463)]
+# Bonds broken: 4 C-H (414) + 2 O=O (498) = 1656 + 996 = 2652 kJ
+# Bonds formed: 2 C=O (804) + 4 O-H (463) = 1608 + 1852 = 3460 kJ
+# ΔH ≈ 2652 - 3460 = -808 kJ
+broken = [("C-H", 4, 414), ("O=O", 2, 498)]
+formed = [("C=O", 2, 804), ("O-H", 4, 463)]
 dH, sb, sf = bond_enthalpy_dH(broken, formed)
-check("CH4+O2: sum broken = 2648 kJ",   sb,  2648.0, tol=1e-9)
-check("CH4+O2: sum formed = 3462 kJ",   sf,  3462.0, tol=1e-9)
-check("CH4+O2: ΔH ≈ -814 kJ",           dH,  -814.0, tol=1e-9)
+check("CH4+O2: sum broken = 2652 kJ",   sb,  2652.0, tol=1e-9)
+check("CH4+O2: sum formed = 3460 kJ",   sf,  3460.0, tol=1e-9)
+check("CH4+O2: ΔH ≈ -808 kJ",           dH,  -808.0, tol=1e-9)
 
 # H2 + Cl2 → 2 HCl
 # Broken: H-H (436) + Cl-Cl (242) = 678 kJ
@@ -203,6 +203,21 @@ check("lookup Xx-Yy = None",    lookup_bond("Xx-Yy"), None)
 # Verify entire table has no duplicate values for canonical keys
 all_keys = list(BOND_ENTHALPIES.keys())
 check("All bond table keys are unique", len(all_keys), len(set(all_keys)))
+
+# The Casio add-in (energy.c) and its MicroPython port (chemener.py) must hold the
+# same IB values as the desktop table. "H-O" and "O-H" are the same bond.
+import re
+_modules = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_bond_key = lambda b: (frozenset(re.findall(r"[A-Z][a-z]?", b)), re.search(r"[-=#]", b).group())
+_desktop = {_bond_key(b): v for b, v in BOND_ENTHALPIES.items()}
+_c_src = open(os.path.join(_modules, "casio-addin", "src", "core", "energy.c"), encoding="utf-8").read()
+_py_src = open(os.path.join(_modules, "casio-fx-cg50", "chemener.py"), encoding="utf-8").read()
+for _name, _text in (("energy.c", _c_src.split("energy_bonds[]")[1].split("};")[0]),
+                     ("chemener.py", _py_src.split("BONDS = {")[1].split("}")[0])):
+    _pairs = re.findall(r'"([A-Za-z]+[-=#][A-Za-z]+)"\W+(\d+)', _text)
+    check(f"{_name}: parsed bond table (>= 30 bonds)", len(_pairs) >= 30, True)
+    for _b, _v in _pairs:
+        check(f"{_name} {_b} = desktop table", _desktop.get(_bond_key(_b)), int(_v))
 
 
 # ─────────────────────────────────────────────────────────────
