@@ -2,4 +2,4 @@
 # After installing, download the test browser once:
 #     py -m playwright install chromium
 -r requirements.txt
-playwright
+playwright==1.63.0
