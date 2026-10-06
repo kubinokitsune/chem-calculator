@@ -3,10 +3,12 @@
 Unselected is the flat version, selected is the brighter one the calculator
 shows when the cursor is on it.
 """
+from pathlib import Path
+
 from PIL import Image, ImageDraw
 
-OUT = ("C:/Users/pipef/OneDrive/Desktop/chem calculator project/chem Calculator/"
-       "modules/casio-addin/assets-cg/")
+# The icons go next to this script, wherever the repo is checked out.
+OUT = Path(__file__).resolve().parent
 
 W, H = 92, 64
 
@@ -45,6 +47,6 @@ def draw(selected):
     return image
 
 
-draw(False).save(OUT + "icon-uns.png")
-draw(True).save(OUT + "icon-sel.png")
+draw(False).save(OUT / "icon-uns.png")
+draw(True).save(OUT / "icon-sel.png")
 print("icons written to", OUT)
