@@ -794,6 +794,43 @@ for url in urls:
 resp = client.post("/api/mole", data="not json", content_type="text/plain")
 _record("non-JSON body → 400/415 not 500", resp.status_code in (400, 415), f"status={resp.status_code}")
 
+# Kept last, and the limiter's counters are wiped before and after, so the
+# requests made here can't throttle any other check in this file.
+section("Rate limiting (per visitor IP behind the Funnel proxy)")
+RL_URL = "/api/reduction_potentials"   # cheap GET: just returns a table
+RL_IP, RL_OTHER_IP = "203.0.113.7", "203.0.113.8"   # TEST-NET-3, never real visitors
+
+
+def rl_get(xff=None):
+    """GET the cheap endpoint, as the proxy would send it (or directly if xff is None)."""
+    resp = client.get(RL_URL, headers={"X-Forwarded-For": xff} if xff else {})
+    return resp.status_code, resp.get_json(silent=True)
+
+
+rl_limiter = getattr(webapp, "limiter", None)
+_record("flask_limiter installed, so rate limiting is active", rl_limiter is not None,
+        "app.py fell back to running unthrottled")
+if rl_limiter is not None:
+    rl_limiter.reset()
+    try:
+        codes = [rl_get(RL_IP)[0] for _ in range(90)]
+        _record("90 requests in a minute from one IP all allowed", codes == [200] * 90,
+                f"non-200 statuses: {sorted(set(codes) - {200})}")
+        status, d = rl_get(RL_IP)
+        _record("request 91 from that IP → 429 with a JSON error",
+                status == 429 and isinstance(d, dict) and isinstance(d.get("error"), str) and d["error"].strip(),
+                f"status={status} body={d}")
+        status, _ = rl_get(RL_OTHER_IP)
+        _record("a different IP is still allowed", status == 200, f"status={status}")
+        status, _ = rl_get(f"9.9.9.9, {RL_IP}")
+        _record("forged left-hand X-Forwarded-For entry doesn't dodge the limit", status == 429,
+                f"status={status}")
+        codes = [rl_get()[0] for _ in range(100)]
+        _record("requests without X-Forwarded-For (direct, not via proxy) are never limited",
+                codes == [200] * 100, f"non-200 statuses: {sorted(set(codes) - {200})}")
+    finally:
+        rl_limiter.reset()
+
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n" + "=" * 60)
 print(f"  API tests  Total: {PASS + FAIL}   Passed: {PASS}   Failed: {FAIL}")
