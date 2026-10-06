@@ -98,6 +98,8 @@ void fake_press_number(const char *text)
             fake_press(KEY_DOT);
         else if (c == '-')
             fake_press(KEY_NEG);
+        else if (c == '/')
+            fake_press(KEY_FRAC);       /* the [a b/c] key */
         else if (c == 'e' || c == 'E')
             fake_press(KEY_EXP);
     }

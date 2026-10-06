@@ -43,7 +43,7 @@ static void screen_calorimetry(void)
 #define MAX_TABLE 40        /* room for the booklet's bonds in the picker */
 
 typedef struct {
-    char name[16];
+    char name[16], typed[24];   /* typed: the count as entered, "1/2" */
     double count, enthalpy;
 } bond_use_t;
 
@@ -96,7 +96,7 @@ static int collect_bonds(const char *title, bond_set_t *set)
             use->enthalpy = energy_bonds[pick - 2].enthalpy;
         }
         snprintf(line, sizeof line, "How many %s bonds?", use->name);
-        if (!ask_positive(title, line, &use->count))
+        if (!ui_count_input(title, line, &use->count, use->typed))
             continue;
         set->total += use->count * use->enthalpy;
         set->n++;
@@ -105,10 +105,11 @@ static int collect_bonds(const char *title, bond_set_t *set)
     return 1;
 }
 
-/* One side of the reaction as result lines: "4 x C-H (414) = 1656". */
+/* One side of the reaction as result lines: "4 x C-H (414) = 1656", or
+ * "1/2 x O=O (498) = 249" when the count was typed as a fraction. */
 static void bond_lines(const char *heading, const bond_set_t *set)
 {
-    char line[UI_LINE_LEN], count[16], each[16], sum[16];
+    char line[UI_LINE_LEN], count[24], each[16], sum[16];
     int i;
 
     ui_result_line(heading);
@@ -117,7 +118,10 @@ static void bond_lines(const char *heading, const bond_set_t *set)
     for (i = 0; i < set->n; i++) {
         const bond_use_t *use = &set->use[i];
 
-        chem_format(use->count, 4, count, sizeof count);
+        if (strchr(use->typed, '/') != NULL)
+            snprintf(count, sizeof count, "%s", use->typed);
+        else
+            chem_format(use->count, 4, count, sizeof count);
         chem_format(use->enthalpy, 4, each, sizeof each);
         chem_format(use->count * use->enthalpy, 4, sum, sizeof sum);
         snprintf(line, sizeof line, "  %s x %s (%s) = %s", count, use->name, each, sum);

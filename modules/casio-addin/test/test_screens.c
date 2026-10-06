@@ -405,6 +405,73 @@ int main(void)
     showed("and say no net change", "no net change");
     ok("and not endothermic", !fake_screen_has("endothermic"), "said endothermic");
 
+    /* Fractional counts: H2 + 1/2 O2 -> H2O, the fraction typed on the real
+     * fraction key. 436 + 249 = 685 broken, 2 x O-H = 926 formed, -241. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1");
+    bond_pick("O=O");        fake_press_number("1/2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("O-H");        fake_press_number("2");
+    menu_pick(1);
+    bond_finish();
+    showed("a half count is shown as typed", "1/2 x O=O (498) = 249");
+    showed("a whole count still reads 1 x H-H", "1 x H-H (436) = 436");
+    showed("water breaks 685", "broken = 685 kJ/mol");
+    showed("and forms 926", "formed = 926 kJ/mol");
+    showed("so water forms at -241", "dH = -241 kJ/mol");
+    showed("which is exothermic", "exothermic");
+
+    /* 3/2 through the divide key and 0.5 as a decimal: 3/2 x 498 = 747 and
+     * 0.5 x 436 = 218 broken, 2 x 431 = 862 formed, dH = 103. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("O=O");
+    fake_press(KEY_3);  fake_press(KEY_DIV);  fake_press(KEY_2);  fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("0.5");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("H-Cl");       fake_press_number("2");
+    menu_pick(1);
+    bond_finish();
+    showed("3/2 typed with the divide key", "3/2 x O=O (498) = 747");
+    showed("0.5 typed as a decimal", "0.5 x H-H (436) = 218");
+    showed("they add up: 965 broken", "broken = 965 kJ/mol");
+
+    /* F1 types the slash too, and 5/4 works: 5/4 x 436 = 545. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");
+    fake_press(KEY_5);  fake_press(KEY_F1);  fake_press(KEY_4);  fake_press(KEY_EXE);
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    menu_pick(1);
+    bond_finish();
+    showed("5/4 typed with F1", "5/4 x H-H (436) = 545");
+
+    /* 1/0, 0 and -1/2 are refused with a message and asked again: each bad
+     * entry is followed by a key for the message, then the good count. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");
+    fake_press_number("1/0");   fake_press(KEY_EXE);
+    fake_press_number("0");     fake_press(KEY_EXE);
+    fake_press_number("-1/2");  fake_press(KEY_EXE);
+    fake_press_number("1/2/3"); fake_press(KEY_EXE);
+    fake_press_number("1/");    fake_press(KEY_EXE);
+    fake_press_number("2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    menu_pick(1);
+    bond_finish();
+    showed("bad counts are explained", "Use a number above 0, e.g. 1/2");
+    showed("and the good count after them is used", "2 x H-H (436) = 872");
+
     section("7. The structure and data screens");
 
     /* Electron configuration of iron, then of the Fe3+ ion. */

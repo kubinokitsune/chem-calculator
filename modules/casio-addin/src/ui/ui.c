@@ -7,6 +7,7 @@
 #include <gint/keyboard.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* The fx-CG50 screen is 396 x 224 and gint's font is 8 x 9, so a row of text
@@ -408,10 +409,34 @@ int ui_bond_input(const char *title, const char *prompt, char *buffer, int lengt
     return text_field(title, prompt, buffer, length, "-=#");
 }
 
-int ui_number_input(const char *title, const char *prompt, double *value,
-                    int allow_blank)
+/* "a", "0.5" or "a/b" as a count: above zero, and b is not zero. */
+static int parse_count(const char *text, double *value)
+{
+    char *end;
+    double top = strtod(text, &end), bottom = 1.0;
+
+    if (end == text)
+        return 0;
+    if (*end == '/') {
+        const char *rest = end + 1;
+        bottom = strtod(rest, &end);
+        if (end == rest || bottom == 0.0)
+            return 0;
+    }
+    if (*end != 0 || top / bottom <= 0.0)
+        return 0;
+    *value = top / bottom;
+    return 1;
+}
+
+/* The field behind ui_number_input and ui_count_input. With `count` set, the
+ * keypad's fraction and divide keys (and F1) type "/", and the entry must be
+ * a number above zero; a bad one is explained and the field starts again. */
+static int number_field(const char *title, const char *prompt, double *value,
+                        int allow_blank, int count, char *typed)
 {
     static const char *const keys[6] = {"", "", "", "", "", "OK"};
+    static const char *const count_keys[6] = {"/", "", "", "", "", "OK"};
     char text[24];
     int used = 0;
 
@@ -421,9 +446,10 @@ int ui_number_input(const char *title, const char *prompt, double *value,
         key_event_t event;
         char letter = 0;
 
-        entry_screen(title, prompt, text, "123", keys,
-                     allow_blank ? "[EXE] alone = solve for this one"
-                                 : "[EXP] powers of ten   [(-)] minus");
+        entry_screen(title, prompt, text, "123", count ? count_keys : keys,
+                     count ? "[a b/c] or [F1] types /   [(-)] minus"
+                     : allow_blank ? "[EXE] alone = solve for this one"
+                                   : "[EXP] powers of ten   [(-)] minus");
         dupdate();
 
         event = getkey();
@@ -437,7 +463,16 @@ int ui_number_input(const char *title, const char *prompt, double *value,
             }
             {
                 double parsed = 0.0;
-                if (sscanf(text, "%lf", &parsed) != 1)
+                if (count) {
+                    if (!parse_count(text, &parsed)) {
+                        ui_message(title, "Use a number above 0, e.g. 1/2");
+                        used = 0;
+                        text[0] = 0;
+                        continue;
+                    }
+                    if (typed != NULL)
+                        snprintf(typed, 24, "%s", text);
+                } else if (sscanf(text, "%lf", &parsed) != 1)
                     continue;
                 *value = parsed;
             }
@@ -458,6 +493,12 @@ int ui_number_input(const char *title, const char *prompt, double *value,
         case KEY_EXP:
             letter = 'e';
             break;
+        case KEY_FRAC:
+        case KEY_DIV:
+        case KEY_F1:
+            if (count)
+                letter = '/';
+            break;
         default:
             letter = digit_for_key(event.key);
             break;
@@ -467,6 +508,18 @@ int ui_number_input(const char *title, const char *prompt, double *value,
             text[used] = 0;
         }
     }
+}
+
+int ui_number_input(const char *title, const char *prompt, double *value,
+                    int allow_blank)
+{
+    return number_field(title, prompt, value, allow_blank, 0, NULL);
+}
+
+int ui_count_input(const char *title, const char *prompt, double *value,
+                   char *typed)
+{
+    return number_field(title, prompt, value, 0, 1, typed);
 }
 
 /* ---- result pages ------------------------------------------------------- */

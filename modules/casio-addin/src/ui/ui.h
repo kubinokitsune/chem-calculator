@@ -55,6 +55,14 @@ int ui_bond_input(const char *title, const char *prompt, char *buffer, int lengt
 int ui_number_input(const char *title, const char *prompt, double *value,
                     int allow_blank);
 
+/* Type a count above zero: a whole number, a decimal, or a fraction like 1/2.
+ * The fraction key, the divide key and F1 type "/". Anything else (zero,
+ * negative, 1/0, garbage) is refused with a message and asked again. `typed`
+ * (24 chars) gets the text as entered, so "1/2" can be shown as "1/2".
+ * Returns 1 on EXE, 0 on EXIT. */
+int ui_count_input(const char *title, const char *prompt, double *value,
+                   char *typed);
+
 /* ---- result pages ------------------------------------------------------- */
 
 void ui_result_begin(const char *title);

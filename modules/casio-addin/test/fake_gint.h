@@ -19,7 +19,7 @@ void fake_press(int key);
  * = # use F1-F3, so = and # are only for a bond field. Does NOT add EXE. */
 void fake_press_text(const char *text);
 
-/* Queue the keys that type a number, and then EXE. */
+/* Queue the keys that type a number, and then EXE. '/' is the fraction key. */
 void fake_press_number(const char *text);
 
 /* Everything that has been drawn since the last reset, one line per call. */

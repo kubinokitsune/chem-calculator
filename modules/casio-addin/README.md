@@ -41,6 +41,9 @@ Nothing else needs to be copied, and the Python version can stay alongside it.
 - For a bond enthalpy, pick the bond from the list, or choose *Type a bond* and
   use F1/F2/F3 for `-` `=` `#` (e.g. `C-H`, `O=O`, `N#N`; capitals or small
   letters both work). A bond that is not in the list asks for its kJ/mol.
+- A bond count can be a fraction for per-mole equations (H₂ + ½O₂ → H₂O): press
+  the `a b/c` key, `÷` or F1 for `/`, e.g. `1/2` or `3/2`. A decimal like `0.5`
+  works too. Zero, negatives and `1/0` are refused.
 - Where a screen says *blank to skip*, pressing EXE on the empty field moves on.
 - **Every menu entry and every question carries a worked example**, shown in a
   panel marked *e.g.* — scroll a menu and the example changes with the
