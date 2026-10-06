@@ -58,9 +58,18 @@ def menu_hess():
     show("dH rxn", total, "kJ/mol")
 
 
+# Phone dashes for "-" and the triple-bond sign; chr() keeps this file ASCII
+try:
+    SWAPS = [(chr(c), "-") for c in (8722, 8211, 8212, 8210)] + [(chr(8801), "#")]
+except ValueError:  # this MicroPython has no unicode
+    SWAPS = []
+
+
 def bond_energy(name):
     """'c-h', 'H-C' and 'C-H' all find the same bond. None if not in the table."""
     text = name.strip().replace(" ", "")
+    for old, new in SWAPS:
+        text = text.replace(old, new)
     for sep in ("#", "=", "-"):
         if sep in text:
             left, right = text.split(sep, 1)

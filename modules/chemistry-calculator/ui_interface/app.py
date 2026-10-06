@@ -667,8 +667,9 @@ def api_atom_eco():
         desired = d['desired']
         formulas = [cap(r['formula'].strip()) for r in rd]
         desired['formula'] = cap(desired['formula'].strip())
-        coeffs   = [float(r['coeff']) for r in rd]
-        des_c    = float(desired['coeff'])
+        coeffs   = [_num(r, 'coeff', f'Coefficient for {f}', positive=True)
+                    for r, f in zip(rd, formulas)]
+        des_c    = _num(desired, 'coeff', f'Coefficient for {desired["formula"]}', positive=True)
         ae, mw_d, mw_r = calculate_atom_economy(formulas, coeffs, desired['formula'], des_c)
         compact  = f'Atom economy = {ae:.2f}%'
         detailed = [
@@ -1201,7 +1202,7 @@ def api_thermo():
                 out = []
                 for b in lst:
                     label = b['bond']
-                    count = float(b.get('count', 1))
+                    count = _num(b, 'count', f'Count of {label} bonds', positive=True) if 'count' in b else 1.0
                     kj    = b.get('kJ', '')
                     enth  = float(kj) if kj else lookup_bond(label)
                     if enth is None:

@@ -187,6 +187,15 @@ ok("fermentation", "/api/atom_eco",
    atom_economy=51.15, **TEXT)
 err("unknown element", "/api/atom_eco",
     {"reactants": [{"formula": "Qq", "coeff": "1"}], "desired": {"formula": "H2O", "coeff": "1"}})
+# A zero or negative coefficient used to give nonsense like 224.58 % or -75.14 %
+for label, rc, oc, dc in [("O2 coefficient 0", "1", "0", "1"),
+                          ("negative reactant coefficients", "-1", "-6", "6"),
+                          ("desired coefficient 0", "1", "6", "0"),
+                          ("negative desired coefficient", "1", "6", "-6")]:
+    d = err(label, "/api/atom_eco",
+            {"reactants": [{"formula": "C6H12O6", "coeff": rc}, {"formula": "O2", "coeff": oc}],
+             "desired": {"formula": "CO2", "coeff": dc}})
+    _record(f"{label}: says why", "greater than zero" in d.get("error", ""), d.get("error"))
 
 section("9 Ionic bonding")
 ok("classify Na Cl", "/api/ionic", {"action": "classify", "elem1": "Na", "elem2": "Cl"}, bond_type="Ionic", **TEXT)
@@ -247,6 +256,16 @@ ok("gibbs with IB units (ΔS in J/K)", "/api/thermo", {"type": "gibbs", "dH": "-
    result=-32.9, spontaneous=True)
 err("bond not in table", "/api/thermo", {"type": "bond", "broken": [{"bond": "Xx-Yy", "count": "1", "kJ": ""}],
                                          "formed": []})
+# Phone keyboards autocorrect "-" into a dash or minus sign, and some type "≡" for a triple bond
+for label in ["C−H", "C–H", "C—H", "C‒H", "c - h", " H-c "]:
+    ok(f"bond label {label!r} found in table", "/api/thermo",
+       {"type": "bond", "broken": [{"bond": label, "count": "1", "kJ": ""}], "formed": []}, result=414.0)
+ok("bond label 'N≡N' found in table", "/api/thermo",
+   {"type": "bond", "broken": [{"bond": "N≡N", "count": "1", "kJ": ""}], "formed": []}, result=945.0)
+for count in ["-4", "0"]:
+    d = err(f"bond count {count} rejected", "/api/thermo", {"type": "bond",
+            "broken": [{"bond": "C-H", "count": count, "kJ": ""}], "formed": []})
+    _record(f"bond count {count}: says why", "greater than zero" in d.get("error", ""), d.get("error"))
 err("calorimetry missing m", "/api/thermo", {"type": "calorimetry", "solve": "q", "q": "", "m": "", "c": "4.18", "dT": "5"})
 
 section("15 ICE solver")
