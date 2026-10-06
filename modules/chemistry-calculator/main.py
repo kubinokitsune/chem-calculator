@@ -24,7 +24,7 @@ def show_menu():
     print("5. Percent Composition Calculator")
     print("6. Volume-to-Mass Conversions")
     print("7. Oxidation Number Calculator")
-    print("8. Element Economy Calculator")
+    print("8. Atom Economy Calculator")
     print("9. Ionic Bonding Calculator")
     print("10. Percentage Yield Calculator")
     print("11. Periodic Table")
@@ -108,11 +108,11 @@ def oxidation_number_calculator():
 
 
 def element_economy_calculator():
-    print("\n[INFO] Opening Element Economy Calculator...", flush=True)
+    print("\n[INFO] Opening Atom Economy Calculator...", flush=True)
     try:
         from atom_economy_calculator import atom_economy_menu
     except Exception as e:
-        print(f"[ERROR] Failed to load Element Economy Calculator: {e}")
+        print(f"[ERROR] Failed to load Atom Economy Calculator: {e}")
         traceback.print_exc()
         return
     atom_economy_menu()

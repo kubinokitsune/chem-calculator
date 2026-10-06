@@ -209,7 +209,7 @@ check("H2SO4 oxidation sum = 0", total, 0, tol=0.01)
 # ─────────────────────────────────────────────────────────────
 # 6. ATOM ECONOMY
 # ─────────────────────────────────────────────────────────────
-section("6. ATOM ECONOMY (ELEMENT ECONOMY) CALCULATOR")
+section("6. ATOM ECONOMY CALCULATOR")
 from atom_economy_calculator import calculate_atom_economy, get_molar_mass
 
 # CH4 + 2 O2 -> CO2 + 2 H2O  (desired: H2O)

@@ -1,5 +1,5 @@
 # atom_economy_calculator.py
-# Atom Economy (Element Economy) measures what fraction of reactant atoms
+# Atom Economy measures what fraction of reactant atoms
 # end up in the desired product.
 # Formula: Atom Economy = (MW of desired product x its coefficient)
 #                         / (sum of MW x coefficient for ALL reactants) x 100%
@@ -31,7 +31,7 @@ def calculate_atom_economy(reactants, r_coeffs, desired_product, d_coeff):
 
 def atom_economy_menu():
     while True:
-        print("\n--- Element Economy (Atom Economy) Calculator ---")
+        print("\n--- Atom Economy Calculator ---")
         print("Measures what percentage of reactant atoms end up in the desired product.")
         print()
         print("1. Calculate atom economy for a reaction")
