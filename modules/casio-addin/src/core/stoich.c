@@ -86,9 +86,16 @@ float stoich_percent_yield(float actual, float theoretical)
     return 100.0f * actual / theoretical;
 }
 
-float stoich_atom_economy(float wanted_mass, float total_mass)
+float stoich_atom_economy_reactants(float wanted_mass, float wanted_coeff,
+                                    const float *reactant_masses,
+                                    const float *reactant_coeffs, int n)
 {
-    if (total_mass == 0.0f)
+    float total = 0.0f;
+    int i;
+
+    for (i = 0; i < n; i++)
+        total += reactant_masses[i] * reactant_coeffs[i];
+    if (total <= 0.0f)
         return 0.0f;
-    return 100.0f * wanted_mass / total_mass;
+    return 100.0f * wanted_mass * wanted_coeff / total;
 }

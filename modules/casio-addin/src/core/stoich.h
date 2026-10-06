@@ -25,8 +25,13 @@ chem_error_t stoich_empirical(const char *const *symbols, const float *amounts,
  * nearest whole number (at least 1). */
 int stoich_formula_multiplier(float empirical_mass, float molar_mass);
 
-/* Percentage yield and atom economy, as percentages. */
+/* Percentage yield, as a percentage. */
 float stoich_percent_yield(float actual, float theoretical);
-float stoich_atom_economy(float wanted_mass, float total_mass);
+
+/* Atom economy: (M x coeff of the wanted product) / sum(M x coeff of every
+ * reactant) x 100. Returns 0 if the reactants add up to nothing. */
+float stoich_atom_economy_reactants(float wanted_mass, float wanted_coeff,
+                                    const float *reactant_masses,
+                                    const float *reactant_coeffs, int n);
 
 #endif /* STOICH_H */

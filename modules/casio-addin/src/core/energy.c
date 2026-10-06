@@ -33,29 +33,59 @@ const energy_half_cell_t energy_half_cells[] = {
 const int energy_half_cell_count =
     (int)(sizeof energy_half_cells / sizeof energy_half_cells[0]);
 
+/* Lower-case a bond, drop spaces and fold the look-alike separators (unicode
+ * minus, en and em dash, and the triple bond sign) to - and #. Returns 0 if it
+ * does not fit. */
+static int tidy_bond(const char *in, char *out, size_t size)
+{
+    size_t n = 0;
+
+    for (; *in; in++) {
+        const unsigned char *u = (const unsigned char *)in;
+        char c = *in;
+
+        if (c == ' ')
+            continue;
+        if (u[0] == 0xE2 && ((u[1] == 0x88 && u[2] == 0x92) ||        /* minus */
+                             (u[1] == 0x80 && (u[2] == 0x93 || u[2] == 0x94)))) {
+            c = '-';
+            in += 2;
+        } else if (u[0] == 0xE2 && u[1] == 0x89 && u[2] == 0xA1) {  /* triple */
+            c = '#';
+            in += 2;
+        } else if (c >= 'A' && c <= 'Z') {
+            c = (char)(c - 'A' + 'a');
+        }
+        if (n + 1 >= size)
+            return 0;
+        out[n++] = c;
+    }
+    out[n] = 0;
+    return 1;
+}
+
 /* "H-O" and "O-H" are the same bond, so compare both ways round. */
 static int same_bond(const char *a, const char *b)
 {
     const char *dash;
-    char flipped[16];
-    size_t left, right, len;
+    char x[16], y[16], flipped[16];
+    size_t left, right;
 
-    if (strcmp(a, b) == 0)
+    if (!tidy_bond(a, x, sizeof x) || !tidy_bond(b, y, sizeof y))
+        return 0;
+    if (strcmp(x, y) == 0)
         return 1;
 
-    dash = strpbrk(b, "-=#");
+    dash = strpbrk(y, "-=#");
     if (dash == NULL)
         return 0;
-    left = (size_t)(dash - b);
+    left = (size_t)(dash - y);
     right = strlen(dash + 1);
-    len = left + right + 1;
-    if (len >= sizeof flipped)
-        return 0;
     memcpy(flipped, dash + 1, right);
     flipped[right] = *dash;
-    memcpy(flipped + right + 1, b, left);
-    flipped[len] = 0;
-    return strcmp(a, flipped) == 0;
+    memcpy(flipped + right + 1, y, left);
+    flipped[left + right + 1] = 0;
+    return strcmp(x, flipped) == 0;
 }
 
 int energy_bond_enthalpy(const char *bond)

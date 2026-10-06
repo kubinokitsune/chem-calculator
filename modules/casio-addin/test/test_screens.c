@@ -346,6 +346,27 @@ int main(void)
     screen_tools();
     showed("benzene has an IHD of 4", "IHD = 4");
 
+    /* CH4 + 2O2, want 2 H2O: 45.0 %. The old formula gave 71 here. */
+    fake_reset();
+    menu_pick(5);                       /* Atom economy */
+    fake_press_text("CH4");
+    fake_press(KEY_EXE);
+    fake_press_number("1");
+    fake_press_text("O2");
+    fake_press(KEY_EXE);
+    fake_press_number("2");
+    fake_press(KEY_EXE);                /* blank reactant = done */
+    fake_press_text("H2O");
+    fake_press(KEY_EXE);
+    fake_press_number("2");
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("atom economy of 2 H2O from CH4 + 2O2 is 45.0 %", "45.0");
+    ok("and it is not the old 71 %", !fake_screen_has("71"), NULL);
+    ok("the atom economy screen did not run out of keys",
+       fake_ran_out_of_keys() == 0, NULL);
+
     section("8. Every procedure shows an example");
 
     /* A student who has never used the calculator should be able to tell what

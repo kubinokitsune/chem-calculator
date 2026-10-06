@@ -219,46 +219,61 @@ static void screen_yield(void)
     ui_result_show();
 }
 
+#define AE_MAX_REACTANTS 6
+
 static void screen_atom_economy(void)
 {
-    char wanted[32] = "", other[32] = "";
+    char text[32], prompt[UI_LINE_LEN], wanted[32] = "";
     chem_formula_t formula;
-    double wanted_mass, total;
+    float masses[AE_MAX_REACTANTS], coeffs[AE_MAX_REACTANTS];
+    float wanted_mass;
+    double coeff, wanted_coeff, total = 0.0;
+    int n = 0;
 
-    ui_example("want CO2, other product H2O -> 71.0 %");
+    ui_example("CH4 + 2O2, want 2 H2O -> 45.0 %");
 
-    if (!ask_formula("Atom economy", "Wanted product:", wanted,
+    while (n < AE_MAX_REACTANTS) {
+        float mass = 0.0f;
+
+        text[0] = 0;
+        if (!ui_text_input("Atom economy", "Reactant formula (blank = done):",
+                           text, (int)sizeof text))
+            return;
+        if (text[0] == 0) {
+            if (n > 0)
+                break;
+            ui_message("Atom economy", "Need a reactant");
+            continue;
+        }
+        if (chem_molar_mass(text, &mass) != CHEM_OK) {
+            ui_message("Atom economy", "Check that formula");
+            continue;
+        }
+        snprintf(prompt, sizeof prompt, "Coefficient of %s:", text);
+        if (!ask_positive("Atom economy", prompt, &coeff))
+            return;
+        masses[n] = mass;
+        coeffs[n] = (float)coeff;
+        total += (double)mass * coeff;
+        n++;
+    }
+
+    if (!ask_formula("Atom economy", "Desired product:", wanted,
                      (int)sizeof wanted, &formula))
         return;
-    wanted_mass = chem_formula_mass(&formula);
-    total = wanted_mass;
-
-    for (;;) {
-        double mass;
-        other[0] = 0;
-        if (!ui_text_input("Atom economy", "Other product (blank = done):",
-                           other, (int)sizeof other))
-            break;
-        if (other[0] == 0)
-            break;
-        {
-            float value = 0.0f;
-            if (chem_molar_mass(other, &value) != CHEM_OK) {
-                ui_message("Atom economy", "Check that formula");
-                continue;
-            }
-            mass = value;
-        }
-        total += mass;
-    }
+    snprintf(prompt, sizeof prompt, "Coefficient of %s:", wanted);
+    if (!ask_positive("Atom economy", prompt, &wanted_coeff))
+        return;
+    wanted_mass = (float)chem_formula_mass(&formula);
 
     ui_result_begin("Atom economy");
     ui_result_text("Wanted:", wanted);
-    ui_result_value("its M", wanted_mass, "g/mol");
-    ui_result_value("all products", total, "g/mol");
+    ui_result_value("wanted M x coeff", wanted_mass * wanted_coeff, "g/mol");
+    ui_result_value("reactants M x coeff", total, "g/mol");
     ui_result_rule();
     ui_result_value("atom economy",
-                    stoich_atom_economy((float)wanted_mass, (float)total), "%");
+                    stoich_atom_economy_reactants(wanted_mass, (float)wanted_coeff,
+                                                  masses, coeffs, n), "%");
     ui_result_show();
 }
 
@@ -276,7 +291,7 @@ void screen_stoichiometry(void)
         "H2O -> 11.2 % H, 88.8 % O",
         "40 % C, 6.7 % H, 53.3 % O -> CH2O",
         "4.2 g of a possible 5.0 g -> 84 %",
-        "mass wanted / mass of everything made",
+        "CH4 + 2O2, want 2 H2O -> 45.0 %",
     };
     static int cursor;
 
