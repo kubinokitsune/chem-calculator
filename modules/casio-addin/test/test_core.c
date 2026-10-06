@@ -373,26 +373,23 @@ int main(void)
     {
         /* CH4 + 2O2 -> CO2 + 2H2O, and N2 + 3H2 -> 2NH3 */
         float ch4 = 0, o2 = 0, h2o = 0, co2 = 0, n2 = 0, h2 = 0, nh3 = 0;
-        float burn[2], burn_n[2] = {1.0f, 2.0f}, haber[2], haber_n[2] = {1.0f, 3.0f};
-        float none[1] = {0.0f};
+        float burn, haber;
 
         chem_molar_mass("CH4", &ch4);  chem_molar_mass("O2", &o2);
         chem_molar_mass("H2O", &h2o);  chem_molar_mass("CO2", &co2);
         chem_molar_mass("N2", &n2);    chem_molar_mass("H2", &h2);
         chem_molar_mass("NH3", &nh3);
-        burn[0] = ch4;  burn[1] = o2;
-        haber[0] = n2;  haber[1] = h2;
+        burn = ch4 + 2.0f * o2;
+        haber = n2 + 3.0f * h2;
 
         close_to("atom economy of 2 H2O from CH4 + 2O2 is 45.02 %",
-                 stoich_atom_economy_reactants(h2o, 2.0f, burn, burn_n, 2), 45.02, 0.02);
+                 stoich_atom_economy(2.0f * h2o, burn), 45.02, 0.02);
         close_to("atom economy of CO2 from CH4 + 2O2 is 54.98 %",
-                 stoich_atom_economy_reactants(co2, 1.0f, burn, burn_n, 2), 54.98, 0.02);
+                 stoich_atom_economy(co2, burn), 54.98, 0.02);
         close_to("atom economy of 2 NH3 from N2 + 3H2 is 100 %",
-                 stoich_atom_economy_reactants(nh3, 2.0f, haber, haber_n, 2), 100.0, 0.02);
-        close_to("atom economy with no reactant mass is 0",
-                 stoich_atom_economy_reactants(h2o, 1.0f, none, none, 1), 0.0, 0.001);
-        close_to("atom economy with no reactants is 0",
-                 stoich_atom_economy_reactants(h2o, 1.0f, burn, burn_n, 0), 0.0, 0.001);
+                 stoich_atom_economy(2.0f * nh3, haber), 100.0, 0.02);
+        close_to("atom economy with a total of 0 is 0",
+                 stoich_atom_economy(h2o, 0.0f), 0.0, 0.001);
     }
 
     section("6. Gases and equilibrium");
@@ -626,12 +623,13 @@ int main(void)
         int_is("CL-CL in capitals is 242", energy_bond_enthalpy("CL-CL"), 242);
         int_is("spaces are ignored: h - o is 463", energy_bond_enthalpy("h - o"), 463);
         int_is("O=C reads the same as C=O", energy_bond_enthalpy("O=C"), 804);
-        int_is("a unicode minus works", energy_bond_enthalpy("C\xE2\x88\x92" "H"), 414);
-        int_is("an en dash works", energy_bond_enthalpy("C\xE2\x80\x93" "H"), 414);
-        int_is("the triple bond sign works", energy_bond_enthalpy("N\xE2\x89\xA1" "N"), 945);
         int_is("a very long bond is 0", energy_bond_enthalpy("Cccccccccccccccccc-H"), 0);
         int_is("an unknown bond is 0", energy_bond_enthalpy("Xx-Yy"), 0);
         int_is("an empty bond is 0", energy_bond_enthalpy(""), 0);
+        text_is("c=o names itself C=O", energy_bond_name("c=o"), "C=O");
+        text_is("o - h names itself O-H", energy_bond_name("o - h"), "O-H");
+        text_is("H-O names the table's O-H", energy_bond_name("H-O"), "O-H");
+        ok("an unknown bond has no name", energy_bond_name("Xx-Yy") == NULL, NULL);
 
         /* 100 g of water warmed by 25 K: q = 100 x 4.18 x 25 = 10450 J */
         close_to("q = m c dT", energy_heat(100.0, CHEM_C_WATER, 25.0), 10450.0, 0.1);

@@ -28,10 +28,9 @@ int stoich_formula_multiplier(float empirical_mass, float molar_mass);
 /* Percentage yield, as a percentage. */
 float stoich_percent_yield(float actual, float theoretical);
 
-/* Atom economy: (M x coeff of the wanted product) / sum(M x coeff of every
- * reactant) x 100. Returns 0 if the reactants add up to nothing. */
-float stoich_atom_economy_reactants(float wanted_mass, float wanted_coeff,
-                                    const float *reactant_masses,
-                                    const float *reactant_coeffs, int n);
+/* Atom economy: 100 x wanted / total, where wanted is M x coeff of the wanted
+ * product and total is the sum of M x coeff over every reactant. Returns 0 if
+ * total is 0 or less. */
+float stoich_atom_economy(float wanted, float total);
 
 #endif /* STOICH_H */

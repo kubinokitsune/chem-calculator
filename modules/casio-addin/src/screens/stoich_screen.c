@@ -225,7 +225,6 @@ static void screen_atom_economy(void)
 {
     char text[32], prompt[UI_LINE_LEN], wanted[32] = "";
     chem_formula_t formula;
-    float masses[AE_MAX_REACTANTS], coeffs[AE_MAX_REACTANTS];
     float wanted_mass;
     double coeff, wanted_coeff, total = 0.0;
     int n = 0;
@@ -252,11 +251,11 @@ static void screen_atom_economy(void)
         snprintf(prompt, sizeof prompt, "Coefficient of %s:", text);
         if (!ask_positive("Atom economy", prompt, &coeff))
             return;
-        masses[n] = mass;
-        coeffs[n] = (float)coeff;
         total += (double)mass * coeff;
         n++;
     }
+    if (n == AE_MAX_REACTANTS)
+        ui_message("Atom economy", "That is as many as fit");
 
     if (!ask_formula("Atom economy", "Desired product:", wanted,
                      (int)sizeof wanted, &formula))
@@ -272,8 +271,7 @@ static void screen_atom_economy(void)
     ui_result_value("reactants M x coeff", total, "g/mol");
     ui_result_rule();
     ui_result_value("atom economy",
-                    stoich_atom_economy_reactants(wanted_mass, (float)wanted_coeff,
-                                                  masses, coeffs, n), "%");
+                    stoich_atom_economy(wanted_mass * wanted_coeff, total), "%");
     ui_result_show();
 }
 

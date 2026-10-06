@@ -30,6 +30,9 @@ extern const int energy_half_cell_count;
 /* Bond enthalpy by name, either way round ("H-O" finds "O-H"); 0 if unknown. */
 int energy_bond_enthalpy(const char *bond);
 
+/* The table's spelling of a bond ("c=o" gives "C=O"), or NULL if unknown. */
+const char *energy_bond_name(const char *bond);
+
 /* Standard half-cell potential by name; returns CHEM_ERR_RANGE if unknown. */
 chem_error_t energy_half_cell(const char *name, double *potential);
 

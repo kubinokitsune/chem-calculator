@@ -557,7 +557,9 @@ int main(void)
     screen_tools();
     showed("benzene has an IHD of 4", "IHD = 4");
 
-    /* CH4 + 2O2, want 2 H2O: 45.0 %. The old formula gave 71 here. */
+    /* CH4 + 2O2, want 2 H2O: 45.02 %. The old formula gave 71 here. The
+     * example panel and the menu hint both say "45.0", so check the lines only
+     * the result page prints. */
     fake_reset();
     menu_pick(5);                       /* Atom economy */
     fake_press_text("CH4");
@@ -573,10 +575,47 @@ int main(void)
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
-    showed("atom economy of 2 H2O from CH4 + 2O2 is 45.0 %", "45.0");
+    showed("atom economy of 2 H2O from CH4 + 2O2 is 45.02 %", "atom economy = 45.02 %");
+    showed("reactants M x coeff is 80.05", "reactants M x coeff = 80.05 g/mol");
+    showed("wanted M x coeff is 36.04", "wanted M x coeff = 36.04 g/mol");
     ok("and it is not the old 71 %", !fake_screen_has("71"), NULL);
     ok("the atom economy screen did not run out of keys",
        fake_ran_out_of_keys() == 0, NULL);
+
+    /* A blank first reactant, then a bad formula. */
+    fake_reset();
+    menu_pick(5);
+    fake_press(KEY_EXE);                /* blank */
+    fake_press(KEY_EXE);                /* dismiss the message */
+    fake_press_text("Xx9");
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXE);                /* dismiss the message */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a blank first reactant is refused", "Need a reactant");
+    showed("a bad formula is refused", "Check that formula");
+    ok("those messages did not run out of keys", fake_ran_out_of_keys() == 0, NULL);
+
+    /* Six reactants is the most that fit. */
+    fake_reset();
+    menu_pick(5);
+    {
+        int i;
+
+        for (i = 0; i < 6; i++) {
+            fake_press_text("H2");
+            fake_press(KEY_EXE);
+            fake_press_number("1");
+        }
+    }
+    fake_press(KEY_EXE);                /* dismiss the message */
+    fake_press(KEY_EXIT);               /* leave Desired product */
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("the sixth reactant says that is as many as fit", "That is as many as fit");
+    showed("and then asks for the desired product", "Desired product");
+    ok("the cap did not run out of keys", fake_ran_out_of_keys() == 0, NULL);
 
     section("8. Every procedure shows an example");
 
