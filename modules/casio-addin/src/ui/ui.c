@@ -311,11 +311,18 @@ static void entry_screen(const char *title, const char *prompt,
     ui_softkeys(keys);
 }
 
-int ui_text_input(const char *title, const char *prompt, char *buffer, int length)
+/* The field behind ui_text_input and ui_bond_input. F1-F3 type the three
+ * characters in `extras`, and the softkey bar says which they are. */
+static int text_field(const char *title, const char *prompt, char *buffer,
+                      int length, const char *extras)
 {
     const char *keys[6];
-    int alpha = 1, small = 0;
+    char extra_keys[3][2] = {{0}};
+    int alpha = 1, small = 0, i;
     int used = (int)strlen(buffer);
+
+    for (i = 0; i < 3; i++)
+        extra_keys[i][0] = extras[i];
 
     for (;;) {
         key_event_t event;
@@ -323,9 +330,9 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
 
         /* The softkeys say what the keypad cannot: brackets, the hydrate dot,
          * and how to get small letters or digits into a field of letters. */
-        keys[0] = "(";
-        keys[1] = ")";
-        keys[2] = ".";
+        keys[0] = extra_keys[0];
+        keys[1] = extra_keys[1];
+        keys[2] = extra_keys[2];
         keys[3] = small ? "ABC" : "abc";
         keys[4] = alpha ? "123" : "ABC";
         keys[5] = "OK";
@@ -351,13 +358,13 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
             small = !small;
             continue;
         case KEY_F1:
-            letter = '(';
+            letter = extras[0];
             break;
         case KEY_F2:
-            letter = ')';
+            letter = extras[1];
             break;
         case KEY_F3:
-            letter = '.';
+            letter = extras[2];
             break;
         case KEY_F4:
             small = !small;
@@ -376,6 +383,9 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
                     letter = digit_for_key(event.key);
             } else {
                 letter = digit_for_key(event.key);
+                /* the keypad's own minus keys, for a charge or a bond */
+                if (letter == 0 && (event.key == KEY_SUB || event.key == KEY_NEG))
+                    letter = '-';
                 if (letter == 0)
                     letter = letter_for_key(event.key);
             }
@@ -386,6 +396,16 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
             buffer[used] = 0;
         }
     }
+}
+
+int ui_text_input(const char *title, const char *prompt, char *buffer, int length)
+{
+    return text_field(title, prompt, buffer, length, "().");
+}
+
+int ui_bond_input(const char *title, const char *prompt, char *buffer, int length)
+{
+    return text_field(title, prompt, buffer, length, "-=#");
 }
 
 int ui_number_input(const char *title, const char *prompt, double *value,

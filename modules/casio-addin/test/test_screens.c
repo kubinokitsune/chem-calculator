@@ -10,6 +10,7 @@
 #include "fake_gint.h"
 #include "../src/screens/screens.h"
 #include "../src/ui/ui.h"
+#include "../src/core/energy.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -57,6 +58,36 @@ static void menu_pick(int item)
     if (item >= 1 && item <= 9)
         fake_press(digits[item]);
     fake_press(KEY_EXE);
+}
+
+/* Choose a booklet bond in the bond list. Item 1 is Done, item 2 is Type a
+ * bond and the table follows in order: the number key jumps to the top and the
+ * arrows walk down from there. */
+static void bond_pick(const char *bond)
+{
+    int i, item = 0;
+
+    for (i = 0; i < energy_bond_count; i++)
+        if (strcmp(energy_bonds[i].bond, bond) == 0)
+            item = i + 3;
+    if (item == 0)
+        ok("the bond is in the booklet", 0, bond);
+    fake_press(KEY_1);
+    for (i = 1; i < item; i++)
+        fake_press(KEY_DOWN);
+    fake_press(KEY_EXE);
+}
+
+/* The bond screen is open at Bond enthalpies: leave it, and check that the
+ * script used exactly the keys the screens asked for. */
+static void bond_finish(void)
+{
+    fake_press(KEY_EXE);                /* the bonds entered */
+    fake_press(KEY_EXE);                /* the answer */
+    fake_press(KEY_EXIT);               /* out of the energy menu */
+    screen_energy();
+    ok("the bond screens asked for every key and no more",
+       fake_keys_left() == 0 && !fake_ran_out_of_keys(), "keys left over or missing");
 }
 
 int main(void)
@@ -260,6 +291,119 @@ int main(void)
     screen_energy();
     showed("dG comes out at -32.96 kJ/mol", "-32.96");
     showed("and it is called spontaneous", "spontaneous");
+
+    /* H2 + Cl2 -> 2HCl, picking every bond from the list. */
+    fake_reset();
+    menu_pick(2);                       /* Bond enthalpies */
+    fake_press(KEY_EXE);                /* "First the bonds broken" */
+    bond_pick("H-H");        fake_press_number("1");
+    bond_pick("Cl-Cl");      fake_press_number("1");
+    menu_pick(1);                       /* Done */
+    fake_press(KEY_EXE);                /* "Now the bonds formed" */
+    bond_pick("H-Cl");       fake_press_number("2");
+    menu_pick(1);
+    bond_finish();
+    showed("the list shows what was broken", "1 x Cl-Cl (242) = 242");
+    showed("and what was formed", "2 x H-Cl (431) = 862");
+    showed("HCl comes out at -184", "dH = -184 kJ/mol");
+    showed("and is exothermic", "exothermic");
+
+    /* CH4 + 2O2 -> CO2 + 2H2O from the list: 2652 broken, 3460 formed. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("C-H");        fake_press_number("4");
+    bond_pick("O=O");        fake_press_number("2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("C=O");        fake_press_number("2");
+    bond_pick("O-H");        fake_press_number("4");
+    menu_pick(1);
+    bond_finish();
+    showed("methane burning breaks 2652", "broken = 2652 kJ/mol");
+    showed("and forms 3460", "formed = 3460 kJ/mol");
+    showed("so dH is -808", "dH = -808 kJ/mol");
+    showed("which is exothermic", "exothermic");
+
+    /* The same, typing every bond: "-" from the minus key, "=" from F2, and
+     * small letters for the lower-case spelling. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    menu_pick(2);                       /* Type a bond */
+    fake_press_text("C-H");  fake_press(KEY_EXE);  fake_press_number("4");
+    menu_pick(2);
+    fake_press_text("O=O");  fake_press(KEY_EXE);  fake_press_number("2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("c=o");  fake_press(KEY_EXE);  fake_press_number("2");
+    menu_pick(2);
+    fake_press_text("O-H");  fake_press(KEY_EXE);  fake_press_number("4");
+    menu_pick(1);
+    bond_finish();
+    showed("typed bonds are found, C-H x4", "4 x C-H (414) = 1656");
+    showed("typed O=O reaches the table", "2 x O=O (498) = 996");
+    showed("typed lower case c=o too", "2 x c=o (804) = 1608");
+    showed("typing gives the same -808", "dH = -808 kJ/mol");
+
+    /* F1 types -, F3 types #, and (-) does the same as the minus key:
+     * N2 + 3H2 -> 2NH3 is 945 + 3 x 436 broken, 6 N-H formed, -93. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("N");  fake_press(KEY_F3);  fake_press_text("N");
+    fake_press(KEY_EXE);  fake_press_number("1");
+    menu_pick(2);
+    fake_press_text("H");  fake_press(KEY_F1);  fake_press_text("H");
+    fake_press(KEY_EXE);  fake_press_number("3");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("N");  fake_press(KEY_ALPHA);  fake_press(KEY_NEG);
+    fake_press(KEY_ALPHA);  fake_press_text("H");
+    fake_press(KEY_EXE);  fake_press_number("6");
+    menu_pick(1);
+    bond_finish();
+    showed("F3 typed the triple bond", "1 x N#N (945) = 945");
+    showed("F1 typed a single bond", "3 x H-H (436) = 1308");
+    showed("(-) typed a minus", "6 x N-H (391) = 2346");
+    showed("ammonia comes out at -93", "dH = -93 kJ/mol");
+
+    /* A bond the booklet lacks asks for its enthalpy and uses it:
+     * 2 x C-S (272) = 544 broken, 1 x C-H formed, dH = +130. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("C-S");  fake_press(KEY_EXE);
+    fake_press_number("272");           /* its kJ/mol */
+    fake_press_number("2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("C-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("an unknown bond asks for its enthalpy", "Not in booklet. kJ/mol of C-S:");
+    showed("and the typed value is used", "2 x C-S (272) = 544");
+    showed("so dH is 544 - 414 = 130", "dH = 130 kJ/mol");
+    showed("which is endothermic", "endothermic");
+
+    /* Equal bonds broken and formed: nothing changes, and it must not be
+     * called endothermic. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("equal bonds give dH = 0", "dH = 0 kJ/mol");
+    showed("and say no net change", "no net change");
+    ok("and not endothermic", !fake_screen_has("endothermic"), "said endothermic");
 
     section("7. The structure and data screens");
 

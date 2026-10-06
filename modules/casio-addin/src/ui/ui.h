@@ -44,6 +44,10 @@ void ui_example(const char *text);
  * Returns 1 when EXE was pressed, 0 when EXIT was. */
 int ui_text_input(const char *title, const char *prompt, char *buffer, int length);
 
+/* The same field for a chemical bond: F1-F3 type - = and #, for single, double
+ * and triple bonds. In digit mode the keypad's minus keys type - as well. */
+int ui_bond_input(const char *title, const char *prompt, char *buffer, int length);
+
 /* Type a number. DEL rubs out, (-) makes it negative and EXP adds a power of
  * ten. When `allow_blank` is set, pressing EXE on an empty field returns 1 and
  * leaves *value alone, which is how "solve for this one" is chosen.

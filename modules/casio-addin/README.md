@@ -38,6 +38,9 @@ Nothing else needs to be copied, and the Python version can stay alongside it.
   F4) to small letters, and F1–F3 type `(`, `)` and the hydrate dot.
 - In a number field, `(-)` makes a value negative and `EXP` starts a power of
   ten, so `1.74` `EXP` `(-)` `5` is 1.74 × 10⁻⁵.
+- For a bond enthalpy, pick the bond from the list, or choose *Type a bond* and
+  use F1/F2/F3 for `-` `=` `#` (e.g. `C-H`, `O=O`, `N#N`; capitals or small
+  letters both work). A bond that is not in the list asks for its kJ/mol.
 - Where a screen says *blank to skip*, pressing EXE on the empty field moves on.
 - **Every menu entry and every question carries a worked example**, shown in a
   panel marked *e.g.* — scroll a menu and the example changes with the
