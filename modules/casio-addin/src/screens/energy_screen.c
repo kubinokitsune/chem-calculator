@@ -4,6 +4,7 @@
 #include "../ui/ui.h"
 #include "../core/energy.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -40,10 +41,9 @@ static void screen_calorimetry(void)
 }
 
 #define MAX_BONDS 12        /* bond kinds per side that one result page can hold */
-#define MAX_TABLE 40        /* room for the booklet's bonds in the picker */
 
 typedef struct {
-    char name[16], typed[24];   /* typed: the count as entered, "1/2" */
+    char name[16], typed[UI_TEXT_LEN];   /* typed: the count as entered, "1/2" */
     double count, enthalpy;
 } bond_use_t;
 
@@ -54,19 +54,23 @@ typedef struct {
 } bond_set_t;
 
 /* Collect "n x bond" for one side of the reaction: pick a bond from the
- * booklet's list, or type one. A typed bond the booklet does not have asks for
- * its enthalpy instead. EXIT in a field drops that bond; EXIT in the list
- * gives up. Returns 0 if the user gave up. */
+ * booklet's list, or type one (kept in the booklet's spelling if it has it). A
+ * typed bond the booklet does not have asks for its enthalpy instead. EXIT in a
+ * field drops that bond; EXIT in the list gives up. Done needs a bond first.
+ * Returns 0 if the user gave up. */
 static int collect_bonds(const char *title, bond_set_t *set)
 {
-    const char *items[2 + MAX_TABLE] = {"Done", "Type a bond"};
-    char names[MAX_TABLE][16], line[UI_LINE_LEN];
-    int i, cursor = 0, count = 2;
+    const int count = 2 + energy_bond_count;    /* so no booklet bond is left out */
+    const char *items[count];
+    char names[energy_bond_count][16], line[UI_LINE_LEN];
+    int i, cursor = 0;
 
-    for (i = 0; i < energy_bond_count && i < MAX_TABLE; i++, count++) {
+    items[0] = "Done";
+    items[1] = "Type a bond";
+    for (i = 0; i < energy_bond_count; i++) {
         snprintf(names[i], sizeof names[i], "%-5s %d", energy_bonds[i].bond,
                  energy_bonds[i].enthalpy);
-        items[count] = names[i];
+        items[2 + i] = names[i];
     }
 
     set->n = 0;
@@ -77,16 +81,24 @@ static int collect_bonds(const char *title, bond_set_t *set)
 
         if (pick < 0)
             return 0;
-        if (pick == 0)
-            return 1;
+        if (pick == 0) {
+            if (set->n > 0)
+                return 1;
+            ui_message(title, "Add at least one bond");
+            continue;
+        }
         if (pick == 1) {
-            use->enthalpy = 0.0;
-            snprintf(use->name, sizeof use->name, "%s", "");
+            const char *known;
+
+            use->name[0] = 0;
             if (!ui_bond_input(title, "Bond, e.g. C-H or Cl-Cl:", use->name,
                                (int)sizeof use->name) || use->name[0] == 0)
                 continue;
-            use->enthalpy = energy_bond_enthalpy(use->name);
-            if (use->enthalpy == 0) {
+            known = energy_bond_name(use->name);
+            if (known != NULL) {
+                snprintf(use->name, sizeof use->name, "%s", known);
+                use->enthalpy = energy_bond_enthalpy(known);
+            } else {
                 snprintf(line, sizeof line, "Not in booklet. kJ/mol of %s:", use->name);
                 if (!ask_positive(title, line, &use->enthalpy))
                     continue;
@@ -109,12 +121,10 @@ static int collect_bonds(const char *title, bond_set_t *set)
  * "1/2 x O=O (498) = 249" when the count was typed as a fraction. */
 static void bond_lines(const char *heading, const bond_set_t *set)
 {
-    char line[UI_LINE_LEN], count[24], each[16], sum[16];
+    char line[UI_LINE_LEN], count[UI_TEXT_LEN], each[16], sum[16];
     int i;
 
     ui_result_line(heading);
-    if (set->n == 0)
-        ui_result_line("  none");
     for (i = 0; i < set->n; i++) {
         const bond_use_t *use = &set->use[i];
 
@@ -148,6 +158,8 @@ static void screen_bonds(void)
     ui_result_show();
 
     change = energy_from_bonds(broken.total, formed.total);
+    if (fabs(change) < 1e-6)        /* fractions add up with rounding dust */
+        change = 0.0;
     ui_result_begin("Bond enthalpies");
     ui_result_value("broken", broken.total, "kJ/mol");
     ui_result_value("formed", formed.total, "kJ/mol");
@@ -280,7 +292,7 @@ static void screen_cells(void)
 
 static void screen_faraday(void)
 {
-    char text[24] = "";
+    char text[UI_TEXT_LEN] = "";
     chem_formula_t formula;
     double current = 0.0, seconds = 0.0, charge = 2.0, mass = 0.0;
 

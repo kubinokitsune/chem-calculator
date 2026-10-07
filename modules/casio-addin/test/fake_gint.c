@@ -30,8 +30,11 @@ void fake_reset(void)
 
 void fake_press(int key)
 {
-    if (queue_used < FAKE_KEY_QUEUE)
-        queue[queue_used++] = key;
+    if (queue_used >= FAKE_KEY_QUEUE) {
+        fprintf(stderr, "fake_gint: more than %d keys queued\n", FAKE_KEY_QUEUE);
+        exit(2);
+    }
+    queue[queue_used++] = key;
 }
 
 void fake_press_text(const char *text)
@@ -132,8 +135,11 @@ static void capture(const char *text)
 {
     int length = (int)strlen(text);
 
-    if (captured_used + length + 2 >= FAKE_CAPTURE_LEN)
-        return;
+    if (captured_used + length + 2 >= FAKE_CAPTURE_LEN) {
+        /* dropping text would let a "did not show" check pass for nothing */
+        fprintf(stderr, "fake_gint: more than %d characters drawn\n", FAKE_CAPTURE_LEN);
+        exit(2);
+    }
     memcpy(captured + captured_used, text, (size_t)length);
     captured_used += length;
     captured[captured_used++] = '\n';

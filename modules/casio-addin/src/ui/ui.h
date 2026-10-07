@@ -9,6 +9,7 @@
 
 #define UI_LINE_LEN   44      /* characters that fit across the screen */
 #define UI_MAX_LINES  40      /* lines one result page can hold */
+#define UI_TEXT_LEN   24      /* room for one typed entry: a formula, a count */
 
 /* ---- frame -------------------------------------------------------------- */
 
@@ -45,7 +46,8 @@ void ui_example(const char *text);
 int ui_text_input(const char *title, const char *prompt, char *buffer, int length);
 
 /* The same field for a chemical bond: F1-F3 type - = and #, for single, double
- * and triple bonds. In digit mode the keypad's minus keys type - as well. */
+ * and triple bonds. In digit mode the keypad's minus keys type - as well (in
+ * the other text fields [-] still types the letter on its key). */
 int ui_bond_input(const char *title, const char *prompt, char *buffer, int length);
 
 /* Type a number. DEL rubs out, (-) makes it negative and EXP adds a power of
@@ -57,8 +59,9 @@ int ui_number_input(const char *title, const char *prompt, double *value,
 
 /* Type a count above zero: a whole number, a decimal, or a fraction like 1/2.
  * The fraction key, the divide key and F1 type "/". Anything else (zero,
- * negative, 1/0, garbage) is refused with a message and asked again. `typed`
- * (24 chars) gets the text as entered, so "1/2" can be shown as "1/2".
+ * negative, 1/0, too big, garbage) is refused with a message and asked again.
+ * `typed` (UI_TEXT_LEN chars, not NULL) gets the text as entered, so "1/2" can
+ * be shown as "1/2".
  * Returns 1 on EXE, 0 on EXIT. */
 int ui_count_input(const char *title, const char *prompt, double *value,
                    char *typed);
