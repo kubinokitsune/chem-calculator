@@ -288,13 +288,15 @@ chem_error_t chem_parse_equation(const char *text, chem_species_t *left, int *n_
 
 chem_error_t bal_atom_economy(const chem_species_t *left, int n_left,
                               const chem_species_t *right, int n_right,
-                              int wanted, float *percent)
+                              int wanted, float *percent, int *coeffs_out,
+                              float *wanted_mass, float *reactants_mass)
 {
     const char *names[BAL_MAX_SPECIES] = {0};
+    chem_formula_t formula[BAL_MAX_SPECIES];
     int coeff[BAL_MAX_SPECIES];
-    float mass, total = 0.0f, want = 0.0f;
+    float total = 0.0f, want = 0.0f;
     chem_error_t error;
-    int i, any = 0, n = n_left + n_right;
+    int i, j, any = 0, n = n_left + n_right;
 
     if (n_left < 1 || wanted < 0 || wanted >= n_right)
         return CHEM_ERR_RANGE;
@@ -305,6 +307,9 @@ chem_error_t bal_atom_economy(const chem_species_t *left, int n_left,
         names[i] = s->formula;
         coeff[i] = s->coeff;
         any |= s->coeff;
+        error = chem_parse_formula(s->formula, &formula[i], NULL, 0);
+        if (error != CHEM_OK)
+            return error;
     }
     if (!any) {
         error = bal_balance(names, n_left, names + n_left, n_right, coeff);
@@ -312,15 +317,36 @@ chem_error_t bal_atom_economy(const chem_species_t *left, int n_left,
             return error;
     }
     for (i = 0; i < n; i++) {
-        error = chem_molar_mass(names[i], &mass);
-        if (error != CHEM_OK)
-            return error;
-        mass *= (float)(coeff[i] ? coeff[i] : 1);
+        float mass = chem_formula_mass(&formula[i]);
+
+        if (coeff[i] == 0)
+            coeff[i] = 1;
+        mass *= (float)coeff[i];
         if (i < n_left)
             total += mass;
         else if (i - n_left == wanted)
             want = mass;
     }
+    /* typed numbers must balance every element: reactant atoms minus product atoms */
+    for (i = 0; any && i < n; i++) {
+        for (j = 0; j < formula[i].n; j++) {
+            const char *symbol = formula[i].atoms[j].symbol;
+            int k, net = 0;
+
+            for (k = 0; k < n; k++) {
+                int atoms = coeff[k] * chem_atom_count(&formula[k], symbol);
+                net += (k < n_left) ? atoms : -atoms;
+            }
+            if (net != 0)
+                return CHEM_ERR_UNBALANCED;
+        }
+    }
     *percent = stoich_atom_economy(want, total);
+    if (coeffs_out != NULL)
+        memcpy(coeffs_out, coeff, (size_t)n * sizeof coeff[0]);
+    if (wanted_mass != NULL)
+        *wanted_mass = want;
+    if (reactants_mass != NULL)
+        *reactants_mass = total;
     return CHEM_OK;
 }

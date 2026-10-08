@@ -37,7 +37,7 @@ void fake_press(int key)
     queue[queue_used++] = key;
 }
 
-void fake_press_text(const char *text)
+static void type(const char *text, int bond)
 {
     /* Type a formula: letters come from the keypad's alpha letters, digits
      * from the number keys, with ALPHA switching between the two. F1-F3 are
@@ -84,15 +84,25 @@ void fake_press_text(const char *text)
             fake_press(KEY_SUB);
         } else if (c == '(') {
             fake_press(KEY_F1);
-        } else if (c == ')' || c == '=') {      /* '=' in a bond field */
+        } else if (c == ')' || (bond && c == '=')) {
             fake_press(KEY_F2);
-        } else if (c == '.' || c == '#') {      /* '#' in a bond field */
+        } else if (c == '.' || (bond && c == '#')) {
             fake_press(KEY_F3);
         } else {
             fprintf(stderr, "fake_press_text: cannot type '%c'\n", c);
             exit(2);
         }
     }
+}
+
+void fake_press_text(const char *text)
+{
+    type(text, 0);
+}
+
+void fake_press_bond(const char *text)
+{
+    type(text, 1);
 }
 
 void fake_press_number(const char *text)

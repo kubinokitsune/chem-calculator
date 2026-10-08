@@ -271,6 +271,16 @@ int main(void)
        chem_parse_formula("h2o", &formula, NULL, 0) == CHEM_ERR_SYNTAX, NULL);
     ok("an empty formula is reported",
        chem_parse_formula("", &formula, NULL, 0) == CHEM_ERR_EMPTY, NULL);
+    ok("a subscript of 999 is fine",
+       chem_parse_formula("C999", &formula, NULL, 0) == CHEM_OK && formula.atoms[0].count == 999, NULL);
+    ok("a subscript of 1000 is out of range",
+       chem_parse_formula("C1000", &formula, NULL, 0) == CHEM_ERR_RANGE, NULL);
+    ok("a huge subscript does not overflow into garbage",
+       chem_parse_formula("C2222222222222222222222", &formula, NULL, 0) == CHEM_ERR_RANGE, NULL);
+    ok("a huge bracket multiplier is out of range",
+       chem_parse_formula("Ca(OH)99999", &formula, NULL, 0) == CHEM_ERR_RANGE, NULL);
+    ok("a huge hydrate multiplier is out of range",
+       chem_parse_formula("CuSO4.99999H2O", &formula, NULL, 0) == CHEM_ERR_RANGE, NULL);
 
     section("4. Printing numbers");
 
@@ -743,28 +753,64 @@ int main(void)
         float ae = 0.0f;
 
         chem_parse_equation("CH4+2O2->CO2+2H2O", l, &nl, r, &nr, 5);
-        int_is("economy of given coefficients", bal_atom_economy(l, nl, r, nr, 1, &ae), CHEM_OK);
+        int_is("economy of given coefficients", bal_atom_economy(l, nl, r, nr, 1, &ae, NULL, NULL, NULL), CHEM_OK);
         close_to("CH4 + 2O2, want H2O: 45.02 %", ae, 45.02, 0.02);
 
         chem_parse_equation("CH4+O2->CO2+H2O", l, &nl, r, &nr, 5);
-        int_is("economy auto-balances", bal_atom_economy(l, nl, r, nr, 1, &ae), CHEM_OK);
+        int_is("economy auto-balances", bal_atom_economy(l, nl, r, nr, 1, &ae, NULL, NULL, NULL), CHEM_OK);
         close_to("unbalanced CH4 + O2, want H2O: 45.02 %", ae, 45.02, 0.02);
 
         chem_parse_equation("N2+3H2->2NH3", l, &nl, r, &nr, 5);
-        int_is("economy of the only product", bal_atom_economy(l, nl, r, nr, 0, &ae), CHEM_OK);
+        int_is("economy of the only product", bal_atom_economy(l, nl, r, nr, 0, &ae, NULL, NULL, NULL), CHEM_OK);
         close_to("Haber: 100 %", ae, 100.0, 0.02);
 
-        /* partly given: the missing ones count as 1 */
+        /* partly given: the missing ones count as 1, if that balances */
+        chem_parse_equation("CH4+2O2->CO2+2H2O", l, &nl, r, &nr, 5);
+        int_is("a missing coefficient counts as 1", bal_atom_economy(l, nl, r, nr, 1, &ae, NULL, NULL, NULL), CHEM_OK);
+        close_to("CH4 + 2O2 -> CO2 + 2H2O, want H2O", ae, 45.02, 0.02);
+        chem_parse_equation("2CH4+4O2->2CO2+4H2O", l, &nl, r, &nr, 5);
+        int_is("a scaled equation balances", bal_atom_economy(l, nl, r, nr, 1, &ae, NULL, NULL, NULL), CHEM_OK);
+        close_to("and gives the same economy", ae, 45.02, 0.02);
+
+        /* typed numbers that do not balance are refused, never used */
+        ae = -1.0f;
         chem_parse_equation("CH4+2O2->CO2+H2O", l, &nl, r, &nr, 5);
-        bal_atom_economy(l, nl, r, nr, 1, &ae);
-        close_to("missing coefficients count as 1", ae, 100.0 * 18.02 / 80.04, 0.02);
+        int_is("typed numbers that do not balance", bal_atom_economy(l, nl, r, nr, 1, &ae, NULL, NULL, NULL),
+               CHEM_ERR_UNBALANCED);
+        close_to("and no answer is given", ae, -1.0, 0.0);
+        chem_parse_equation("2CH4+2O2->CO2+2H2O", l, &nl, r, &nr, 5);
+        int_is("a wrong typed number", bal_atom_economy(l, nl, r, nr, 1, &ae, NULL, NULL, NULL), CHEM_ERR_UNBALANCED);
+        chem_parse_equation("H2->2NH3", l, &nl, r, &nr, 5);
+        int_is("an element on one side only", bal_atom_economy(l, nl, r, nr, 0, &ae, NULL, NULL, NULL),
+               CHEM_ERR_UNBALANCED);
+        text_is("the message", chem_error_text(CHEM_ERR_UNBALANCED), "Numbers don't balance");
+
+        /* the optional outputs */
+        {
+            int used[4] = {0};
+            float wanted_mass = 0.0f, reactants_mass = 0.0f;
+
+            chem_parse_equation("CH4+O2->CO2+H2O", l, &nl, r, &nr, 5);
+            int_is("auto-balanced with outputs",
+                   bal_atom_economy(l, nl, r, nr, 1, &ae, used, &wanted_mass, &reactants_mass),
+                   CHEM_OK);
+            ok("the coefficients used are 1, 2, 1, 2",
+               used[0] == 1 && used[1] == 2 && used[2] == 1 && used[3] == 2, NULL);
+            close_to("wanted M x coeff", wanted_mass, 36.04, 0.01);
+            close_to("reactants M x coeff", reactants_mass, 80.05, 0.01);
+
+            chem_parse_equation("CH4+2O2->CO2+2H2O", l, &nl, r, &nr, 5);
+            bal_atom_economy(l, nl, r, nr, 1, &ae, used, NULL, NULL);
+            ok("typed ones with the missing as 1",
+               used[0] == 1 && used[1] == 2 && used[2] == 1 && used[3] == 2, NULL);
+        }
 
         chem_parse_equation("H2->O2", l, &nl, r, &nr, 5);
-        int_is("unbalanceable stays an error", bal_atom_economy(l, nl, r, nr, 0, &ae),
+        int_is("unbalanceable stays an error", bal_atom_economy(l, nl, r, nr, 0, &ae, NULL, NULL, NULL),
                CHEM_ERR_RANGE);
         chem_parse_equation("N2+3H2->2NH3", l, &nl, r, &nr, 5);
-        int_is("wanted index too big", bal_atom_economy(l, nl, r, nr, 1, &ae), CHEM_ERR_RANGE);
-        int_is("negative wanted index", bal_atom_economy(l, nl, r, nr, -1, &ae), CHEM_ERR_RANGE);
+        int_is("wanted index too big", bal_atom_economy(l, nl, r, nr, 1, &ae, NULL, NULL, NULL), CHEM_ERR_RANGE);
+        int_is("negative wanted index", bal_atom_economy(l, nl, r, nr, -1, &ae, NULL, NULL, NULL), CHEM_ERR_RANGE);
     }
 
     section("9. Energy, cells and rates");

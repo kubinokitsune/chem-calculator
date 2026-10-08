@@ -220,23 +220,24 @@ static void screen_yield(void)
 }
 
 /* Type the whole equation, say which product is wanted. Typed coefficients are
- * used as they are (a missing one counts as 1); with none typed it is balanced. */
+ * used as they are (a missing one counts as 1) and must balance; with none
+ * typed it is balanced. */
 static void screen_atom_economy(void)
 {
     char text[UI_EQUATION_LEN] = "";
     chem_species_t left[EQ_SIDE_MAX], right[EQ_SIDE_MAX];
-    const char *names[2 * EQ_SIDE_MAX];
+    const char *names[EQ_SIDE_MAX];
     int coefficients[BAL_MAX_SPECIES];
     float percent = 0.0f, wanted_mass = 0.0f, reactants_mass = 0.0f;
-    int n_left, n_right, wanted, typed, i;
+    int n_left, n_right, wanted, i;
 
     ui_example("CH4+2O2->CO2+2H2O");
     for (;;) {
         int cursor = 0;
         chem_error_t error;
 
-        if (!ask_equation("Atom economy", "Equation:", text, (int)sizeof text,
-                          left, &n_left, right, &n_right))
+        if (!ask_equation("Atom economy", "Equation (leave numbers out to balance):",
+                          text, (int)sizeof text, left, &n_left, right, &n_right))
             return;
         for (i = 0; i < n_right; i++)
             names[i] = right[i].formula;
@@ -244,33 +245,13 @@ static void screen_atom_economy(void)
         if (wanted < 0)
             continue;                   /* back to the equation, text kept */
 
-        error = bal_atom_economy(left, n_left, right, n_right, wanted, &percent);
+        error = bal_atom_economy(left, n_left, right, n_right, wanted, &percent,
+                                 coefficients, &wanted_mass, &reactants_mass);
         if (error == CHEM_OK)
             break;
         ui_message("Atom economy",
                    (error == CHEM_ERR_RANGE) ? "That will not balance"
                                              : chem_error_text(error));
-    }
-
-    /* The coefficients bal_atom_economy used: typed ones, else the balanced. */
-    for (i = 0; i < n_left + n_right; i++)
-        names[i] = (i < n_left) ? left[i].formula : right[i - n_left].formula;
-    for (typed = 0, i = 0; i < n_left + n_right; i++) {
-        int c = (i < n_left) ? left[i].coeff : right[i - n_left].coeff;
-        coefficients[i] = (c > 0) ? c : 1;
-        typed |= (c > 0);
-    }
-    if (!typed)
-        bal_balance(names, n_left, names + n_left, n_right, coefficients);
-
-    for (i = 0; i < n_left + n_right; i++) {
-        float mass = 0.0f;
-        chem_molar_mass(names[i], &mass);
-        mass *= (float)coefficients[i];
-        if (i < n_left)
-            reactants_mass += mass;
-        else if (i - n_left == wanted)
-            wanted_mass = mass;
     }
 
     ui_result_begin("Atom economy");

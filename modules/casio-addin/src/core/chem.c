@@ -52,6 +52,7 @@ const char *chem_error_text(chem_error_t error)
     case CHEM_ERR_EMPTY:            return "Nothing typed";
     case CHEM_ERR_NO_ARROW:         return "Need -> or =";
     case CHEM_ERR_TWO_ARROWS:       return "Only one arrow";
+    case CHEM_ERR_UNBALANCED:       return "Numbers don't balance";
     }
     return "Error";
 }
@@ -283,17 +284,17 @@ static chem_error_t add_atom(chem_formula_t *formula, const char *symbol, int co
     return CHEM_OK;
 }
 
-static int read_number(const char *text, int *i)
+/* A subscript or multiplier: 1 when absent, at most 999 (like a coefficient). */
+static chem_error_t read_number(const char *text, int *i, int *value)
 {
-    int value = 0;
-
-    if (!is_digit(text[*i]))
-        return 1;
+    *value = is_digit(text[*i]) ? 0 : 1;
     while (is_digit(text[*i])) {
-        value = value * 10 + (text[*i] - '0');
+        *value = *value * 10 + (text[*i] - '0');
         (*i)++;
+        if (*value > 999)
+            return CHEM_ERR_RANGE;
     }
-    return value;
+    return CHEM_OK;
 }
 
 /* One group of a formula, i.e. everything up to a ')' or the end. */
@@ -322,7 +323,9 @@ static chem_error_t parse_group(const char *text, int *i, int depth,
             if (text[*i] != ')')
                 return CHEM_ERR_SYNTAX;
             (*i)++;
-            count = read_number(text, i);
+            error = read_number(text, i, &count);
+            if (error != CHEM_OK)
+                return error;
             for (j = 0; j < inner.n; j++) {
                 error = add_atom(out, inner.atoms[j].symbol,
                                  inner.atoms[j].count * count * multiplier);
@@ -341,7 +344,9 @@ static chem_error_t parse_group(const char *text, int *i, int depth,
             if (depth != 0)
                 return CHEM_ERR_SYNTAX;
             (*i)++;
-            count = read_number(text, i);
+            error = read_number(text, i, &count);
+            if (error != CHEM_OK)
+                return error;
             inner.n = 0;
             error = parse_group(text, i, depth, &inner, 1, bad, bad_len);
             if (error != CHEM_OK)
@@ -371,7 +376,9 @@ static chem_error_t parse_group(const char *text, int *i, int depth,
             }
             return CHEM_ERR_UNKNOWN_ELEMENT;
         }
-        count = read_number(text, i);
+        error = read_number(text, i, &count);
+        if (error != CHEM_OK)
+            return error;
         error = add_atom(out, symbol, count * multiplier);
         if (error != CHEM_OK)
             return error;

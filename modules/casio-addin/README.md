@@ -43,10 +43,13 @@ Nothing else needs to be copied, and the Python version can stay alongside it.
   `(` `)` `+` and `->` in any mode; in digit mode (**ALPHA**/F6 to switch) the
   keypad's own `+`, `(`, `)`, `.` and `→` keys do the same. A capital then a
   small letter (Cl, Ca) needs **SHIFT** or F5 in between. Long equations scroll
-  so the end stays in view. Atom economy then asks which product is wanted: with
-  no numbers typed it balances the equation first, otherwise it uses the numbers
-  you typed (a missing one counts as 1). The balancer ignores any numbers typed
-  in front. A mistake is explained and the text stays for you to fix.
+  so the end stays in view. Atom economy then asks which product is wanted: leave
+  the numbers out and it balances the equation for you; type some and it uses
+  them (a missing one counts as 1), but only if they balance the equation,
+  otherwise it says *Numbers don't balance* so a wrong number can never give a
+  wrong answer: fix it, or delete the numbers to auto-balance. The balancer
+  ignores any numbers typed in front. A mistake is explained and the text stays
+  for you to fix.
 - For a bond enthalpy, pick the bond from the list, or choose *Type a bond* and
   use F1/F2/F3 for `-` `=` `#` (e.g. `C-H`, `O=O`, `N#N`; capitals or small
   letters both work). A bond that is not in the list asks for its kJ/mol.

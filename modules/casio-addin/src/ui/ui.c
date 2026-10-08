@@ -364,6 +364,9 @@ static int text_field(const char *title, const char *prompt, char *buffer,
         case KEY_EXIT:
             return 0;
         case KEY_DEL:
+            /* "->" goes as one, so no lone '-' is left behind */
+            if (equation && used >= 2 && buffer[used - 2] == '-' && buffer[used - 1] == '>')
+                used--;
             if (used > 0)
                 buffer[--used] = 0;
             continue;

@@ -306,7 +306,7 @@ int main(void)
     equation("H2->O2");
     fake_press(KEY_EXE);
     fake_press(KEY_DEL);  fake_press(KEY_DEL);
-    fake_press(KEY_DEL);  fake_press(KEY_DEL);      /* back to H2 */
+    fake_press(KEY_DEL);                            /* O2 and "->" are gone: back to H2 */
     equation("+O2->H2O");
     fake_press(KEY_EXIT);
     screen_balance();
@@ -381,6 +381,30 @@ int main(void)
            !fake_screen_has(text) && fake_screen_has(text + 2),
            "the whole text was drawn, or the end was not");
 
+        /* DEL takes "->" away in one go; any other character one at a time. */
+        fake_reset();
+        text[0] = 0;
+        fake_press_text("CH4+O2->");
+        fake_press(KEY_DEL);
+        fake_press_text("C");
+        fake_press(KEY_EXE);
+        ui_equation_input("Equation", "Equation:", text, (int)sizeof text);
+        ok("DEL after -> removes the whole arrow", strcmp(text, "CH4+O2C") == 0, text);
+        fake_reset();
+        text[0] = 0;
+        fake_press_text("CH4+O2->");
+        fake_press(KEY_DEL);
+        fake_press(KEY_EXE);
+        ui_equation_input("Equation", "Equation:", text, (int)sizeof text);
+        ok("so no lone minus is left", strcmp(text, "CH4+O2") == 0, text);
+        fake_reset();
+        text[0] = 0;
+        fake_press_text("CH4+O2->C");
+        fake_press(KEY_DEL);
+        fake_press(KEY_EXE);
+        ui_equation_input("Equation", "Equation:", text, (int)sizeof text);
+        ok("DEL after a letter only takes the letter", strcmp(text, "CH4+O2->") == 0, text);
+
         /* "->" goes in whole or not at all. */
         fake_reset();
         {
@@ -391,6 +415,15 @@ int main(void)
             ui_equation_input("Equation", "Equation:", small, (int)sizeof small);
             ok("an arrow that does not fit is not half typed",
                strcmp(small, "CH4+CH4+") == 0, small);
+        }
+        {
+            char one[2] = "";               /* room for a single character */
+            fake_reset();
+            fake_press(KEY_F4);
+            fake_press_text("C");
+            fake_press(KEY_EXE);
+            ui_equation_input("Equation", "Equation:", one, (int)sizeof one);
+            ok("with one place left the arrow is not half typed", strcmp(one, "C") == 0, one);
         }
     }
 
@@ -500,11 +533,11 @@ int main(void)
     menu_pick(2);                       /* Type a bond */
     fake_press_text("C-H");  fake_press(KEY_EXE);  fake_press_number("4");
     menu_pick(2);
-    fake_press_text("O=O");  fake_press(KEY_EXE);  fake_press_number("2");
+    fake_press_bond("O=O");  fake_press(KEY_EXE);  fake_press_number("2");
     menu_pick(1);
     fake_press(KEY_EXE);
     menu_pick(2);
-    fake_press_text("c=o");  fake_press(KEY_EXE);  fake_press_number("2");
+    fake_press_bond("c=o");  fake_press(KEY_EXE);  fake_press_number("2");
     menu_pick(2);
     fake_press_text("O-H");  fake_press(KEY_EXE);  fake_press_number("4");
     menu_pick(1);
@@ -939,16 +972,35 @@ int main(void)
     showed("a single product is 100 %", "atom economy = 100 %");
     all_keys_used("ammonia");
 
-    /* Some numbers typed: they are used as typed, and a missing one is 1. */
+    /* Some numbers typed: they are used, and a missing one is 1. */
     fake_reset();
     menu_pick(5);
-    equation("CH4+2O2->CO2+H2O");
+    equation("CH4+2O2->CO2+2H2O");
     menu_pick(2);
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
-    showed("typed coefficients are used as typed: 18.02 / 80.04", "atom economy = 22.51 %");
+    showed("a missing coefficient counts as 1: CH4 + 2O2 -> CO2 + 2H2O", "atom economy = 45.02 %");
     all_keys_used("typed coefficients");
+
+    /* Typed numbers that do not balance are refused, the text is kept, and
+     * fixing the number gives the answer. */
+    fake_reset();
+    menu_pick(5);
+    equation("CH4+2O2->CO2+H2O");
+    menu_pick(2);
+    fake_press(KEY_EXE);                /* "Numbers don't balance" */
+    fake_press(KEY_DEL);  fake_press(KEY_DEL);
+    fake_press(KEY_DEL);                /* rub out H2O ... */
+    fake_press_text("2H2O");            /* ... and the field still holds the rest */
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("numbers that do not balance are refused", "Numbers don't balance");
+    showed("the text was kept and fixing it gives 45.02 %", "atom economy = 45.02 %");
+    all_keys_used("atom economy, unbalanced");
 
     /* Mistakes keep the text. */
     fake_reset();
@@ -986,7 +1038,7 @@ int main(void)
     menu_pick(1);
     fake_press(KEY_EXE);                /* "That will not balance" */
     fake_press(KEY_DEL);  fake_press(KEY_DEL);
-    fake_press(KEY_DEL);  fake_press(KEY_DEL);
+    fake_press(KEY_DEL);                /* O2 and "->" are gone: back to H2 */
     equation("+O2->H2O");
     menu_pick(1);
     fake_press(KEY_EXIT);

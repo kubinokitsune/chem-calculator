@@ -46,10 +46,15 @@ chem_error_t chem_parse_equation(const char *text, chem_species_t *left, int *n_
 /* Atom economy (%) of product number `wanted` (0-based, within `right`).
  * Coefficient rule: if NO species has a coefficient the equation is balanced
  * with bal_balance first (CHEM_ERR_RANGE / CHEM_ERR_TOO_MANY if it cannot be);
- * otherwise the typed ones are used and any missing one counts as 1.
- * CHEM_ERR_RANGE also for a `wanted` outside 0..n_right-1. */
+ * otherwise the typed ones are used, a missing one counting as 1, and they
+ * must balance the equation atom by atom or it is CHEM_ERR_UNBALANCED.
+ * CHEM_ERR_RANGE also for a `wanted` outside 0..n_right-1.
+ * The last three are optional (NULL to skip): the coefficients used, one per
+ * species, reactants first (room for n_left + n_right); M x coeff of the wanted
+ * product; and the sum of M x coeff over the reactants. */
 chem_error_t bal_atom_economy(const chem_species_t *left, int n_left,
                               const chem_species_t *right, int n_right,
-                              int wanted, float *percent);
+                              int wanted, float *percent, int *coeffs_out,
+                              float *wanted_mass, float *reactants_mass);
 
 #endif /* BALANCE_H */
