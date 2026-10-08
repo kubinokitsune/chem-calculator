@@ -6,7 +6,9 @@
 #include <gint/display.h>
 #include <gint/keyboard.h>
 
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* The fx-CG50 screen is 396 x 224 and gint's font is 8 x 9, so a row of text
@@ -311,11 +313,16 @@ static void entry_screen(const char *title, const char *prompt,
     ui_softkeys(keys);
 }
 
-int ui_text_input(const char *title, const char *prompt, char *buffer, int length)
+/* The field behind ui_text_input and ui_bond_input. F1-F3 type the three
+ * one-character labels in `extras`, which the softkey bar shows. It is the bond
+ * field when they start with "-". */
+static int text_field(const char *title, const char *prompt, char *buffer,
+                      int length, const char *const *extras)
 {
     const char *keys[6];
     int alpha = 1, small = 0;
     int used = (int)strlen(buffer);
+    int bond = extras[0][0] == '-';
 
     for (;;) {
         key_event_t event;
@@ -323,9 +330,9 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
 
         /* The softkeys say what the keypad cannot: brackets, the hydrate dot,
          * and how to get small letters or digits into a field of letters. */
-        keys[0] = "(";
-        keys[1] = ")";
-        keys[2] = ".";
+        keys[0] = extras[0];
+        keys[1] = extras[1];
+        keys[2] = extras[2];
         keys[3] = small ? "ABC" : "abc";
         keys[4] = alpha ? "123" : "ABC";
         keys[5] = "OK";
@@ -351,13 +358,13 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
             small = !small;
             continue;
         case KEY_F1:
-            letter = '(';
+            letter = extras[0][0];
             break;
         case KEY_F2:
-            letter = ')';
+            letter = extras[1][0];
             break;
         case KEY_F3:
-            letter = '.';
+            letter = extras[2][0];
             break;
         case KEY_F4:
             small = !small;
@@ -376,6 +383,10 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
                     letter = digit_for_key(event.key);
             } else {
                 letter = digit_for_key(event.key);
+                /* the keypad's own minus keys type a bond; in any other field
+                 * [-] stays the letter on it and only (-) types a minus */
+                if (letter == 0 && (event.key == KEY_NEG || (bond && event.key == KEY_SUB)))
+                    letter = '-';
                 if (letter == 0)
                     letter = letter_for_key(event.key);
             }
@@ -388,22 +399,65 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
     }
 }
 
-int ui_number_input(const char *title, const char *prompt, double *value,
-                    int allow_blank)
+int ui_text_input(const char *title, const char *prompt, char *buffer, int length)
+{
+    static const char *const extras[3] = {"(", ")", "."};
+
+    return text_field(title, prompt, buffer, length, extras);
+}
+
+int ui_bond_input(const char *title, const char *prompt, char *buffer, int length)
+{
+    static const char *const extras[3] = {"-", "=", "#"};
+
+    return text_field(title, prompt, buffer, length, extras);
+}
+
+/* "a", "0.5" or "a/b" as a count: a finite number above zero, with b above
+ * zero too. */
+static int parse_count(const char *text, double *value)
+{
+    char *end;
+    double top = strtod(text, &end), bottom = 1.0;
+
+    if (end == text)
+        return 0;
+    if (*end == '/') {
+        const char *rest = end + 1;
+        bottom = strtod(rest, &end);
+        if (end == rest || bottom <= 0.0)
+            return 0;
+    }
+    if (*end != 0 || !isfinite(top / bottom) || top / bottom <= 0.0)
+        return 0;
+    *value = top / bottom;
+    return 1;
+}
+
+/* The field behind ui_number_input and ui_count_input. With `typed` given it
+ * is a count: the keypad's fraction and divide keys (and F1) type "/", and the
+ * entry must be a number above zero; a bad one is explained and the field
+ * starts again. */
+static int number_field(const char *title, const char *prompt, double *value,
+                        int allow_blank, char *typed)
 {
     static const char *const keys[6] = {"", "", "", "", "", "OK"};
-    char text[24];
+    static const char *const count_keys[6] = {"/", "", "", "", "", "OK"};
+    const char *hint = "[EXP] powers of ten   [(-)] minus";
+    char text[UI_TEXT_LEN];
     int used = 0;
 
     text[0] = 0;
+    if (typed != NULL)
+        hint = "[a b/c] or [F1] types /   [(-)] minus";
+    else if (allow_blank)
+        hint = "[EXE] alone = solve for this one";
 
     for (;;) {
         key_event_t event;
         char letter = 0;
 
-        entry_screen(title, prompt, text, "123", keys,
-                     allow_blank ? "[EXE] alone = solve for this one"
-                                 : "[EXP] powers of ten   [(-)] minus");
+        entry_screen(title, prompt, text, "123", typed ? count_keys : keys, hint);
         dupdate();
 
         event = getkey();
@@ -417,7 +471,15 @@ int ui_number_input(const char *title, const char *prompt, double *value,
             }
             {
                 double parsed = 0.0;
-                if (sscanf(text, "%lf", &parsed) != 1)
+                if (typed != NULL) {
+                    if (!parse_count(text, &parsed)) {
+                        ui_message(title, "Use a number above 0, e.g. 1/2");
+                        used = 0;
+                        text[0] = 0;
+                        continue;
+                    }
+                    snprintf(typed, UI_TEXT_LEN, "%s", text);
+                } else if (sscanf(text, "%lf", &parsed) != 1)
                     continue;
                 *value = parsed;
             }
@@ -438,6 +500,12 @@ int ui_number_input(const char *title, const char *prompt, double *value,
         case KEY_EXP:
             letter = 'e';
             break;
+        case KEY_FRAC:
+        case KEY_DIV:
+        case KEY_F1:
+            if (typed != NULL)
+                letter = '/';
+            break;
         default:
             letter = digit_for_key(event.key);
             break;
@@ -447,6 +515,18 @@ int ui_number_input(const char *title, const char *prompt, double *value,
             text[used] = 0;
         }
     }
+}
+
+int ui_number_input(const char *title, const char *prompt, double *value,
+                    int allow_blank)
+{
+    return number_field(title, prompt, value, allow_blank, NULL);
+}
+
+int ui_count_input(const char *title, const char *prompt, double *value,
+                   char *typed)
+{
+    return number_field(title, prompt, value, 0, typed);
 }
 
 /* ---- result pages ------------------------------------------------------- */

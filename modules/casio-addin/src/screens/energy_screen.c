@@ -4,6 +4,7 @@
 #include "../ui/ui.h"
 #include "../core/energy.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -39,37 +40,109 @@ static void screen_calorimetry(void)
     ui_result_show();
 }
 
-/* Add up bond enthalpies from the booklet, one bond at a time. */
-static int collect_bonds(const char *title, double *total)
+#define MAX_BONDS 12        /* bond kinds per side that one result page can hold */
+
+typedef struct {
+    char name[16], typed[UI_TEXT_LEN];   /* typed: the count as entered, "1/2" */
+    double count, enthalpy;
+} bond_use_t;
+
+typedef struct {
+    bond_use_t use[MAX_BONDS];
+    int n;
+    double total;           /* kJ/mol */
+} bond_set_t;
+
+/* Collect "n x bond" for one side of the reaction: pick a bond from the
+ * booklet's list, or type one (kept in the booklet's spelling if it has it). A
+ * typed bond the booklet does not have asks for its enthalpy instead. EXIT in a
+ * field drops that bond; EXIT in the list gives up. Done needs a bond first.
+ * Returns 0 if the user gave up. */
+static int collect_bonds(const char *title, bond_set_t *set)
 {
-    char line[UI_LINE_LEN];
+    const int count = 2 + energy_bond_count;    /* so no booklet bond is left out */
+    const char *items[count];
+    char names[energy_bond_count][16], line[UI_LINE_LEN];
+    int i, cursor = 0;
 
-    *total = 0.0;
-    for (;;) {
-        char bond[16] = "";
-        double how_many = 0.0;
-        int enthalpy;
+    items[0] = "Done";
+    items[1] = "Type a bond";
+    for (i = 0; i < energy_bond_count; i++) {
+        snprintf(names[i], sizeof names[i], "%-5s %d", energy_bonds[i].bond,
+                 energy_bonds[i].enthalpy);
+        items[2 + i] = names[i];
+    }
 
-        if (!ui_text_input(title, "Bond (blank = done), e.g. C-H:", bond,
-                           (int)sizeof bond))
+    set->n = 0;
+    set->total = 0.0;
+    while (set->n < MAX_BONDS) {
+        bond_use_t *use = &set->use[set->n];
+        int pick = ui_menu(title, items, count, &cursor);
+
+        if (pick < 0)
             return 0;
-        if (bond[0] == 0)
-            return 1;
-        enthalpy = energy_bond_enthalpy(bond);
-        if (enthalpy == 0) {
-            ui_message(title, "That bond is not in the booklet");
+        if (pick == 0) {
+            if (set->n > 0)
+                return 1;
+            ui_message(title, "Add at least one bond");
             continue;
         }
-        snprintf(line, sizeof line, "How many %s bonds?", bond);
-        if (!ask_positive(title, line, &how_many))
-            return 0;
-        *total += how_many * enthalpy;
+        if (pick == 1) {
+            const char *known;
+
+            use->name[0] = 0;
+            if (!ui_bond_input(title, "Bond, e.g. C-H or Cl-Cl:", use->name,
+                               (int)sizeof use->name) || use->name[0] == 0)
+                continue;
+            known = energy_bond_name(use->name);
+            if (known != NULL) {
+                snprintf(use->name, sizeof use->name, "%s", known);
+                use->enthalpy = energy_bond_enthalpy(known);
+            } else {
+                snprintf(line, sizeof line, "Not in booklet. kJ/mol of %s:", use->name);
+                if (!ask_positive(title, line, &use->enthalpy))
+                    continue;
+            }
+        } else {
+            snprintf(use->name, sizeof use->name, "%s", energy_bonds[pick - 2].bond);
+            use->enthalpy = energy_bonds[pick - 2].enthalpy;
+        }
+        snprintf(line, sizeof line, "How many %s bonds?", use->name);
+        if (!ui_count_input(title, line, &use->count, use->typed))
+            continue;
+        set->total += use->count * use->enthalpy;
+        set->n++;
+    }
+    ui_message(title, "That is as many as fit");
+    return 1;
+}
+
+/* One side of the reaction as result lines: "4 x C-H (414) = 1656", or
+ * "1/2 x O=O (498) = 249" when the count was typed as a fraction. */
+static void bond_lines(const char *heading, const bond_set_t *set)
+{
+    char line[UI_LINE_LEN], count[UI_TEXT_LEN], each[16], sum[16];
+    int i;
+
+    ui_result_line(heading);
+    for (i = 0; i < set->n; i++) {
+        const bond_use_t *use = &set->use[i];
+
+        if (strchr(use->typed, '/') != NULL)
+            snprintf(count, sizeof count, "%s", use->typed);
+        else
+            chem_format(use->count, 4, count, sizeof count);
+        chem_format(use->enthalpy, 4, each, sizeof each);
+        chem_format(use->count * use->enthalpy, 4, sum, sizeof sum);
+        snprintf(line, sizeof line, "  %s x %s (%s) = %s", count, use->name, each, sum);
+        ui_result_line(line);
     }
 }
 
 static void screen_bonds(void)
 {
-    double broken = 0.0, formed = 0.0;
+    bond_set_t broken, formed;
+    double change;
 
     ui_example("break H-H and Cl-Cl, form 2 H-Cl -> -184");
     ui_message("Bond enthalpies", "First the bonds broken");
@@ -79,12 +152,21 @@ static void screen_bonds(void)
     if (!collect_bonds("Bonds formed", &formed))
         return;
 
+    ui_result_begin("Bonds entered");
+    bond_lines("Broken:", &broken);
+    bond_lines("Formed:", &formed);
+    ui_result_show();
+
+    change = energy_from_bonds(broken.total, formed.total);
+    if (fabs(change) < 1e-6)        /* fractions add up with rounding dust */
+        change = 0.0;
     ui_result_begin("Bond enthalpies");
-    ui_result_value("broken", broken, "kJ/mol");
-    ui_result_value("formed", formed, "kJ/mol");
+    ui_result_value("broken", broken.total, "kJ/mol");
+    ui_result_value("formed", formed.total, "kJ/mol");
     ui_result_rule();
-    ui_result_value("dH", energy_from_bonds(broken, formed), "kJ/mol");
-    ui_result_line((broken < formed) ? "exothermic" : "endothermic");
+    ui_result_value("dH", change, "kJ/mol");
+    ui_result_line((change < 0) ? "exothermic"
+                   : (change > 0) ? "endothermic" : "no net change");
     ui_result_show();
 }
 
@@ -210,7 +292,7 @@ static void screen_cells(void)
 
 static void screen_faraday(void)
 {
-    char text[24] = "";
+    char text[UI_TEXT_LEN] = "";
     chem_formula_t formula;
     double current = 0.0, seconds = 0.0, charge = 2.0, mass = 0.0;
 

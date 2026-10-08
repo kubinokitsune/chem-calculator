@@ -86,9 +86,9 @@ float stoich_percent_yield(float actual, float theoretical)
     return 100.0f * actual / theoretical;
 }
 
-float stoich_atom_economy(float wanted_mass, float total_mass)
+float stoich_atom_economy(float wanted, float total)
 {
-    if (total_mass == 0.0f)
+    if (total <= 0.0f)
         return 0.0f;
-    return 100.0f * wanted_mass / total_mass;
+    return 100.0f * wanted / total;
 }

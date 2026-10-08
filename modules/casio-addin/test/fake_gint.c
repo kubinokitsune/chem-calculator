@@ -30,14 +30,18 @@ void fake_reset(void)
 
 void fake_press(int key)
 {
-    if (queue_used < FAKE_KEY_QUEUE)
-        queue[queue_used++] = key;
+    if (queue_used >= FAKE_KEY_QUEUE) {
+        fprintf(stderr, "fake_gint: more than %d keys queued\n", FAKE_KEY_QUEUE);
+        exit(2);
+    }
+    queue[queue_used++] = key;
 }
 
 void fake_press_text(const char *text)
 {
     /* Type a formula: letters come from the keypad's alpha letters, digits
-     * from the number keys, with ALPHA switching between the two. */
+     * from the number keys, with ALPHA switching between the two. F1-F3 are
+     * ( ) . in a formula field and - = # in a bond field. */
     static const int letters[26] = {
         KEY_XOT, KEY_LOG, KEY_LN, KEY_SIN, KEY_COS, KEY_TAN,
         KEY_FRAC, KEY_FD, KEY_LEFTP, KEY_RIGHTP, KEY_COMMA, KEY_ARROW,
@@ -67,11 +71,15 @@ void fake_press_text(const char *text)
         } else if (c >= '0' && c <= '9') {
             if (alpha) { fake_press(KEY_ALPHA); alpha = 0; }
             fake_press(digits[c - '0']);
+        } else if (c == '-') {
+            /* the keypad's minus key; it only means minus in digit mode */
+            if (alpha) { fake_press(KEY_ALPHA); alpha = 0; }
+            fake_press(KEY_SUB);
         } else if (c == '(') {
             fake_press(KEY_F1);
-        } else if (c == ')') {
+        } else if (c == ')' || c == '=') {      /* '=' in a bond field */
             fake_press(KEY_F2);
-        } else if (c == '.') {
+        } else if (c == '.' || c == '#') {      /* '#' in a bond field */
             fake_press(KEY_F3);
         }
     }
@@ -93,6 +101,8 @@ void fake_press_number(const char *text)
             fake_press(KEY_DOT);
         else if (c == '-')
             fake_press(KEY_NEG);
+        else if (c == '/')
+            fake_press(KEY_FRAC);       /* the [a b/c] key */
         else if (c == 'e' || c == 'E')
             fake_press(KEY_EXP);
     }
@@ -125,8 +135,11 @@ static void capture(const char *text)
 {
     int length = (int)strlen(text);
 
-    if (captured_used + length + 2 >= FAKE_CAPTURE_LEN)
-        return;
+    if (captured_used + length + 2 >= FAKE_CAPTURE_LEN) {
+        /* dropping text would let a "did not show" check pass for nothing */
+        fprintf(stderr, "fake_gint: more than %d characters drawn\n", FAKE_CAPTURE_LEN);
+        exit(2);
+    }
     memcpy(captured + captured_used, text, (size_t)length);
     captured_used += length;
     captured[captured_used++] = '\n';

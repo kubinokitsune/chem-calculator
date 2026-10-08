@@ -5,7 +5,7 @@
 #include <gint/display.h>
 #include <gint/keyboard.h>
 
-#define FAKE_CAPTURE_LEN  8192
+#define FAKE_CAPTURE_LEN  65536
 #define FAKE_KEY_QUEUE    512
 
 /* Forget everything: no keys queued, nothing drawn. */
@@ -14,11 +14,12 @@ void fake_reset(void);
 /* Queue one keypress. */
 void fake_press(int key);
 
-/* Queue the keys that type `text` into a formula field, working out the
- * ALPHA and SHIFT presses needed. Does NOT add EXE. */
+/* Queue the keys that type `text` into a text field, working out the
+ * ALPHA and SHIFT presses needed. '-' is the keypad's minus key; ( ) . and
+ * = # use F1-F3, so = and # are only for a bond field. Does NOT add EXE. */
 void fake_press_text(const char *text);
 
-/* Queue the keys that type a number, and then EXE. */
+/* Queue the keys that type a number, and then EXE. '/' is the fraction key. */
 void fake_press_number(const char *text);
 
 /* Everything that has been drawn since the last reset, one line per call. */

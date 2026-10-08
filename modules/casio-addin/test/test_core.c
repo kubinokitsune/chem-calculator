@@ -370,8 +370,27 @@ int main(void)
              stoich_percent_yield(4.2f, 5.0f), 84.0, 0.01);
     close_to("percentage yield of nothing is 0",
              stoich_percent_yield(0.0f, 5.0f), 0.0, 0.01);
-    close_to("atom economy 44.01 of 100.09 is 44.0 %",
-             stoich_atom_economy(44.01f, 100.09f), 43.97, 0.02);
+    {
+        /* CH4 + 2O2 -> CO2 + 2H2O, and N2 + 3H2 -> 2NH3 */
+        float ch4 = 0, o2 = 0, h2o = 0, co2 = 0, n2 = 0, h2 = 0, nh3 = 0;
+        float burn, haber;
+
+        chem_molar_mass("CH4", &ch4);  chem_molar_mass("O2", &o2);
+        chem_molar_mass("H2O", &h2o);  chem_molar_mass("CO2", &co2);
+        chem_molar_mass("N2", &n2);    chem_molar_mass("H2", &h2);
+        chem_molar_mass("NH3", &nh3);
+        burn = ch4 + 2.0f * o2;
+        haber = n2 + 3.0f * h2;
+
+        close_to("atom economy of 2 H2O from CH4 + 2O2 is 45.02 %",
+                 stoich_atom_economy(2.0f * h2o, burn), 45.02, 0.02);
+        close_to("atom economy of CO2 from CH4 + 2O2 is 54.98 %",
+                 stoich_atom_economy(co2, burn), 54.98, 0.02);
+        close_to("atom economy of 2 NH3 from N2 + 3H2 is 100 %",
+                 stoich_atom_economy(2.0f * nh3, haber), 100.0, 0.02);
+        close_to("atom economy with a total of 0 is 0",
+                 stoich_atom_economy(h2o, 0.0f), 0.0, 0.001);
+    }
 
     section("6. Gases and equilibrium");
 
@@ -600,8 +619,17 @@ int main(void)
         int_is("N#N is 945", energy_bond_enthalpy("N#N"), 945);
         int_is("H-O reads the same as O-H", energy_bond_enthalpy("H-O"), 463);
         int_is("Cl-C reads the same as C-Cl", energy_bond_enthalpy("Cl-C"), 324);
+        int_is("c-h in small letters is 414", energy_bond_enthalpy("c-h"), 414);
+        int_is("CL-CL in capitals is 242", energy_bond_enthalpy("CL-CL"), 242);
+        int_is("spaces are ignored: h - o is 463", energy_bond_enthalpy("h - o"), 463);
+        int_is("O=C reads the same as C=O", energy_bond_enthalpy("O=C"), 804);
+        int_is("a very long bond is 0", energy_bond_enthalpy("Cccccccccccccccccc-H"), 0);
         int_is("an unknown bond is 0", energy_bond_enthalpy("Xx-Yy"), 0);
         int_is("an empty bond is 0", energy_bond_enthalpy(""), 0);
+        text_is("c=o names itself C=O", energy_bond_name("c=o"), "C=O");
+        text_is("o - h names itself O-H", energy_bond_name("o - h"), "O-H");
+        text_is("H-O names the table's O-H", energy_bond_name("H-O"), "O-H");
+        ok("an unknown bond has no name", energy_bond_name("Xx-Yy") == NULL, NULL);
 
         /* 100 g of water warmed by 25 K: q = 100 x 4.18 x 25 = 10450 J */
         close_to("q = m c dT", energy_heat(100.0, CHEM_C_WATER, 25.0), 10450.0, 0.1);

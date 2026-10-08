@@ -10,6 +10,7 @@
 #include "fake_gint.h"
 #include "../src/screens/screens.h"
 #include "../src/ui/ui.h"
+#include "../src/core/energy.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -57,6 +58,36 @@ static void menu_pick(int item)
     if (item >= 1 && item <= 9)
         fake_press(digits[item]);
     fake_press(KEY_EXE);
+}
+
+/* Choose a booklet bond in the bond list. Item 1 is Done, item 2 is Type a
+ * bond and the table follows in order: the number key jumps to the top and the
+ * arrows walk down from there. */
+static void bond_pick(const char *bond)
+{
+    int i, item = 0;
+
+    for (i = 0; i < energy_bond_count; i++)
+        if (strcmp(energy_bonds[i].bond, bond) == 0)
+            item = i + 3;
+    if (item == 0)
+        ok("the bond is in the booklet", 0, bond);
+    fake_press(KEY_1);
+    for (i = 1; i < item; i++)
+        fake_press(KEY_DOWN);
+    fake_press(KEY_EXE);
+}
+
+/* The bond screen is open at Bond enthalpies: leave it, and check that the
+ * script used exactly the keys the screens asked for. */
+static void bond_finish(void)
+{
+    fake_press(KEY_EXE);                /* the bonds entered */
+    fake_press(KEY_EXE);                /* the answer */
+    fake_press(KEY_EXIT);               /* out of the energy menu */
+    screen_energy();
+    ok("the bond screens asked for every key and no more",
+       fake_keys_left() == 0 && !fake_ran_out_of_keys(), "keys left over or missing");
 }
 
 int main(void)
@@ -261,6 +292,349 @@ int main(void)
     showed("dG comes out at -32.96 kJ/mol", "-32.96");
     showed("and it is called spontaneous", "spontaneous");
 
+    /* H2 + Cl2 -> 2HCl, picking every bond from the list. */
+    fake_reset();
+    menu_pick(2);                       /* Bond enthalpies */
+    fake_press(KEY_EXE);                /* "First the bonds broken" */
+    bond_pick("H-H");        fake_press_number("1");
+    bond_pick("Cl-Cl");      fake_press_number("1");
+    menu_pick(1);                       /* Done */
+    fake_press(KEY_EXE);                /* "Now the bonds formed" */
+    bond_pick("H-Cl");       fake_press_number("2");
+    menu_pick(1);
+    bond_finish();
+    showed("the list shows what was broken", "1 x Cl-Cl (242) = 242");
+    showed("and what was formed", "2 x H-Cl (431) = 862");
+    showed("HCl comes out at -184", "dH = -184 kJ/mol");
+    showed("and is exothermic", "exothermic");
+
+    /* CH4 + 2O2 -> CO2 + 2H2O from the list: 2652 broken, 3460 formed. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("C-H");        fake_press_number("4");
+    bond_pick("O=O");        fake_press_number("2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("C=O");        fake_press_number("2");
+    bond_pick("O-H");        fake_press_number("4");
+    menu_pick(1);
+    bond_finish();
+    showed("methane burning breaks 2652", "broken = 2652 kJ/mol");
+    showed("and forms 3460", "formed = 3460 kJ/mol");
+    showed("so dH is -808", "dH = -808 kJ/mol");
+    showed("which is exothermic", "exothermic");
+
+    /* The same, typing every bond: "-" from the minus key, "=" from F2, and
+     * small letters for the lower-case spelling. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    menu_pick(2);                       /* Type a bond */
+    fake_press_text("C-H");  fake_press(KEY_EXE);  fake_press_number("4");
+    menu_pick(2);
+    fake_press_text("O=O");  fake_press(KEY_EXE);  fake_press_number("2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("c=o");  fake_press(KEY_EXE);  fake_press_number("2");
+    menu_pick(2);
+    fake_press_text("O-H");  fake_press(KEY_EXE);  fake_press_number("4");
+    menu_pick(1);
+    bond_finish();
+    showed("typed bonds are found, C-H x4", "4 x C-H (414) = 1656");
+    showed("typed O=O reaches the table", "2 x O=O (498) = 996");
+    showed("typed lower case c=o is shown as the booklet's C=O", "2 x C=O (804) = 1608");
+    ok("and not as typed", !fake_screen_has("x c=o"), "showed the typed spelling");
+    showed("typing gives the same -808", "dH = -808 kJ/mol");
+
+    /* F1 types -, F3 types #, and (-) does the same as the minus key:
+     * N2 + 3H2 -> 2NH3 is 945 + 3 x 436 broken, 6 N-H formed, -93. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("N");  fake_press(KEY_F3);  fake_press_text("N");
+    fake_press(KEY_EXE);  fake_press_number("1");
+    menu_pick(2);
+    fake_press_text("H");  fake_press(KEY_F1);  fake_press_text("H");
+    fake_press(KEY_EXE);  fake_press_number("3");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("N");  fake_press(KEY_ALPHA);  fake_press(KEY_NEG);
+    fake_press(KEY_ALPHA);  fake_press_text("H");
+    fake_press(KEY_EXE);  fake_press_number("6");
+    menu_pick(1);
+    bond_finish();
+    showed("F3 typed the triple bond", "1 x N#N (945) = 945");
+    showed("F1 typed a single bond", "3 x H-H (436) = 1308");
+    showed("(-) typed a minus", "6 x N-H (391) = 2346");
+    showed("ammonia comes out at -93", "dH = -93 kJ/mol");
+
+    /* A bond the booklet lacks asks for its enthalpy and uses it:
+     * 2 x C-S (272) = 544 broken, 1 x C-H formed, dH = +130. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("c-s");  fake_press(KEY_EXE);
+    fake_press_number("272");           /* its kJ/mol */
+    fake_press_number("2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("C-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("an unknown bond asks for its enthalpy", "Not in booklet. kJ/mol of c-s:");
+    showed("and the typed value is used, in the spelling typed", "2 x c-s (272) = 544");
+    showed("so dH is 544 - 414 = 130", "dH = 130 kJ/mol");
+    showed("which is endothermic", "endothermic");
+
+    /* Equal bonds broken and formed: nothing changes, and it must not be
+     * called endothermic. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("equal bonds give dH = 0", "dH = 0 kJ/mol");
+    showed("and say no net change", "no net change");
+    ok("and not endothermic", !fake_screen_has("endothermic"), "said endothermic");
+
+    /* Fractional counts: H2 + 1/2 O2 -> H2O, the fraction typed on the real
+     * fraction key. 436 + 249 = 685 broken, 2 x O-H = 926 formed, -241. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1");
+    bond_pick("O=O");        fake_press_number("1/2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("O-H");        fake_press_number("2");
+    menu_pick(1);
+    bond_finish();
+    showed("a half count is shown as typed", "1/2 x O=O (498) = 249");
+    showed("a whole count still reads 1 x H-H", "1 x H-H (436) = 436");
+    showed("water breaks 685", "broken = 685 kJ/mol");
+    showed("and forms 926", "formed = 926 kJ/mol");
+    showed("so water forms at -241", "dH = -241 kJ/mol");
+    showed("which is exothermic", "exothermic");
+
+    /* 3/2 through the divide key and 0.5 as a decimal: 3/2 x 498 = 747 and
+     * 0.5 x 436 = 218 broken, 2 x 431 = 862 formed, dH = 103. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("O=O");
+    fake_press(KEY_3);  fake_press(KEY_DIV);  fake_press(KEY_2);  fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("0.5");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("H-Cl");       fake_press_number("2");
+    menu_pick(1);
+    bond_finish();
+    showed("3/2 typed with the divide key", "3/2 x O=O (498) = 747");
+    showed("0.5 typed as a decimal", "0.5 x H-H (436) = 218");
+    showed("they add up: 965 broken", "broken = 965 kJ/mol");
+
+    /* F1 types the slash too, and 5/4 works: 5/4 x 436 = 545. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");
+    fake_press(KEY_5);  fake_press(KEY_F1);  fake_press(KEY_4);  fake_press(KEY_EXE);
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("O-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("5/4 typed with F1", "5/4 x H-H (436) = 545");
+
+    /* Every bad count is tried on its own: refused with the message, asked
+     * again, and the good count after it is the only one that is used. A
+     * count that slipped through would show as "0 x", "inf x" or its own
+     * text on the result page, and would also upset the key script. */
+    {
+        static const char *const bad[] = {
+            "1/0", "0", "-1/2", "1/-2", "-1/-2", "1/2/3", "1/", "1e999", "1/1e999"
+        };
+        unsigned b;
+
+        for (b = 0; b < sizeof bad / sizeof bad[0]; b++) {
+            char label[80], shown[40];
+
+            fake_reset();
+            menu_pick(2);
+            fake_press(KEY_EXE);
+            bond_pick("H-H");
+            fake_press_number(bad[b]);  fake_press(KEY_EXE);    /* and the message */
+            fake_press_number("2");
+            menu_pick(1);
+            fake_press(KEY_EXE);
+            bond_pick("O-H");        fake_press_number("1");
+            menu_pick(1);
+            bond_finish();
+            snprintf(label, sizeof label, "%s is refused with a message", bad[b]);
+            showed(label, "Use a number above 0, e.g. 1/2");
+            snprintf(label, sizeof label, "%s is not accepted as a count", bad[b]);
+            snprintf(shown, sizeof shown, "%s x H-H", bad[b]);
+            ok(label, !fake_screen_has(shown), shown);
+            showed("the good count after it is used", "2 x H-H (436) = 872");
+            ok("and nothing reads 0 x", !fake_screen_has("0 x"), "showed 0 x");
+            ok("or inf", !fake_screen_has("inf"), "showed inf");
+            ok("or nan", !fake_screen_has("nan"), "showed nan");
+        }
+    }
+
+    /* Done with nothing on a side is refused and the list stays open. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    menu_pick(1);                       /* Done, with no bond yet */
+    fake_press(KEY_EXE);                /* the message */
+    bond_pick("H-H");        fake_press_number("1");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    menu_pick(1);                       /* the same on the formed side */
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("Done on an empty side is refused", "Add at least one bond");
+    ok("and no bond is invented for it", !fake_screen_has("none"), "showed none");
+    showed("the list stayed open for the real bond", "1 x H-H (436) = 436");
+
+    /* Thirds add up with rounding dust, which is not a net change. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1/3");
+    bond_pick("H-H");        fake_press_number("1/3");
+    bond_pick("H-H");        fake_press_number("1/3");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("three thirds of H-H against one H-H is dH = 0", "dH = 0 kJ/mol");
+    showed("which says no net change", "no net change");
+    ok("and not exothermic or endothermic",
+       !fake_screen_has("exothermic") && !fake_screen_has("endothermic"), NULL);
+
+    /* The last bond in the booklet's table is in the list, however long it
+     * grows. */
+    {
+        const char *last = energy_bonds[energy_bond_count - 1].bond;
+        char want[40];
+
+        fake_reset();
+        menu_pick(2);
+        fake_press(KEY_EXE);
+        bond_pick(last);         fake_press_number("1");
+        menu_pick(1);
+        fake_press(KEY_EXE);
+        bond_pick(last);         fake_press_number("1");
+        menu_pick(1);
+        bond_finish();
+        snprintf(want, sizeof want, "1 x %s (%d)", last,
+                 energy_bonds[energy_bond_count - 1].enthalpy);
+        showed("the last bond in the table can be picked", want);
+    }
+
+    /* EXIT in a field drops that one bond and goes back to the list. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("N-N");  fake_press(KEY_EXIT);     /* the bond field */
+    bond_pick("C-H");        fake_press(KEY_EXIT);     /* the count field */
+    menu_pick(2);
+    fake_press_text("c-s");  fake_press(KEY_EXE);
+    fake_press(KEY_EXIT);                              /* the kJ/mol field */
+    bond_pick("H-H");        fake_press_number("1");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("O-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("the bonds that were not abandoned are kept", "1 x H-H (436) = 436");
+    ok("EXIT in the bond field drops the bond", !fake_screen_has("x N-N"), "kept N-N");
+    ok("EXIT in the count field drops the bond", !fake_screen_has("x C-H"), "kept C-H");
+    ok("EXIT in the kJ/mol field drops the bond", !fake_screen_has("x c-s"), "kept c-s");
+    showed("and broken is only the one bond", "broken = 436 kJ/mol");
+
+    /* EXIT in the list gives up the whole calculation, on either side. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1");
+    fake_press(KEY_EXIT);               /* the broken list */
+    fake_press(KEY_EXIT);               /* the energy menu */
+    screen_energy();
+    ok("EXIT in the first list shows no result",
+       !fake_screen_has("Bonds entered") && !fake_screen_has("dH ="), "showed a result");
+    ok("and uses the keys exactly", fake_keys_left() == 0 && !fake_ran_out_of_keys(), NULL);
+
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    bond_pick("H-H");        fake_press_number("1");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXIT);               /* the formed list */
+    fake_press(KEY_EXIT);
+    screen_energy();
+    ok("EXIT in the second list shows no result too",
+       !fake_screen_has("Bonds entered") && !fake_screen_has("dH ="), "showed a result");
+    ok("and uses the keys exactly", fake_keys_left() == 0 && !fake_ran_out_of_keys(), NULL);
+
+    /* Twelve bonds on a side is the most that fit; the list closes itself. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    {
+        int i;
+
+        for (i = 0; i < 12; i++) {
+            bond_pick("H-H");    fake_press_number("1");
+        }
+    }
+    fake_press(KEY_EXE);                /* "That is as many as fit" */
+    fake_press(KEY_EXE);                /* "Now the bonds formed" */
+    bond_pick("O-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("the twelfth bond says that is as many as fit", "That is as many as fit");
+    showed("and all twelve count", "broken = 5232 kJ/mol");
+
+    /* [-] types a minus in a bond field only; elsewhere it stays a letter. */
+    {
+        char text[UI_TEXT_LEN];
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);  fake_press(KEY_SUB);  fake_press(KEY_EXE);
+        ui_text_input("Formula", "Formula:", text, (int)sizeof text);
+        ok("[-] in a formula field is not a minus", strchr(text, '-') == NULL && text[0] != 0, text);
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);  fake_press(KEY_NEG);  fake_press(KEY_EXE);
+        ui_text_input("Formula", "Formula:", text, (int)sizeof text);
+        ok("(-) in a formula field still types a minus", strcmp(text, "-") == 0, text);
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);  fake_press(KEY_SUB);  fake_press(KEY_EXE);
+        ui_bond_input("Bond", "Bond:", text, (int)sizeof text);
+        ok("[-] in a bond field is a minus", strcmp(text, "-") == 0, text);
+    }
+
     section("7. The structure and data screens");
 
     /* Electron configuration of iron, then of the Fe3+ ion. */
@@ -345,6 +719,66 @@ int main(void)
     fake_press(KEY_EXIT);
     screen_tools();
     showed("benzene has an IHD of 4", "IHD = 4");
+
+    /* CH4 + 2O2, want 2 H2O: 45.02 %. The old formula gave 71 here. The
+     * example panel and the menu hint both say "45.0", so check the lines only
+     * the result page prints. */
+    fake_reset();
+    menu_pick(5);                       /* Atom economy */
+    fake_press_text("CH4");
+    fake_press(KEY_EXE);
+    fake_press_number("1");
+    fake_press_text("O2");
+    fake_press(KEY_EXE);
+    fake_press_number("2");
+    fake_press(KEY_EXE);                /* blank reactant = done */
+    fake_press_text("H2O");
+    fake_press(KEY_EXE);
+    fake_press_number("2");
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("atom economy of 2 H2O from CH4 + 2O2 is 45.02 %", "atom economy = 45.02 %");
+    showed("reactants M x coeff is 80.05", "reactants M x coeff = 80.05 g/mol");
+    showed("wanted M x coeff is 36.04", "wanted M x coeff = 36.04 g/mol");
+    ok("and it is not the old 71 %", !fake_screen_has("71"), NULL);
+    ok("the atom economy screen did not run out of keys",
+       fake_ran_out_of_keys() == 0, NULL);
+
+    /* A blank first reactant, then a bad formula. */
+    fake_reset();
+    menu_pick(5);
+    fake_press(KEY_EXE);                /* blank */
+    fake_press(KEY_EXE);                /* dismiss the message */
+    fake_press_text("Xx9");
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXE);                /* dismiss the message */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a blank first reactant is refused", "Need a reactant");
+    showed("a bad formula is refused", "Check that formula");
+    ok("those messages did not run out of keys", fake_ran_out_of_keys() == 0, NULL);
+
+    /* Six reactants is the most that fit. */
+    fake_reset();
+    menu_pick(5);
+    {
+        int i;
+
+        for (i = 0; i < 6; i++) {
+            fake_press_text("H2");
+            fake_press(KEY_EXE);
+            fake_press_number("1");
+        }
+    }
+    fake_press(KEY_EXE);                /* dismiss the message */
+    fake_press(KEY_EXIT);               /* leave Desired product */
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("the sixth reactant says that is as many as fit", "That is as many as fit");
+    showed("and then asks for the desired product", "Desired product");
+    ok("the cap did not run out of keys", fake_ran_out_of_keys() == 0, NULL);
 
     section("8. Every procedure shows an example");
 

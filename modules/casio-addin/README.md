@@ -38,6 +38,12 @@ Nothing else needs to be copied, and the Python version can stay alongside it.
   F4) to small letters, and F1–F3 type `(`, `)` and the hydrate dot.
 - In a number field, `(-)` makes a value negative and `EXP` starts a power of
   ten, so `1.74` `EXP` `(-)` `5` is 1.74 × 10⁻⁵.
+- For a bond enthalpy, pick the bond from the list, or choose *Type a bond* and
+  use F1/F2/F3 for `-` `=` `#` (e.g. `C-H`, `O=O`, `N#N`; capitals or small
+  letters both work). A bond that is not in the list asks for its kJ/mol.
+- A bond count can be a fraction for per-mole equations (H₂ + ½O₂ → H₂O): press
+  the `a b/c` key, `÷` or F1 for `/`, e.g. `1/2` or `3/2`. A decimal like `0.5`
+  works too. Zero, negatives and `1/0` are refused.
 - Where a screen says *blank to skip*, pressing EXE on the empty field moves on.
 - **Every menu entry and every question carries a worked example**, shown in a
   panel marked *e.g.* — scroll a menu and the example changes with the
@@ -105,7 +111,7 @@ make -C test core     # the chemistry only
 make -C test screens  # the menus and screens
 ```
 
-349 checks at present: 305 for the chemistry and 44 for the screens. The
+504 checks at present: 317 for the chemistry and 187 for the screens. The
 expected values are the same hand-worked IB figures the desktop calculator and
 the Python port are tested against, so the three cannot quietly disagree.
 

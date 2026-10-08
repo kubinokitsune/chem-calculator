@@ -33,42 +33,70 @@ const energy_half_cell_t energy_half_cells[] = {
 const int energy_half_cell_count =
     (int)(sizeof energy_half_cells / sizeof energy_half_cells[0]);
 
-/* "H-O" and "O-H" are the same bond, so compare both ways round. */
-static int same_bond(const char *a, const char *b)
+/* Lower-case a bond and drop spaces. Returns 0 if it does not fit. */
+static int tidy_bond(const char *in, char *out, size_t size)
+{
+    size_t n = 0;
+
+    for (; *in; in++) {
+        if (*in == ' ')
+            continue;
+        if (n + 1 >= size)
+            return 0;
+        out[n++] = (*in >= 'A' && *in <= 'Z') ? (char)(*in - 'A' + 'a') : *in;
+    }
+    out[n] = 0;
+    return 1;
+}
+
+/* x is a tidied query. "H-O" and "O-H" are the same bond, so compare the table
+ * entry both ways round. */
+static int same_bond(const char *x, const char *entry)
 {
     const char *dash;
-    char flipped[16];
-    size_t left, right, len;
+    char y[16], flipped[16];
+    size_t left, right;
 
-    if (strcmp(a, b) == 0)
+    tidy_bond(entry, y, sizeof y);
+    if (strcmp(x, y) == 0)
         return 1;
 
-    dash = strpbrk(b, "-=#");
-    if (dash == NULL)
-        return 0;
-    left = (size_t)(dash - b);
+    dash = strpbrk(y, "-=#");
+    left = (size_t)(dash - y);
     right = strlen(dash + 1);
-    len = left + right + 1;
-    if (len >= sizeof flipped)
-        return 0;
     memcpy(flipped, dash + 1, right);
     flipped[right] = *dash;
-    memcpy(flipped + right + 1, b, left);
-    flipped[len] = 0;
-    return strcmp(a, flipped) == 0;
+    memcpy(flipped + right + 1, y, left);
+    flipped[left + right + 1] = 0;
+    return strcmp(x, flipped) == 0;
+}
+
+static const energy_bond_t *find_bond(const char *bond)
+{
+    char x[16];
+    int i;
+
+    if (bond == NULL || !tidy_bond(bond, x, sizeof x))
+        return NULL;
+    for (i = 0; i < energy_bond_count; i++) {
+        if (same_bond(x, energy_bonds[i].bond))
+            return &energy_bonds[i];
+    }
+    return NULL;
 }
 
 int energy_bond_enthalpy(const char *bond)
 {
-    int i;
+    const energy_bond_t *found = find_bond(bond);
 
-    if (bond == NULL || bond[0] == 0)
-        return 0;
-    for (i = 0; i < energy_bond_count; i++) {
-        if (same_bond(bond, energy_bonds[i].bond))
-            return energy_bonds[i].enthalpy;
-    }
-    return 0;
+    return found ? found->enthalpy : 0;
+}
+
+const char *energy_bond_name(const char *bond)
+{
+    const energy_bond_t *found = find_bond(bond);
+
+    return found ? found->bond : NULL;
 }
 
 chem_error_t energy_half_cell(const char *name, double *potential)
