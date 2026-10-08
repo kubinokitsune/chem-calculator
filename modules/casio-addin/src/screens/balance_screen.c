@@ -7,77 +7,35 @@
 #include <stdio.h>
 #include <string.h>
 
-#define SIDE_MAX 5
-
-/* Collect formulas one at a time until the user leaves one blank. */
-static int collect(const char *title, const char *what,
-                   char store[SIDE_MAX][24], const char *pointers[SIDE_MAX])
-{
-    int count = 0;
-
-    while (count < SIDE_MAX) {
-        char prompt[UI_LINE_LEN];
-        chem_formula_t formula;
-
-        store[count][0] = 0;
-        if (count == 0)
-            snprintf(prompt, sizeof prompt, "%s 1:", what);
-        else
-            snprintf(prompt, sizeof prompt, "%s %d (blank = done):", what, count + 1);
-
-        if (!ui_text_input(title, prompt, store[count], 24))
-            return -1;
-        if (store[count][0] == 0) {
-            if (count == 0)
-                continue;          /* at least one is needed */
-            break;
-        }
-        if (chem_parse_formula(store[count], &formula, NULL, 0) != CHEM_OK) {
-            ui_message(title, "Check that formula");
-            continue;
-        }
-        pointers[count] = store[count];
-        count++;
-    }
-    return count;
-}
-
 void screen_balance(void)
 {
-    char left_store[SIDE_MAX][24], right_store[SIDE_MAX][24];
-    const char *left[SIDE_MAX], *right[SIDE_MAX];
+    char text[UI_EQUATION_LEN] = "";
+    chem_species_t left[EQ_SIDE_MAX], right[EQ_SIDE_MAX];
+    const char *names[2 * EQ_SIDE_MAX];
     int coefficients[BAL_MAX_SPECIES];
     char line[UI_LINE_LEN];
     int n_left, n_right, i;
-    chem_error_t error;
 
-    ui_example("C3H8, O2 -> CO2, H2O gives 1, 5, 3, 4");
-    n_left = collect("Balancer", "Reactant", left_store, left);
-    if (n_left <= 0)
-        return;
-    n_right = collect("Balancer", "Product", right_store, right);
-    if (n_right <= 0)
-        return;
+    ui_example("C3H8+O2->CO2+H2O gives 1, 5, 3, 4");
+    for (;;) {
+        chem_error_t error;
 
-    error = bal_balance(left, n_left, right, n_right, coefficients);
-    if (error != CHEM_OK) {
+        if (!ask_equation("Balancer", "Equation (numbers in front are ignored):",
+                          text, (int)sizeof text, left, &n_left, right, &n_right))
+            return;
+        for (i = 0; i < n_left + n_right; i++)
+            names[i] = (i < n_left) ? left[i].formula : right[i - n_left].formula;
+
+        error = bal_balance(names, n_left, names + n_left, n_right, coefficients);
+        if (error == CHEM_OK)
+            break;
         ui_message("Balancer",
                    (error == CHEM_ERR_RANGE) ? "That will not balance"
                                              : chem_error_text(error));
-        return;
     }
 
     ui_result_begin("Balanced equation");
-    for (i = 0; i < n_left + n_right; i++) {
-        const char *text = (i < n_left) ? left[i] : right[i - n_left];
-        const char *lead = (i == 0) ? "" : ((i == n_left) ? "->  " : "+   ");
-
-        if (coefficients[i] == 1)
-            snprintf(line, sizeof line, "%s%s", lead, text);
-        else
-            snprintf(line, sizeof line, "%s%d %s", lead, coefficients[i], text);
-        ui_result_line(line);
-    }
+    show_equation(left, n_left, right, n_right, coefficients);
     ui_result_rule();
 
     /* Show the coefficients on their own too: that is what gets written down. */

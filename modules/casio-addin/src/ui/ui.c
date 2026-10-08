@@ -285,10 +285,14 @@ static char digit_for_key(int key)
     }
 }
 
+/* Room for typed text inside the field, leaving the cursor and a margin. */
+#define FIELD_WIDTH (DWIDTH - 16 - 16 - 4)
+
 /* Draw the shared parts of an entry screen. */
 static void entry_screen(const char *title, const char *prompt,
                          const char *text, const char *mode,
-                         const char *const *keys, const char *hint)
+                         const char *const *keys, const char *hint,
+                         const char *hint2)
 {
     int caret, box_top = BODY_TOP + ROW_HEIGHT + 2;
 
@@ -297,9 +301,13 @@ static void entry_screen(const char *title, const char *prompt,
     dtext(10, BODY_TOP, COL_MUTED, prompt);
 
     panel(8, box_top, DWIDTH - 9, box_top + 26, COL_FIELD, COL_PANEL_EDGE);
+
+    /* Text wider than the box scrolls: drop letters off the front until the
+     * end, where the cursor is, fits. */
+    for (dsize(text, NULL, &caret, NULL); caret > FIELD_WIDTH && text[0] != 0; text++)
+        dsize(text + 1, NULL, &caret, NULL);
     bold(16, box_top + 9, COL_TEXT, text);
 
-    dsize(text, NULL, &caret, NULL);
     drect(17 + caret, box_top + 7, 18 + caret, box_top + 19, COL_BAR_EDGE);
 
     if (current_example[0] != 0) {
@@ -310,35 +318,43 @@ static void entry_screen(const char *title, const char *prompt,
     }
     if (hint != NULL)
         dtext(10, BODY_BOTTOM - 12, COL_MUTED, hint);
+    if (hint2 != NULL)
+        dtext(10, BODY_BOTTOM - 26, COL_MUTED, hint2);
     ui_softkeys(keys);
 }
 
-/* The field behind ui_text_input and ui_bond_input. F1-F3 type the three
- * one-character labels in `extras`, which the softkey bar shows. It is the bond
- * field when they start with "-". */
+/* The field behind ui_text_input, ui_bond_input and ui_equation_input. F1-F3
+ * type the one-character labels in `extras`, which the softkey bar shows. It
+ * is the bond field when they start with "-". With a fourth label it is the
+ * equation field: F1-F4 type the labels (the last is "->", two characters), the
+ * small-letters and digits toggles move to F5 and F6, and in digit mode the
+ * keypad's own + ( ) . and -> keys type those too. */
 static int text_field(const char *title, const char *prompt, char *buffer,
-                      int length, const char *const *extras)
+                      int length, const char *const *extras, int n_extras)
 {
     const char *keys[6];
-    int alpha = 1, small = 0;
+    int alpha = 1, small = 0, i;
     int used = (int)strlen(buffer);
     int bond = extras[0][0] == '-';
+    int equation = n_extras == 4;
 
     for (;;) {
         key_event_t event;
-        char letter = 0;
+        const char *typed = NULL;
+        char letter[2] = {0, 0};
 
         /* The softkeys say what the keypad cannot: brackets, the hydrate dot,
          * and how to get small letters or digits into a field of letters. */
-        keys[0] = extras[0];
-        keys[1] = extras[1];
-        keys[2] = extras[2];
-        keys[3] = small ? "ABC" : "abc";
-        keys[4] = alpha ? "123" : "ABC";
-        keys[5] = "OK";
+        for (i = 0; i < n_extras; i++)
+            keys[i] = extras[i];
+        keys[n_extras] = small ? "ABC" : "abc";
+        keys[n_extras + 1] = alpha ? "123" : "ABC";
+        if (!equation)
+            keys[5] = "OK";
 
         entry_screen(title, prompt, buffer, alpha ? (small ? "abc" : "ABC") : "123",
-                     keys, "[DEL] rub out   [EXE] accept   [EXIT] back");
+                     keys, "[DEL] rub out   [EXE] accept   [EXIT] back",
+                     equation ? "F1-F4: ( ) + ->    [SHIFT]: small letters" : NULL);
         dupdate();
 
         event = getkey();
@@ -358,43 +374,63 @@ static int text_field(const char *title, const char *prompt, char *buffer,
             small = !small;
             continue;
         case KEY_F1:
-            letter = extras[0][0];
-            break;
         case KEY_F2:
-            letter = extras[1][0];
-            break;
         case KEY_F3:
-            letter = extras[2][0];
+            typed = extras[event.key - KEY_F1];
             break;
         case KEY_F4:
-            small = !small;
-            continue;
+            if (!equation) {
+                small = !small;
+                continue;
+            }
+            typed = extras[3];
+            break;
         case KEY_F5:
-            alpha = !alpha;
+            if (equation)
+                small = !small;
+            else
+                alpha = !alpha;
             continue;
         case KEY_F6:
-            return 1;
+            if (!equation)
+                return 1;
+            alpha = !alpha;
+            continue;
         default:
             if (alpha) {
-                letter = letter_for_key(event.key);
-                if (letter != 0 && small)
-                    letter = (char)(letter - 'A' + 'a');
-                if (letter == 0)
-                    letter = digit_for_key(event.key);
+                letter[0] = letter_for_key(event.key);
+                if (letter[0] != 0 && small)
+                    letter[0] = (char)(letter[0] - 'A' + 'a');
+                if (letter[0] == 0)
+                    letter[0] = digit_for_key(event.key);
             } else {
-                letter = digit_for_key(event.key);
+                letter[0] = digit_for_key(event.key);
                 /* the keypad's own minus keys type a bond; in any other field
                  * [-] stays the letter on it and only (-) types a minus */
-                if (letter == 0 && (event.key == KEY_NEG || (bond && event.key == KEY_SUB)))
-                    letter = '-';
-                if (letter == 0)
-                    letter = letter_for_key(event.key);
+                if (letter[0] == 0 && (event.key == KEY_NEG || (bond && event.key == KEY_SUB)))
+                    letter[0] = '-';
+                /* the equation field's own symbols, in digit mode only */
+                if (equation && letter[0] == 0) {
+                    switch (event.key) {
+                    case KEY_ADD:    letter[0] = '+'; break;
+                    case KEY_LEFTP:  letter[0] = '('; break;
+                    case KEY_RIGHTP: letter[0] = ')'; break;
+                    case KEY_DOT:    letter[0] = '.'; break;
+                    case KEY_ARROW:  typed = "->"; break;
+                    default: break;
+                    }
+                }
+                if (letter[0] == 0 && typed == NULL)
+                    letter[0] = letter_for_key(event.key);
             }
+            if (typed == NULL && letter[0] != 0)
+                typed = letter;
             break;
         }
-        if (letter != 0 && used < length - 1) {
-            buffer[used++] = letter;
-            buffer[used] = 0;
+        /* a symbol goes in whole or not at all, never half an arrow */
+        if (typed != NULL && used + (int)strlen(typed) < length) {
+            strcpy(buffer + used, typed);
+            used += (int)strlen(typed);
         }
     }
 }
@@ -403,14 +439,21 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
 {
     static const char *const extras[3] = {"(", ")", "."};
 
-    return text_field(title, prompt, buffer, length, extras);
+    return text_field(title, prompt, buffer, length, extras, 3);
 }
 
 int ui_bond_input(const char *title, const char *prompt, char *buffer, int length)
 {
     static const char *const extras[3] = {"-", "=", "#"};
 
-    return text_field(title, prompt, buffer, length, extras);
+    return text_field(title, prompt, buffer, length, extras, 3);
+}
+
+int ui_equation_input(const char *title, const char *prompt, char *buffer, int length)
+{
+    static const char *const extras[4] = {"(", ")", "+", "->"};
+
+    return text_field(title, prompt, buffer, length, extras, 4);
 }
 
 /* "a", "0.5" or "a/b" as a count: a finite number above zero, with b above
@@ -457,7 +500,7 @@ static int number_field(const char *title, const char *prompt, double *value,
         key_event_t event;
         char letter = 0;
 
-        entry_screen(title, prompt, text, "123", typed ? count_keys : keys, hint);
+        entry_screen(title, prompt, text, "123", typed ? count_keys : keys, hint, NULL);
         dupdate();
 
         event = getkey();

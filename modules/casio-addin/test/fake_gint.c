@@ -41,7 +41,8 @@ void fake_press_text(const char *text)
 {
     /* Type a formula: letters come from the keypad's alpha letters, digits
      * from the number keys, with ALPHA switching between the two. F1-F3 are
-     * ( ) . in a formula field and - = # in a bond field. */
+     * ( ) . in a formula field and - = # in a bond field; in the equation
+     * field they are ( ) + and ->. */
     static const int letters[26] = {
         KEY_XOT, KEY_LOG, KEY_LN, KEY_SIN, KEY_COS, KEY_TAN,
         KEY_FRAC, KEY_FD, KEY_LEFTP, KEY_RIGHTP, KEY_COMMA, KEY_ARROW,
@@ -71,6 +72,12 @@ void fake_press_text(const char *text)
         } else if (c >= '0' && c <= '9') {
             if (alpha) { fake_press(KEY_ALPHA); alpha = 0; }
             fake_press(digits[c - '0']);
+        } else if (c == '+') {                  /* equation field */
+            fake_press(KEY_F3);
+        } else if (c == '>' || (c == '-' && text[i + 1] == '>')) {
+            if (c == '-')
+                i++;                            /* "->" is one key, F4 */
+            fake_press(KEY_F4);
         } else if (c == '-') {
             /* the keypad's minus key; it only means minus in digit mode */
             if (alpha) { fake_press(KEY_ALPHA); alpha = 0; }
@@ -81,6 +88,9 @@ void fake_press_text(const char *text)
             fake_press(KEY_F2);
         } else if (c == '.' || c == '#') {      /* '#' in a bond field */
             fake_press(KEY_F3);
+        } else {
+            fprintf(stderr, "fake_press_text: cannot type '%c'\n", c);
+            exit(2);
         }
     }
 }

@@ -16,7 +16,10 @@ void fake_press(int key);
 
 /* Queue the keys that type `text` into a text field, working out the
  * ALPHA and SHIFT presses needed. '-' is the keypad's minus key; ( ) . and
- * = # use F1-F3, so = and # are only for a bond field. Does NOT add EXE. */
+ * = # use F1-F3, so = and # are only for a bond field. In an equation field
+ * ( ) are F1 F2, '+' is F3 and "->" (or a lone '>') is F4; elsewhere F3 is '.'
+ * and F4 is small letters. Any other character is a test bug and aborts rather
+ * than being dropped. Does NOT add EXE. */
 void fake_press_text(const char *text);
 
 /* Queue the keys that type a number, and then EXE. '/' is the fraction key. */

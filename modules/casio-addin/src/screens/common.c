@@ -48,3 +48,39 @@ int ask_number(const char *title, const char *prompt, double *value)
 {
     return ui_number_input(title, prompt, value, 0);
 }
+
+int ask_equation(const char *title, const char *prompt, char *text, int length,
+                 chem_species_t *left, int *n_left,
+                 chem_species_t *right, int *n_right)
+{
+    for (;;) {
+        chem_error_t error;
+
+        if (!ui_equation_input(title, prompt, text, length))
+            return 0;
+        error = chem_parse_equation(text, left, n_left, right, n_right, EQ_SIDE_MAX);
+        if (error == CHEM_OK)
+            return 1;
+        /* the text stays in the buffer, so the field reopens ready to edit */
+        ui_message(title, (error == CHEM_ERR_TOO_MANY) ? "Up to 5 a side, 23 characters each"
+                                                       : chem_error_text(error));
+    }
+}
+
+void show_equation(const chem_species_t *left, int n_left,
+                   const chem_species_t *right, int n_right, const int *coefficients)
+{
+    char line[UI_LINE_LEN];
+    int i;
+
+    for (i = 0; i < n_left + n_right; i++) {
+        const char *text = (i < n_left) ? left[i].formula : right[i - n_left].formula;
+        const char *lead = (i == 0) ? "" : ((i == n_left) ? "->  " : "+   ");
+
+        if (coefficients[i] == 1)
+            snprintf(line, sizeof line, "%s%s", lead, text);
+        else
+            snprintf(line, sizeof line, "%s%d %s", lead, coefficients[i], text);
+        ui_result_line(line);
+    }
+}
