@@ -6,6 +6,7 @@
  */
 
 #include "balance.h"
+#include "stoich.h"
 
 #include <string.h>
 
@@ -212,5 +213,114 @@ chem_error_t bal_balance(const char *const *reactants, int n_reactants,
         if (coefficients[j] <= 0)
             return CHEM_ERR_RANGE;
     }
+    return CHEM_OK;
+}
+
+/* ---- a whole typed equation ---------------------------------------------- */
+
+/* One species token such as "2O2" -> a list entry. */
+static chem_error_t add_species(chem_species_t *side, int *n, int max_side, const char *token)
+{
+    chem_formula_t check;
+    chem_error_t error;
+    int coeff = 0, i = 0, digits;
+
+    while (token[i] >= '0' && token[i] <= '9' && coeff <= 999)
+        coeff = coeff * 10 + (token[i++] - '0');
+    digits = i;
+    if (token[i] == 0)
+        return CHEM_ERR_EMPTY;                  /* "" or a bare "2" */
+    if (digits > 0 && (coeff == 0 || coeff > 999))
+        return CHEM_ERR_RANGE;
+    if (*n >= max_side || strlen(token + i) >= BAL_SPECIES_LEN)
+        return CHEM_ERR_TOO_MANY;
+    error = chem_parse_formula(token + i, &check, NULL, 0);
+    if (error != CHEM_OK)
+        return error;
+    strcpy(side[*n].formula, token + i);
+    side[*n].coeff = coeff;
+    (*n)++;
+    return CHEM_OK;
+}
+
+chem_error_t chem_parse_equation(const char *text, chem_species_t *left, int *n_left,
+                                 chem_species_t *right, int *n_right, int max_side)
+{
+    char token[BAL_SPECIES_LEN + 8];    /* room for a 3-digit coefficient + slack */
+    chem_species_t *side = left;
+    int *n = n_left, arrows = 0, len = 0, overflow = 0;
+    const char *p;
+
+    *n_left = 0;
+    *n_right = 0;
+    for (p = text; ; p++) {
+        int arrow = (*p == '=') || (*p == '-' && p[1] == '>');
+
+        if (*p == ' ')
+            continue;
+        if (*p == '+' || *p == 0 || arrow) {
+            chem_error_t error;
+
+            token[len] = 0;
+            error = overflow ? CHEM_ERR_TOO_MANY : add_species(side, n, max_side, token);
+            if (error != CHEM_OK)
+                return error;
+            len = 0;
+            overflow = 0;
+            if (*p == 0)
+                break;
+            if (arrow) {
+                if (++arrows > 1)
+                    return CHEM_ERR_TWO_ARROWS;
+                if (*p == '-')
+                    p++;
+                side = right;
+                n = n_right;
+            }
+        } else if (len < (int)sizeof token - 1) {
+            token[len++] = *p;
+        } else {
+            overflow = 1;
+        }
+    }
+    return arrows ? CHEM_OK : CHEM_ERR_NO_ARROW;
+}
+
+chem_error_t bal_atom_economy(const chem_species_t *left, int n_left,
+                              const chem_species_t *right, int n_right,
+                              int wanted, float *percent)
+{
+    const char *names[BAL_MAX_SPECIES] = {0};
+    int coeff[BAL_MAX_SPECIES];
+    float mass, total = 0.0f, want = 0.0f;
+    chem_error_t error;
+    int i, any = 0, n = n_left + n_right;
+
+    if (n_left < 1 || wanted < 0 || wanted >= n_right)
+        return CHEM_ERR_RANGE;
+    if (n > BAL_MAX_SPECIES)
+        return CHEM_ERR_TOO_MANY;
+    for (i = 0; i < n; i++) {
+        const chem_species_t *s = (i < n_left) ? &left[i] : &right[i - n_left];
+        names[i] = s->formula;
+        coeff[i] = s->coeff;
+        any |= s->coeff;
+    }
+    if (!any) {
+        error = bal_balance(names, n_left, names + n_left, n_right, coeff);
+        if (error != CHEM_OK)
+            return error;
+    }
+    for (i = 0; i < n; i++) {
+        error = chem_molar_mass(names[i], &mass);
+        if (error != CHEM_OK)
+            return error;
+        mass *= (float)(coeff[i] ? coeff[i] : 1);
+        if (i < n_left)
+            total += mass;
+        else if (i - n_left == wanted)
+            want = mass;
+    }
+    *percent = stoich_atom_economy(want, total);
     return CHEM_OK;
 }

@@ -28,7 +28,9 @@ typedef enum {
     CHEM_ERR_SYNTAX,
     CHEM_ERR_TOO_MANY,
     CHEM_ERR_RANGE,
-    CHEM_ERR_EMPTY
+    CHEM_ERR_EMPTY,
+    CHEM_ERR_NO_ARROW,
+    CHEM_ERR_TWO_ARROWS
 } chem_error_t;
 
 /* A short message for the screen, e.g. "Unknown element". */

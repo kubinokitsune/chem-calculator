@@ -50,6 +50,8 @@ const char *chem_error_text(chem_error_t error)
     case CHEM_ERR_TOO_MANY:         return "Formula too long";
     case CHEM_ERR_RANGE:            return "Out of range";
     case CHEM_ERR_EMPTY:            return "Nothing typed";
+    case CHEM_ERR_NO_ARROW:         return "Need -> or =";
+    case CHEM_ERR_TWO_ARROWS:       return "Only one arrow";
     }
     return "Error";
 }

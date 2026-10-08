@@ -608,6 +608,165 @@ int main(void)
         }
     }
 
+    section("8b. Balancer audit");
+
+    {
+        /* Comma-separated species (reactants first), how many are reactants,
+         * and the smallest whole-number answer. Atoms are re-counted too. */
+        static const struct {
+            const char *species;
+            int n_left;
+            int want[BAL_MAX_SPECIES];
+        } audit[] = {
+            {"C3H8,O2,CO2,H2O", 2, {1, 5, 3, 4}},
+            {"H2,O2,H2O", 2, {2, 1, 2}},
+            {"Fe,O2,Fe2O3", 2, {4, 3, 2}},
+            {"Al,HCl,AlCl3,H2", 2, {2, 6, 2, 3}},
+            {"KMnO4,HCl,KCl,MnCl2,H2O,Cl2", 2, {2, 16, 2, 2, 8, 5}},
+            {"C6H12O6,O2,CO2,H2O", 2, {1, 6, 6, 6}},
+            {"Ca(OH)2,H3PO4,Ca3(PO4)2,H2O", 2, {3, 2, 1, 6}},
+            {"NH3,O2,NO,H2O", 2, {4, 5, 4, 6}},
+            {"Cu,HNO3,Cu(NO3)2,NO,H2O", 2, {3, 8, 3, 2, 4}},
+            {"CuSO4.5H2O,CuSO4,H2O", 1, {1, 1, 5}},
+        };
+        unsigned a;
+
+        for (a = 0; a < sizeof audit / sizeof audit[0]; a++) {
+            const char *names[BAL_MAX_SPECIES];
+            char buffer[96], *token;
+            int c[BAL_MAX_SPECIES], n = 0, good, j;
+            int nl = audit[a].n_left;
+
+            snprintf(buffer, sizeof buffer, "%s", audit[a].species);
+            for (token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ","))
+                names[n++] = token;
+            good = bal_balance(names, nl, names + nl, n - nl, c) == CHEM_OK;
+            for (j = 0; good && j < n; j++)
+                good = c[j] == audit[a].want[j];
+            ok(audit[a].species, good && atoms_balance(names, nl, names + nl, n - nl, c), NULL);
+        }
+    }
+
+    {
+        int c[BAL_MAX_SPECIES];
+        static const char *const many[] = {"H2", "O2", "H2O", "H2O", "H2O", "H2O",
+                                           "H2O", "H2O", "H2O", "H2O", "H2O"};
+        static const char *const hp[] = {"H2"};
+        static const char *const op[] = {"O2"};
+        static const char *const two_in[] = {"H2", "O2"};
+        static const char *const two_out[] = {"H2O", "H2O2"};   /* two answers */
+        static const char *const typo[] = {"Ca(OH"};
+
+        int_is("H2 -> O2 is refused", bal_balance(hp, 1, op, 1, c), CHEM_ERR_RANGE);
+        ok("H2 -> H2 is 1, 1", bal_balance(hp, 1, hp, 1, c) == CHEM_OK && c[0] == 1 && c[1] == 1, NULL);
+        int_is("two possible answers is refused", bal_balance(two_in, 2, two_out, 2, c),
+               CHEM_ERR_RANGE);
+        int_is("11 species is too many", bal_balance(many, 2, many + 2, 9, c), CHEM_ERR_TOO_MANY);
+        int_is("10 species is accepted", bal_balance(many, 2, many + 2, 8, c), CHEM_ERR_RANGE);
+        int_is("no products is refused", bal_balance(two_in, 2, two_out, 0, c),
+               CHEM_ERR_TOO_MANY);
+        int_is("a bracket typo is a syntax error", bal_balance(typo, 1, op, 1, c),
+               CHEM_ERR_SYNTAX);
+    }
+
+    section("8c. Parsing a whole equation");
+
+    {
+        chem_species_t l[5], r[5];
+        int nl, nr;
+
+        int_is("parse ok", chem_parse_equation("CH4+2O2->CO2+2H2O", l, &nl, r, &nr, 5), CHEM_OK);
+        int_is("2 reactants", nl, 2);
+        int_is("2 products", nr, 2);
+        text_is("first reactant", l[0].formula, "CH4");
+        int_is("no coefficient is 0", l[0].coeff, 0);
+        text_is("second reactant", l[1].formula, "O2");
+        int_is("2O2 has coefficient 2", l[1].coeff, 2);
+        text_is("second product", r[1].formula, "H2O");
+        int_is("2H2O has coefficient 2", r[1].coeff, 2);
+
+        int_is("= works as the arrow", chem_parse_equation("H2 + O2 = H2O", l, &nl, r, &nr, 5),
+               CHEM_OK);
+        int_is("spaces are ignored", chem_parse_equation(" 2 H2 + O2 -> 2 H2O ", l, &nl, r, &nr, 5),
+               CHEM_OK);
+        int_is("2 H2 reads as 2 x H2", l[0].coeff, 2);
+        text_is("and the formula is H2", l[0].formula, "H2");
+        int_is("brackets", chem_parse_equation("Ca(OH)2+2HCl->CaCl2+2H2O", l, &nl, r, &nr, 5),
+               CHEM_OK);
+        text_is("bracket formula kept whole", l[0].formula, "Ca(OH)2");
+        int_is("a hydrate", chem_parse_equation("CuSO4.5H2O->CuSO4+5H2O", l, &nl, r, &nr, 5),
+               CHEM_OK);
+        text_is("hydrate formula", l[0].formula, "CuSO4.5H2O");
+        int_is("a two-digit coefficient", chem_parse_equation("10H2->H2", l, &nl, r, &nr, 5),
+               CHEM_OK);
+        int_is("is 10", l[0].coeff, 10);
+
+        int_is("no arrow", chem_parse_equation("CH4+O2", l, &nl, r, &nr, 5), CHEM_ERR_NO_ARROW);
+        int_is("two arrows", chem_parse_equation("H2->O2->H2O", l, &nl, r, &nr, 5),
+               CHEM_ERR_TWO_ARROWS);
+        int_is("-> then =", chem_parse_equation("H2->O2=H2O", l, &nl, r, &nr, 5),
+               CHEM_ERR_TWO_ARROWS);
+        int_is("empty left side", chem_parse_equation("->CO2", l, &nl, r, &nr, 5), CHEM_ERR_EMPTY);
+        int_is("empty right side", chem_parse_equation("CH4->", l, &nl, r, &nr, 5),
+               CHEM_ERR_EMPTY);
+        int_is("empty text", chem_parse_equation("", l, &nl, r, &nr, 5), CHEM_ERR_EMPTY);
+        int_is("empty species H2++O2", chem_parse_equation("H2++O2->H2O", l, &nl, r, &nr, 5),
+               CHEM_ERR_EMPTY);
+        int_is("trailing +", chem_parse_equation("H2+->H2O", l, &nl, r, &nr, 5), CHEM_ERR_EMPTY);
+        int_is("coefficient alone", chem_parse_equation("2+O2->H2O", l, &nl, r, &nr, 5),
+               CHEM_ERR_EMPTY);
+        int_is("unknown element", chem_parse_equation("Xx+O2->H2O", l, &nl, r, &nr, 5),
+               CHEM_ERR_UNKNOWN_ELEMENT);
+        int_is("bad bracket", chem_parse_equation("Ca(OH+O2->H2O", l, &nl, r, &nr, 5),
+               CHEM_ERR_SYNTAX);
+        int_is("lone minus", chem_parse_equation("H2-O2->H2O", l, &nl, r, &nr, 5),
+               CHEM_ERR_SYNTAX);
+        int_is("lowercase formula", chem_parse_equation("h2+o2->h2o", l, &nl, r, &nr, 5),
+               CHEM_ERR_SYNTAX);
+        int_is("coefficient 0", chem_parse_equation("0H2->H2", l, &nl, r, &nr, 5), CHEM_ERR_RANGE);
+        int_is("huge coefficient", chem_parse_equation("99999999999H2->H2", l, &nl, r, &nr, 5),
+               CHEM_ERR_RANGE);
+        int_is("6 on a side of 5",
+               chem_parse_equation("H2+H2+H2+H2+H2+H2->H2", l, &nl, r, &nr, 5), CHEM_ERR_TOO_MANY);
+        int_is("5 on a side is fine",
+               chem_parse_equation("H2+H2+H2+H2+H2->H2", l, &nl, r, &nr, 5), CHEM_OK);
+        int_is("a formula too long for the buffer",
+               chem_parse_equation("CH4CH4CH4CH4CH4CH4CH4CH4->H2", l, &nl, r, &nr, 5),
+               CHEM_ERR_TOO_MANY);
+    }
+
+    section("8d. Atom economy of a typed equation");
+
+    {
+        chem_species_t l[5], r[5];
+        int nl, nr;
+        float ae = 0.0f;
+
+        chem_parse_equation("CH4+2O2->CO2+2H2O", l, &nl, r, &nr, 5);
+        int_is("economy of given coefficients", bal_atom_economy(l, nl, r, nr, 1, &ae), CHEM_OK);
+        close_to("CH4 + 2O2, want H2O: 45.02 %", ae, 45.02, 0.02);
+
+        chem_parse_equation("CH4+O2->CO2+H2O", l, &nl, r, &nr, 5);
+        int_is("economy auto-balances", bal_atom_economy(l, nl, r, nr, 1, &ae), CHEM_OK);
+        close_to("unbalanced CH4 + O2, want H2O: 45.02 %", ae, 45.02, 0.02);
+
+        chem_parse_equation("N2+3H2->2NH3", l, &nl, r, &nr, 5);
+        int_is("economy of the only product", bal_atom_economy(l, nl, r, nr, 0, &ae), CHEM_OK);
+        close_to("Haber: 100 %", ae, 100.0, 0.02);
+
+        /* partly given: the missing ones count as 1 */
+        chem_parse_equation("CH4+2O2->CO2+H2O", l, &nl, r, &nr, 5);
+        bal_atom_economy(l, nl, r, nr, 1, &ae);
+        close_to("missing coefficients count as 1", ae, 100.0 * 18.02 / 80.04, 0.02);
+
+        chem_parse_equation("H2->O2", l, &nl, r, &nr, 5);
+        int_is("unbalanceable stays an error", bal_atom_economy(l, nl, r, nr, 0, &ae),
+               CHEM_ERR_RANGE);
+        chem_parse_equation("N2+3H2->2NH3", l, &nl, r, &nr, 5);
+        int_is("wanted index too big", bal_atom_economy(l, nl, r, nr, 1, &ae), CHEM_ERR_RANGE);
+        int_is("negative wanted index", bal_atom_economy(l, nl, r, nr, -1, &ae), CHEM_ERR_RANGE);
+    }
+
     section("9. Energy, cells and rates");
 
     {
