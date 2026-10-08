@@ -197,6 +197,17 @@ check("lookup N#N = 945",       lookup_bond("N#N"),  945)
 # Reversed keys should also resolve
 check("lookup H-C (reversed) = 414", lookup_bond("H-C"),  414)
 check("lookup O-H (reversed) = 463", lookup_bond("O-H"),  463)
+# Phone keyboards: minus sign, en/em/figure dash for "-", and "≡" for "#"
+check("lookup C−H (minus sign) = 414", lookup_bond("C−H"), 414)
+check("lookup C–H (en dash) = 414",    lookup_bond("C–H"), 414)
+check("lookup C—H (em dash) = 414",    lookup_bond("C—H"), 414)
+check("lookup C‒H (figure dash) = 414", lookup_bond("C‒H"), 414)
+check("lookup N≡N = 945",              lookup_bond("N≡N"), 945)
+check("lookup C≡C = 839",    lookup_bond("C≡C"), 839)
+# Case and spaces are ignored
+check("lookup 'cl - CL' = Cl-Cl",      lookup_bond("cl - CL"), BOND_ENTHALPIES["Cl-Cl"])
+check("lookup ' h — c ' = 414",        lookup_bond(" h — c "), 414)
+check("lookup 'O H' = None (no bond sign)", lookup_bond("O H"), None)
 # Non-existent key returns None
 check("lookup Xx-Yy = None",    lookup_bond("Xx-Yy"), None)
 

@@ -211,6 +211,9 @@ close("pH 3.50 -> [H+]", H, desk_ab.all_four(pH=3.50)[2])
 close("Arrhenius Ea from two points",
       -chemener.R * math.log(4.0e-3 / 1.0e-3) / (1 / 320.0 - 1 / 300.0),
       desk_kin.arrhenius_Ea(1.0e-3, 300, 4.0e-3, 320), rel=2e-3)
+for typed, want in [("C-H", 414), ("h-c", 414), ("CL - cl", 242), ("C−H", 414), ("C–H", 414),
+                    ("C—H", 414), ("C‒H", 414), ("N≡N", 945), (" c ≡ c ", 839), ("Xx-Yy", None)]:
+    equal(f"bond energy {typed!r}", chemener.bond_energy(typed), want)
 
 # -- structure
 for symbol, charge, want in [("Fe", 0, "1s2 2s2 2p6 3s2 3p6 3d6 4s2"),

@@ -136,12 +136,16 @@ def bond_enthalpy_dH(bonds_broken, bonds_formed):
     return sum_broken - sum_formed, sum_broken, sum_formed
 
 
+_BOND_SYMBOLS = str.maketrans({"−": "-", "–": "-", "—": "-", "‒": "-", "≡": "#"})
+
+
 def lookup_bond(bond_label):
     """
     Return bond enthalpy from the built-in table, trying both key orderings.
     Returns None if not found.
     """
-    key = bond_label.strip()
+    # Phone keyboards autocorrect "-" into a dash or minus sign; "≡" is a triple bond
+    key = re.sub(r"\s+", "", bond_label.translate(_BOND_SYMBOLS))
     # Normalise case per atom so 'c-h' / 'CL-CL' match 'C-H' / 'Cl-Cl'
     key = re.sub(r"[A-Za-z]+", lambda m: m.group(0).capitalize(), key)
     if key in BOND_ENTHALPIES:
@@ -418,7 +422,7 @@ def menu_bond_enthalpy():
             else:
                 print(f"    '{bond}' not in built-in table.")
                 val = _get_float(f"    Enter enthalpy for {bond} (kJ/mol): ")
-            count = _get_float(f"    Count of {bond} bonds: ")
+            count = _get_float(f"    Count of {bond} bonds: ", positive=True)
             bonds.append((bond, count, val))
         return bonds
 
