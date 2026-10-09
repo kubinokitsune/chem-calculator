@@ -14,7 +14,8 @@
 
 /* ---- frame -------------------------------------------------------------- */
 
-/* Clear the screen and draw the white status strip: `title` small and grey in
+/* Clear the screen and draw the white status strip: the battery at the left (a
+ * real reading, left out when the OS gives none), `title` small and grey in
  * the middle, over a black rule. Does not call dupdate(). */
 void ui_frame(const char *title);
 
@@ -24,6 +25,12 @@ void ui_frame(const char *title);
 void ui_softkeys(const char *const *labels);
 
 /* ---- menus -------------------------------------------------------------- */
+
+/* The menus are drawn over a gradient from white to a light orange, with a
+ * paler flask on it, as the calculator's own application menus are. The orange
+ * is C_RGB(31, UI_TINT_G, UI_TINT_B), at the right edge. */
+#define UI_TINT_G 24
+#define UI_TINT_B 17
 
 /* A list the user moves through with the arrows, rows numbered "1:", "2:"... with
  * the chosen one a black bar and magenta arrows when it scrolls. `cursor` is kept between

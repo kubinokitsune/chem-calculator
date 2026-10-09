@@ -10,6 +10,7 @@
 #include "fake_gint.h"
 #include "../src/screens/screens.h"
 #include "../src/ui/ui.h"
+#include "../src/ui/battery.h"
 #include "../src/core/energy.h"
 
 #include <stdio.h>
@@ -1168,8 +1169,145 @@ int main(void)
         all_keys_used("message");
     }
 
+    section("10. Battery, mode indicators and the menus' background");
+
+    {
+        static const char *const items[] = {"Item 1", "Item 2", "Item 3"};
+        static const char *const hints[] = {"hint one", "hint two", NULL};
+        const int tint = C_RGB(31, UI_TINT_G, UI_TINT_B), red = C_RGB(31, 0, 0);
+        int cursor = 0, v;
+        char text[UI_EQUATION_LEN] = "";
+
+        /* centivolts a reading must reach for 1, 2 and 3 bars: alkaline, Ni-MH */
+        ok("alkaline: 4.49 V is empty, 4.50 V one bar",
+           battery_bars(449, 1) == 0 && battery_bars(450, 1) == 1, NULL);
+        ok("alkaline: 4.89 V is one bar, 4.90 V two",
+           battery_bars(489, 1) == 1 && battery_bars(490, 1) == 2, NULL);
+        ok("alkaline: 5.39 V is two bars, 5.40 V three, and fresh cells stay at three",
+           battery_bars(539, 1) == 2 && battery_bars(540, 1) == 3 && battery_bars(640, 1) == 3, NULL);
+        ok("Ni-MH: 4.39 V is empty, 4.40 V one bar",
+           battery_bars(439, 2) == 0 && battery_bars(440, 2) == 1, NULL);
+        ok("Ni-MH: 4.59 V is one bar, 4.60 V two",
+           battery_bars(459, 2) == 1 && battery_bars(460, 2) == 2, NULL);
+        ok("Ni-MH: 4.79 V is two bars, 4.80 V three",
+           battery_bars(479, 2) == 2 && battery_bars(480, 2) == 3, NULL);
+        ok("the battery type matters: 4.70 V is one bar of alkaline, two of Ni-MH",
+           battery_bars(470, 1) == 1 && battery_bars(470, 2) == 2, NULL);
+        ok("an unknown type (0, as on the emulator) is read as alkaline",
+           battery_bars(470, 0) == battery_bars(470, 1), NULL);
+        ok("nothing at all is no bars", battery_bars(0, 1) == 0, NULL);
+
+        /* the strip: the OS's reading, as blue bars. Only a menu is drawn here,
+         * and the one thing in a menu that is blue is the battery. */
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("6.00 V alkaline shows three blue bars", fake_rects(C_BLUE) == 3, NULL);
+        ok("the OS was asked once", fake_os_reads() == 1, NULL);
+
+        fake_reset();
+        fake_battery(480, 1);
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("4.80 V alkaline shows one bar", fake_rects(C_BLUE) == 1, NULL);
+
+        fake_reset();
+        fake_battery(500, 2);
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("5.00 V Ni-MH shows three bars", fake_rects(C_BLUE) == 3, NULL);
+
+        fake_reset();
+        fake_battery(0, 1);
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("no reading from the OS draws no battery, not a made-up one",
+           fake_rects(C_BLUE) == 0, NULL);
+        ok("and the menu still works", fake_screen_has("1:Item 1"), NULL);
+
+        /* many redraws, few questions: it must not slow the keys down */
+        fake_reset();
+        for (v = 0; v < 5; v++)
+            fake_press(KEY_DOWN);
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("six redraws ask the OS once", fake_os_reads() == 1, NULL);
+        fake_press(KEY_EXE);
+        fake_advance(9);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("and 9 seconds later still once", fake_os_reads() == 1, NULL);
+        fake_press(KEY_EXE);
+        fake_advance(2);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("11 seconds later it asks again", fake_os_reads() == 2, NULL);
+
+        /* the mode indicator: white on a solid red box, A or a, as the OS's ALPHA */
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("letters mode shows an A", fake_text_colour("A") != -2, NULL);
+        ok("in white", fake_text_colour("A") == C_WHITE, NULL);
+        ok("on a solid red box", fake_rects(red) == 1, NULL);
+
+        fake_reset();
+        fake_press(KEY_SHIFT);              /* SHIFT toggles small letters here */
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("after SHIFT it shows a small a, still white", fake_text_colour("a") == C_WHITE, NULL);
+        ok("in a red box on both screens it was drawn", fake_rects(red) == 2, NULL);
+        ok("SHIFT has no indicator of its own, since it is not a pending key",
+           fake_text_colour("S") == -2, NULL);
+
+        fake_reset();
+        fake_press(KEY_ALPHA);
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("digits mode shows 123, black, in a plain box", fake_text_colour("123") == C_BLACK, NULL);
+        ok("and the box is red only on the screen before", fake_rects(red) == 1, NULL);
+
+        fake_reset();
+        {
+            double value = 0.0;
+            fake_press(KEY_EXE);
+            ui_number_input("Mode", "Number:", &value, 1);
+        }
+        ok("a number field shows 123 and no red", fake_text_colour("123") == C_BLACK
+           && fake_rects(red) == 0, NULL);
+
+        /* the background: on the menus, not on the entry and result screens, as in
+         * the OS; and the text on it is all still there, in its own colours */
+        cursor = 0;
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_menu_hints("Menu", items, hints, 3, &cursor);
+        ok("a menu is drawn over the light orange gradient", fake_rects(tint) >= 1, NULL);
+        ok("the menu text is all still captured",
+           fake_screen_has("1:Item 1") && fake_screen_has("2:Item 2")
+           && fake_screen_has("3:Item 3") && fake_screen_has("hint one"), NULL);
+        ok("the chosen row is white on the black bar",
+           fake_text_colour("1:Item 1") == C_WHITE && fake_text_colour("2:Item 2") == C_BLACK, NULL);
+        ok("the hint stays black", fake_text_colour("hint one") == C_BLACK, NULL);
+
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("an entry screen stays white", fake_rects(tint) == 0, NULL);
+
+        fake_reset();
+        ui_result_begin("Result");
+        ui_result_line("A line");
+        fake_press(KEY_EXE);
+        ui_result_show();
+        ok("a result page stays white", fake_rects(tint) == 0, NULL);
+
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_message("Title", "A message");
+        ok("so does a message", fake_rects(tint) == 0, NULL);
+    }
+
     printf("\n============================================================\n");
-    printf("  Screen tests  Total: %d   Passed: %d   Failed: %d\n",
+    printf("  Screen tests Total: %d   Passed: %d   Failed: %d\n",
            passed + failed, passed, failed);
     return failed ? 1 : 0;
 }

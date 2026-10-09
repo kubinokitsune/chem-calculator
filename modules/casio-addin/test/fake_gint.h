@@ -32,6 +32,20 @@ void fake_press_number(const char *text);
 const char *fake_screen(void);
 int fake_screen_has(const char *text);
 
+/* What the colours and the battery looked like: how many rectangles of
+ * `colour` were drawn, and the colour the text `text` was last drawn in (-2 if
+ * it never was). */
+int fake_rects(int colour);
+int fake_text_colour(const char *text);
+
+/* The OS's battery: `centivolts` and type (1 alkaline, 2 Ni-MH) as the syscalls
+ * report them, and time passing, since the add-in asks at most every 10 s.
+ * fake_battery lets enough time pass for the next draw to ask again. How often
+ * the add-in asked is fake_os_reads(). fake_reset puts back 6.00 V alkaline. */
+void fake_battery(int centivolts, int type);
+void fake_advance(int seconds);
+int fake_os_reads(void);
+
 /* Keys queued but never read - a sign the screen asked for less than
  * expected. And the opposite: how often a screen asked when nothing was left. */
 int fake_keys_left(void);

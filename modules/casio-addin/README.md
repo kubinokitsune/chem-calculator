@@ -108,8 +108,23 @@ background come from the icon template in the fxSDK (© gint/fxSDK
 contributors, MIT licence, see `assets-cg/LICENSE-fxsdk-template.txt`), kept as
 `template-uns.png` and `template-sel.png`; the script recolours the tile orange
 and draws the white flask. The calculator prints the name "ChemCalc" under the
-icon itself, so none is drawn. Regenerate with `py assets-cg/make_icons.py`
-(needs Pillow).
+icon itself, so none is drawn. The same script writes `src/ui/flask_mark.h`,
+the flask at 3x that the menus show as a pale watermark. Regenerate both with
+`py assets-cg/make_icons.py` (needs Pillow).
+
+## The status strip and the menus
+
+- The **battery** at the top left is a real reading: `src/ui/battery.c` asks the
+  OS for the main battery voltage (syscall 0x1186, in centivolts) and the
+  battery type setting (0x12D5), inside a gint world switch, at most every 10
+  seconds. Bars are approximate (3 for a fresh set of 4 AAAs): the thresholds
+  are in the source. If the OS gives no reading, no battery is drawn.
+- The input mode beside it is white on a red box, **A** for capitals and **a**
+  for small letters, or a plain framed **123** for digits. SHIFT only toggles
+  small letters here, so it has no indicator of its own.
+- Menus are drawn over a gradient from white to light orange with a pale flask,
+  like the calculator's own application menus; entry and result screens stay
+  white, as theirs do.
 
 ## How it is laid out, and how it is tested
 

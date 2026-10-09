@@ -12,6 +12,7 @@ find_package(Gint 2.9 REQUIRED)
 set(SOURCES
   src/main.c
   src/ui/ui.c
+  src/ui/battery.c
   src/core/chem.c
   src/core/elements.c
   src/core/stoich.c

@@ -7,6 +7,8 @@
  */
 
 #include "fake_gint.h"
+#include <gint/gint.h>
+#include <gint/rtc.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,8 +21,23 @@ static int queue[FAKE_KEY_QUEUE];
 static int queue_used, queue_next;
 static int keys_exhausted;
 
+/* every text drawn: where it starts in `captured` and its colour */
+#define MAX_TEXTS 4096
+static int text_at[MAX_TEXTS], text_fg[MAX_TEXTS], texts;
+
+/* how many rectangles of each colour */
+#define MAX_COLOURS 64
+static int rect_colour[MAX_COLOURS], rect_count[MAX_COLOURS], colours;
+
+static int centivolts_now, battery_type_now, os_reads;
+static uint32_t ticks;
+
 void fake_reset(void)
 {
+    texts = 0;
+    colours = 0;
+    fake_battery(600, 1);
+    os_reads = 0;
     captured[0] = 0;
     captured_used = 0;
     queue_used = 0;
@@ -151,7 +168,7 @@ int fake_screen_has(const char *text)
 
 /* ---- the drawing calls the add-in makes --------------------------------- */
 
-static void capture(const char *text)
+static void capture(const char *text, int fg)
 {
     int length = (int)strlen(text);
 
@@ -160,6 +177,12 @@ static void capture(const char *text)
         fprintf(stderr, "fake_gint: more than %d characters drawn\n", FAKE_CAPTURE_LEN);
         exit(2);
     }
+    if (texts >= MAX_TEXTS) {
+        fprintf(stderr, "fake_gint: more than %d texts drawn\n", MAX_TEXTS);
+        exit(2);
+    }
+    text_at[texts] = captured_used;
+    text_fg[texts++] = fg;
     memcpy(captured + captured_used, text, (size_t)length);
     captured_used += length;
     captured[captured_used++] = '\n';
@@ -173,20 +196,54 @@ void dclear(int colour)
 
 void drect(int x1, int y1, int x2, int y2, int colour)
 {
-    (void)x1; (void)y1; (void)x2; (void)y2; (void)colour;
+    int i;
+
+    (void)x1; (void)y1; (void)x2; (void)y2;
+    for (i = 0; i < colours && rect_colour[i] != colour; i++)
+        ;
+    if (i == colours) {
+        if (colours >= MAX_COLOURS) {
+            fprintf(stderr, "fake_gint: more than %d colours drawn\n", MAX_COLOURS);
+            exit(2);
+        }
+        rect_colour[colours++] = colour;
+        rect_count[i] = 0;
+    }
+    rect_count[i]++;
+}
+
+int fake_rects(int colour)
+{
+    int i;
+
+    for (i = 0; i < colours; i++)
+        if (rect_colour[i] == colour)
+            return rect_count[i];
+    return 0;
+}
+
+int fake_text_colour(const char *text)
+{
+    int i, length = (int)strlen(text);
+
+    for (i = texts - 1; i >= 0; i--)
+        if (strncmp(captured + text_at[i], text, (size_t)length) == 0
+            && captured[text_at[i] + length] == '\n')
+            return text_fg[i];
+    return -2;
 }
 
 void dtext(int x, int y, int fg, const char *text)
 {
-    (void)x; (void)y; (void)fg;
-    capture(text);
+    (void)x; (void)y;
+    capture(text, fg);
 }
 
 void dtext_opt(int x, int y, int fg, int bg, int halign, int valign,
                const char *text, int size)
 {
-    (void)x; (void)y; (void)fg; (void)bg; (void)halign; (void)valign; (void)size;
-    capture(text);
+    (void)x; (void)y; (void)bg; (void)halign; (void)valign; (void)size;
+    capture(text, fg);
 }
 
 void dsize(const char *text, const font_t *font, int *width, int *height)
@@ -222,4 +279,52 @@ key_event_t getkey(void)
     }
     event.key = queue[queue_next++];
     return event;
+}
+
+/* ---- the OS: battery and clock ------------------------------------------ */
+
+void fake_battery(int centivolts, int type)
+{
+    centivolts_now = centivolts;
+    battery_type_now = type;
+    fake_advance(60);
+}
+
+void fake_advance(int seconds)
+{
+    ticks += 128u * (uint32_t)seconds;
+}
+
+int fake_os_reads(void)
+{
+    return os_reads;
+}
+
+uint32_t rtc_ticks(void)
+{
+    return ticks;
+}
+
+int gint_world_switch(gint_call_t call)
+{
+    return call.function(call.arg);
+}
+
+/* The two syscalls battery.c uses, answering by their numbers on WikiPrizm. */
+int fake_os_syscall(int number, int arg)
+{
+    switch (number) {
+    case 0x1186:                        /* GetMainBatteryVoltage(1) */
+        if (arg != 1) {
+            fprintf(stderr, "fake_gint: GetMainBatteryVoltage wants 1, got %d\n", arg);
+            exit(2);
+        }
+        os_reads++;
+        return centivolts_now;
+    case 0x12D5:                        /* GetBatteryType() */
+        return battery_type_now;
+    default:
+        fprintf(stderr, "fake_gint: unexpected syscall 0x%x\n", number);
+        exit(2);
+    }
 }

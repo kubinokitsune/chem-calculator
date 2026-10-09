@@ -1,6 +1,8 @@
 /* ui.c - see ui.h. This is the only file that talks to the screen and keypad. */
 
 #include "ui.h"
+#include "battery.h"
+#include "flask_mark.h"
 #include "../core/chem.h"
 
 #include <gint/display.h>
@@ -26,10 +28,12 @@
 #define ROW_LEFT     6           /* the selected-row bar runs ROW_LEFT..ROW_RIGHT */
 #define ROW_RIGHT    381
 #define ARROW_X      381
+#define OS_RIGHT     389         /* the last column of the OS's 384 x 216 area */
+#define OS_BOTTOM    219         /* and its last row */
 
 /* Colours are 5-6-5: C_RGB takes 0-31 for each. */
 #define COL_GREY      C_RGB(17, 17, 17)    /* the strip title and the hints */
-#define COL_RED       C_RGB(31, 0, 0)      /* the ALPHA indicator */
+#define COL_RED       C_RGB(31, 0, 0)      /* the ALPHA indicator's box */
 #define COL_MAGENTA   C_RGB(31, 0, 31)     /* the scroll arrows */
 
 /* ---- small drawing helpers ---------------------------------------------- */
@@ -74,29 +78,105 @@ static void scroll_arrows(int first_row, int pitch, int first, int shown, int to
         arrow(row_y(first_row + shown - 1, pitch), pitch, 0);
 }
 
-/* The status strip: the screen's name, small and grey, in the middle, over a
- * black rule. */
+/* The OS's battery icon, 14 x 19 at the left of the strip: a black outline, a
+ * white inside and up to three blue bars, filled from the bottom. */
+static void battery_icon(int bars)
+{
+    int x = ROW_LEFT + 6, y = 3, i;
+
+    drect(x, y + 2, x + 13, y + 18, C_BLACK);               /* the body */
+    drect(x + 3, y, x + 10, y + 1, C_BLACK);                /* the terminal */
+    drect(x + 5, y + 2, x + 8, y + 3, C_WHITE);             /* open at the top */
+    drect(x + 2, y + 4, x + 11, y + 16, C_WHITE);
+    for (i = 0; i < bars; i++)
+        drect(x + 3, y + 13 - 4 * i, x + 10, y + 15 - 4 * i, C_BLUE);
+}
+
+/* The status strip: the battery, the screen's name, small and grey, in the
+ * middle, over a black rule. */
 void ui_frame(const char *title)
 {
+    int bars = battery_level();
+
     dclear(C_WHITE);
+    if (bars >= 0)
+        battery_icon(bars);
     dtext_opt(DWIDTH / 2, STRIP_HEIGHT / 2 - 1, COL_GREY, C_NONE,
               DTEXT_CENTER, DTEXT_MIDDLE, title, -1);
     drect(ROW_LEFT + 2, STRIP_HEIGHT - 1, ROW_RIGHT + 6, STRIP_HEIGHT - 1, C_BLACK);
 }
 
-/* The input mode at the left of the strip, in a thin frame like the SHIFT and
- * ALPHA indicators: a red A or a for the letter modes, the digits otherwise. */
+/* The input mode beside the battery, inverted as the OS draws its ALPHA
+ * indicator: white on a solid red box for the letter modes (A for capitals, a
+ * for small letters), in a plain framed box for the digits. SHIFT has no
+ * indicator of its own: here it is the small-letters toggle, which the "a"
+ * already shows. */
 static void mode_box(const char *mode)
 {
     char glyph[2] = {mode[0], 0};
-    int digits = mode[0] == '1', width;
+    int digits = mode[0] == '1', width, x = ROW_LEFT + 22;
 
     if (mode[0] == 0)
         return;
     dsize(digits ? mode : glyph, NULL, &width, NULL);
-    drect(ROW_LEFT + 2, 3, ROW_LEFT + width + 7, 19, C_BLACK);
-    drect(ROW_LEFT + 3, 4, ROW_LEFT + width + 6, 18, C_WHITE);
-    dtext(ROW_LEFT + 5, 7, digits ? C_BLACK : COL_RED, digits ? mode : glyph);
+    drect(x, 4, x + width + 8, 21, C_BLACK);
+    drect(x + 2, 6, x + width + 6, 19, digits ? C_WHITE : COL_RED);
+    if (digits)
+        dtext(x + 4, 8, C_BLACK, mode);
+    else
+        bold(x + 4, 8, C_WHITE, glyph);
+}
+
+/* ---- the menus' background ---------------------------------------------- */
+
+/* Like the OS's own application menus: a gradient that is white on the left
+ * and a light orange (the icon's colour, thinned) on the right, with a big pale
+ * flask on it. The OS keeps this to an application's home menu; its entry and
+ * result screens stay white, and so do ours. */
+#define GRAD_FROM 100            /* white up to this column, full tint by... */
+#define GRAD_TO   385            /* ...this one */
+#define MARK_X    (OS_RIGHT - 12 - FLASK_W)
+#define MARK_Y    100
+
+/* The colour of column x: 5-bit channels, `paler` percent of the way to white. */
+static int shade(int x, int paler)
+{
+    int t = x <= GRAD_FROM ? 0 : x >= GRAD_TO ? 256 : (x - GRAD_FROM) * 256 / (GRAD_TO - GRAD_FROM);
+    int g = 31 - ((31 - UI_TINT_G) * t + 128) / 256;
+    int b = 31 - ((31 - UI_TINT_B) * t + 128) / 256;
+
+    return C_RGB(31, g + (31 - g) * paler / 100, b + (31 - b) * paler / 100);
+}
+
+/* Is pixel x of row y of the flask set? Rows are padded to whole bytes. */
+static int mark_set(int x, int y)
+{
+    return x < FLASK_W && (flask_mark[y * ((FLASK_W + 7) / 8) + x / 8] >> (7 - x % 8) & 1);
+}
+
+static void menu_background(void)
+{
+    static int mark[FLASK_W];
+    int x, from, y;
+
+    /* one rectangle for each run of columns that share a colour */
+    for (from = x = ROW_LEFT; x <= OS_RIGHT + 1; x++)
+        if (x > OS_RIGHT || shade(x, 0) != shade(from, 0)) {
+            drect(from, STRIP_HEIGHT, x - 1, OS_BOTTOM, shade(from, 0));
+            from = x;
+        }
+
+    /* the flask: the same gradient, 45% paler, so it stays a watermark */
+    for (x = 0; x < FLASK_W; x++)
+        mark[x] = shade(MARK_X + x, 45);
+    for (y = 0; y < FLASK_H; y++)
+        for (x = 0; x < FLASK_W; x++) {
+            if (!mark_set(x, y))
+                continue;
+            for (from = x; mark_set(x + 1, y) && mark[x + 1] == mark[from]; x++)
+                ;
+            drect(MARK_X + from, MARK_Y + y, MARK_X + x, MARK_Y + y, mark[from]);
+        }
 }
 
 /* The six tabs. They are all commands, so each is white with a black border
@@ -155,6 +235,7 @@ int ui_menu_hints(const char *title, const char *const *items,
             top = here - BODY_ROWS + 1;
 
         ui_frame(title);
+        menu_background();
         for (i = 0; i < BODY_ROWS && top + i < count; i++) {
             int y = row_y(i, ROW_HEIGHT);
             int picked = (top + i == here);
