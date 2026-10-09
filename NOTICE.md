@@ -43,3 +43,12 @@ values because that is what the syllabus uses.
 The [physical calculator](https://github.com/kubinokitsune/chemcalc-handheld)
 built on this engine is licensed **noncommercially** — build one for yourself,
 do not sell it. The chemistry engine in this repository stays MIT.
+
+## Third-party material
+
+The add-in's MENU icon is drawn on the icon template from the
+[fxSDK](https://git.planet-casio.com/Lephenixnoir/fxsdk)
+(`modules/casio-addin/assets-cg/template-uns.png` and `template-sel.png`),
+Copyright (C) 2015-2022 gint/fxSDK contributors, used under the MIT licence.
+The full licence text is in
+[`modules/casio-addin/assets-cg/LICENSE-fxsdk-template.txt`](modules/casio-addin/assets-cg/LICENSE-fxsdk-template.txt).

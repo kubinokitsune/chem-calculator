@@ -167,7 +167,7 @@ static void screen_isotopes(void)
 
     if (choice < 0)
         return;
-    ui_example("34.969 at 75.77 %, 36.966 at 24.23 % -> 35.45");
+    ui_example("34.969 at 75.77%, 36.966 at 24.23% -> 35.45");
 
     if (choice == 0) {
         if (!ui_number_input("Isotopes", "How many isotopes? (2-6)", &how_many, 0))

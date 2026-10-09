@@ -12,6 +12,7 @@
 
 #define C_WHITE 0xffff
 #define C_BLACK 0x0000
+#define C_BLUE  0x001f
 #define C_NONE  (-1)
 #define C_RGB(r, g, b) (((r) << 11) | ((g) << 5) | (b))
 

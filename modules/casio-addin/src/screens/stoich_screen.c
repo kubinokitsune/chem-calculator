@@ -123,7 +123,7 @@ static void screen_empirical(void)
     float empirical_mass = 0.0f;
     int n, i;
 
-    ui_example("C 40, H 6.7, O 53.3 -> CH2O, Mr 180 -> C6H12O6");
+    ui_example("C 40, H 6.7, O 53.3 -> CH2O, Mr 180->C6H12O6");
     if (!ui_number_input("Empirical formula", "How many elements? (2-6)",
                          &how_many, 0))
         return;
