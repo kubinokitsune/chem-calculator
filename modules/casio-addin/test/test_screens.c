@@ -90,6 +90,22 @@ static void bond_finish(void)
        fake_keys_left() == 0 && !fake_ran_out_of_keys(), "keys left over or missing");
 }
 
+/* Type an equation into its field and accept it. */
+static void equation(const char *text)
+{
+    fake_press_text(text);
+    fake_press(KEY_EXE);
+}
+
+/* The script used exactly the keys the screens asked for. */
+static void all_keys_used(const char *what)
+{
+    char label[80];
+
+    snprintf(label, sizeof label, "%s: every key used, none missing", what);
+    ok(label, fake_keys_left() == 0 && !fake_ran_out_of_keys(), "keys left over or missing");
+}
+
 int main(void)
 {
     section("1. The periodic table screens");
@@ -209,23 +225,207 @@ int main(void)
     showed("the empirical formula is CH2O", "CH2O");
     showed("and the molecular formula is C6H12O6", "C6H12O6");
 
-    section("3. The balancer screen");
+    section("3. The balancer screen and the equation field");
 
+    /* Type an equation (F-keys and mode switches come from fake_press_text),
+     * accept it, look at the answer and leave. */
     fake_reset();
-    fake_press_text("C3H8");            /* reactant 1 */
-    fake_press(KEY_EXE);
-    fake_press_text("O2");              /* reactant 2 */
-    fake_press(KEY_EXE);
-    fake_press(KEY_EXE);                /* blank: done with reactants */
-    fake_press_text("CO2");             /* product 1 */
-    fake_press(KEY_EXE);
-    fake_press_text("H2O");             /* product 2 */
-    fake_press(KEY_EXE);
-    fake_press(KEY_EXE);                /* blank: done with products */
+    equation("C3H8+O2->CO2+H2O");
     fake_press(KEY_EXIT);
     screen_balance();
-    showed("propane balances as 1, 5, 3, 4", "1, 5, 3, 4");
+    showed("propane balances as 1, 5, 3, 4", "Coefficients: 1, 5, 3, 4");
     showed("and the equation is shown", "5 O2");
+    showed("with the products on their own lines", "->  3 CO2");
+    all_keys_used("propane");
+
+    /* Brackets, typed with F1 and F2. */
+    fake_reset();
+    equation("Ca(OH)2+H3PO4->Ca3(PO4)2+H2O");
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("calcium hydroxide + phosphoric acid is 3, 2, 1, 6",
+           "Coefficients: 3, 2, 1, 6");
+    all_keys_used("brackets");
+
+    /* A long one: 28 characters, small letters, four products. */
+    fake_reset();
+    equation("KMnO4+HCl->KCl+MnCl2+H2O+Cl2");
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("permanganate + HCl is 2, 16, 2, 2, 8, 5",
+           "Coefficients: 2, 16, 2, 2, 8, 5");
+    showed("the 16 shows on the HCl line", "16 HCl");
+    all_keys_used("permanganate");
+
+    /* 47 characters: wider than the field, so it scrolls while typing. */
+    fake_reset();
+    equation("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("glucose + dichromate is 1, 4, 16, 6, 4, 4, 22",
+           "Coefficients: 1, 4, 16, 6, 4, 4, 22");
+    ok("the long equation was never drawn in one piece",
+       !fake_screen_has("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O"), "no scrolling");
+    showed("but its end was in view", "6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
+    all_keys_used("long equation");
+
+    /* Numbers in front are ignored, and the prompt says so. */
+    fake_reset();
+    equation("2C3H8+O2->CO2+H2O");
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("a typed coefficient is ignored by the balancer", "Coefficients: 1, 5, 3, 4");
+    showed("and the prompt says so", "numbers in front are ignored");
+    all_keys_used("ignored coefficient");
+
+    /* Mistakes: the message is shown, the text stays, and it can be fixed. */
+    fake_reset();
+    equation("C3H8+O2");                /* no arrow */
+    fake_press(KEY_EXE);                /* dismiss the message */
+    fake_press_text("->CO2+H2O");       /* the field still holds C3H8+O2 */
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("no arrow is explained", "Need -> or =");
+    showed("and the text was kept: adding to it balances", "Coefficients: 1, 5, 3, 4");
+    all_keys_used("no arrow");
+
+    fake_reset();
+    equation("C3H8+O2->CO2+H2Q");       /* Q is not an element */
+    fake_press(KEY_EXE);
+    fake_press(KEY_DEL);                /* rub out the Q ... */
+    fake_press_text("O");               /* ... and the field still holds the rest */
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("a bad formula is explained", "Unknown element");
+    showed("and fixing it with DEL balances", "Coefficients: 1, 5, 3, 4");
+    all_keys_used("bad formula");
+
+    fake_reset();
+    equation("H2->O2");
+    fake_press(KEY_EXE);
+    fake_press(KEY_DEL);  fake_press(KEY_DEL);
+    fake_press(KEY_DEL);                            /* O2 and "->" are gone: back to H2 */
+    equation("+O2->H2O");
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("an equation that cannot balance says so", "That will not balance");
+    showed("and H2 + O2 -> H2O then balances", "Coefficients: 2, 1, 2");
+    all_keys_used("will not balance");
+
+    fake_reset();
+    equation("->CO2");                  /* nothing on the left */
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXIT);               /* give up from the field */
+    screen_balance();
+    showed("an empty side is explained", "Nothing typed");
+    all_keys_used("empty side");
+
+    /* The field itself: the keypad's own + ( ) . and arrow keys, in digit mode. */
+    {
+        char text[UI_EQUATION_LEN];
+
+        fake_reset();
+        text[0] = 0;
+        fake_press_text("CH4");                                 /* ends in digit mode */
+        fake_press(KEY_ADD);  fake_press(KEY_ALPHA);
+        fake_press_text("O2");
+        fake_press(KEY_ARROW);  fake_press(KEY_ALPHA);          /* the arrow key is ->  */
+        fake_press_text("CO2");
+        fake_press(KEY_ADD);  fake_press(KEY_ALPHA);
+        fake_press_text("H2O");
+        fake_press(KEY_EXE);
+        ui_equation_input("Equation", "Equation:", text, (int)sizeof text);
+        ok("the keypad's + and arrow keys type in digit mode",
+           strcmp(text, "CH4+O2->CO2+H2O") == 0, text);
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);
+        fake_press(KEY_LEFTP);  fake_press(KEY_RIGHTP);  fake_press(KEY_DOT);
+        fake_press(KEY_ALPHA);                                  /* back to letters */
+        fake_press(KEY_ADD);  fake_press(KEY_ARROW);
+        fake_press(KEY_EXE);
+        ui_equation_input("Equation", "Equation:", text, (int)sizeof text);
+        ok("( ) and . type in digit mode", strncmp(text, "().", 3) == 0, text);
+        ok("in letters mode the same keys are still the letters on them",
+           strcmp(text + 3, "XL") == 0, text);
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);
+        fake_press(KEY_ADD);  fake_press(KEY_LEFTP);  fake_press(KEY_ARROW);
+        fake_press(KEY_EXE);
+        ui_text_input("Formula", "Formula:", text, (int)sizeof text);
+        ok("a formula field does not type + from KEY_ADD",
+           strchr(text, '+') == NULL && strcmp(text, "XIL") == 0, text);
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);
+        fake_press(KEY_ARROW);  fake_press(KEY_EXE);
+        ui_bond_input("Bond", "Bond:", text, (int)sizeof text);
+        ok("nor does a bond field type an arrow", strchr(text, '>') == NULL, text);
+
+        /* Past the width of the screen the field scrolls: the end is drawn, the
+         * whole thing is not, and nothing is lost from the buffer. */
+        fake_reset();
+        text[0] = 0;
+        fake_press_text("CH4+CH4+CH4+CH4+CH4+CH4+CH4+CH4+CH4+CH4+CH4+CH4");
+        fake_press(KEY_EXE);
+        ui_equation_input("Equation", "Equation:", text, (int)sizeof text);
+        ok("a 47-character equation is all in the buffer",
+           strlen(text) == 47 && strcmp(text + 40, "CH4+CH4") == 0, text);
+        ok("the field scrolls rather than running off the screen",
+           !fake_screen_has(text) && fake_screen_has(text + 2),
+           "the whole text was drawn, or the end was not");
+
+        /* DEL takes "->" away in one go; any other character one at a time. */
+        fake_reset();
+        text[0] = 0;
+        fake_press_text("CH4+O2->");
+        fake_press(KEY_DEL);
+        fake_press_text("C");
+        fake_press(KEY_EXE);
+        ui_equation_input("Equation", "Equation:", text, (int)sizeof text);
+        ok("DEL after -> removes the whole arrow", strcmp(text, "CH4+O2C") == 0, text);
+        fake_reset();
+        text[0] = 0;
+        fake_press_text("CH4+O2->");
+        fake_press(KEY_DEL);
+        fake_press(KEY_EXE);
+        ui_equation_input("Equation", "Equation:", text, (int)sizeof text);
+        ok("so no lone minus is left", strcmp(text, "CH4+O2") == 0, text);
+        fake_reset();
+        text[0] = 0;
+        fake_press_text("CH4+O2->C");
+        fake_press(KEY_DEL);
+        fake_press(KEY_EXE);
+        ui_equation_input("Equation", "Equation:", text, (int)sizeof text);
+        ok("DEL after a letter only takes the letter", strcmp(text, "CH4+O2->") == 0, text);
+
+        /* "->" goes in whole or not at all. */
+        fake_reset();
+        {
+            char small[10] = "";
+            fake_press_text("CH4+CH4+");      /* 8 of the 9 characters that fit */
+            fake_press(KEY_F4);
+            fake_press(KEY_EXE);
+            ui_equation_input("Equation", "Equation:", small, (int)sizeof small);
+            ok("an arrow that does not fit is not half typed",
+               strcmp(small, "CH4+CH4+") == 0, small);
+        }
+        {
+            char one[2] = "";               /* room for a single character */
+            fake_reset();
+            fake_press(KEY_F4);
+            fake_press_text("C");
+            fake_press(KEY_EXE);
+            ui_equation_input("Equation", "Equation:", one, (int)sizeof one);
+            ok("with one place left the arrow is not half typed", strcmp(one, "C") == 0, one);
+        }
+    }
 
     section("4. The gas screens");
 
@@ -333,11 +533,11 @@ int main(void)
     menu_pick(2);                       /* Type a bond */
     fake_press_text("C-H");  fake_press(KEY_EXE);  fake_press_number("4");
     menu_pick(2);
-    fake_press_text("O=O");  fake_press(KEY_EXE);  fake_press_number("2");
+    fake_press_bond("O=O");  fake_press(KEY_EXE);  fake_press_number("2");
     menu_pick(1);
     fake_press(KEY_EXE);
     menu_pick(2);
-    fake_press_text("c=o");  fake_press(KEY_EXE);  fake_press_number("2");
+    fake_press_bond("c=o");  fake_press(KEY_EXE);  fake_press_number("2");
     menu_pick(2);
     fake_press_text("O-H");  fake_press(KEY_EXE);  fake_press_number("4");
     menu_pick(1);
@@ -720,65 +920,147 @@ int main(void)
     screen_tools();
     showed("benzene has an IHD of 4", "IHD = 4");
 
-    /* CH4 + 2O2, want 2 H2O: 45.02 %. The old formula gave 71 here. The
-     * example panel and the menu hint both say "45.0", so check the lines only
-     * the result page prints. */
+    /* Atom economy: one equation, then the product that is wanted. */
     fake_reset();
     menu_pick(5);                       /* Atom economy */
-    fake_press_text("CH4");
-    fake_press(KEY_EXE);
-    fake_press_number("1");
-    fake_press_text("O2");
-    fake_press(KEY_EXE);
-    fake_press_number("2");
-    fake_press(KEY_EXE);                /* blank reactant = done */
-    fake_press_text("H2O");
-    fake_press(KEY_EXE);
-    fake_press_number("2");
+    equation("CH4+2O2->CO2+2H2O");
+    menu_pick(2);                       /* Desired product: H2O */
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
     showed("atom economy of 2 H2O from CH4 + 2O2 is 45.02 %", "atom economy = 45.02 %");
     showed("reactants M x coeff is 80.05", "reactants M x coeff = 80.05 g/mol");
     showed("wanted M x coeff is 36.04", "wanted M x coeff = 36.04 g/mol");
+    showed("the product menu lists the right-hand side", "Desired product");
+    showed("the equation is shown as used", "2 O2");
     ok("and it is not the old 71 %", !fake_screen_has("71"), NULL);
-    ok("the atom economy screen did not run out of keys",
-       fake_ran_out_of_keys() == 0, NULL);
+    all_keys_used("atom economy");
 
-    /* A blank first reactant, then a bad formula. */
+    /* No numbers typed: it balances the equation, and says what it used. */
     fake_reset();
     menu_pick(5);
-    fake_press(KEY_EXE);                /* blank */
-    fake_press(KEY_EXE);                /* dismiss the message */
-    fake_press_text("Xx9");
+    equation("CH4+O2->CO2+H2O");
+    menu_pick(2);                       /* H2O */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("an unbalanced equation gives the same 45.02 %", "atom economy = 45.02 %");
+    showed("the result shows the balanced O2", "2 O2");
+    showed("and the balanced H2O", "->  CO2");
+    showed("and 2 H2O", "+   2 H2O");
+    all_keys_used("unbalanced");
+
+    /* The other product of the same reaction. */
+    fake_reset();
+    menu_pick(5);
+    equation("CH4+2O2->CO2+2H2O");
+    menu_pick(1);                       /* CO2 */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("CO2 is the wanted product: 54.98 %", "atom economy = 54.98 %");
+    showed("its M x coeff is 44.01", "wanted M x coeff = 44.01 g/mol");
+    all_keys_used("CO2");
+
+    fake_reset();
+    menu_pick(5);
+    equation("N2+3H2->2NH3");
+    menu_pick(1);
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a single product is 100 %", "atom economy = 100 %");
+    all_keys_used("ammonia");
+
+    /* Some numbers typed: they are used, and a missing one is 1. */
+    fake_reset();
+    menu_pick(5);
+    equation("CH4+2O2->CO2+2H2O");
+    menu_pick(2);
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a missing coefficient counts as 1: CH4 + 2O2 -> CO2 + 2H2O", "atom economy = 45.02 %");
+    all_keys_used("typed coefficients");
+
+    /* Typed numbers that do not balance are refused, the text is kept, and
+     * fixing the number gives the answer. */
+    fake_reset();
+    menu_pick(5);
+    equation("CH4+2O2->CO2+H2O");
+    menu_pick(2);
+    fake_press(KEY_EXE);                /* "Numbers don't balance" */
+    fake_press(KEY_DEL);  fake_press(KEY_DEL);
+    fake_press(KEY_DEL);                /* rub out H2O ... */
+    fake_press_text("2H2O");            /* ... and the field still holds the rest */
     fake_press(KEY_EXE);
-    fake_press(KEY_EXE);                /* dismiss the message */
+    menu_pick(2);
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
-    showed("a blank first reactant is refused", "Need a reactant");
-    showed("a bad formula is refused", "Check that formula");
-    ok("those messages did not run out of keys", fake_ran_out_of_keys() == 0, NULL);
+    showed("numbers that do not balance are refused", "Numbers don't balance");
+    showed("the text was kept and fixing it gives 45.02 %", "atom economy = 45.02 %");
+    all_keys_used("atom economy, unbalanced");
 
-    /* Six reactants is the most that fit. */
+    /* Mistakes keep the text. */
     fake_reset();
     menu_pick(5);
-    {
-        int i;
-
-        for (i = 0; i < 6; i++) {
-            fake_press_text("H2");
-            fake_press(KEY_EXE);
-            fake_press_number("1");
-        }
-    }
-    fake_press(KEY_EXE);                /* dismiss the message */
-    fake_press(KEY_EXIT);               /* leave Desired product */
+    equation("CH4+2O2");                /* no arrow */
+    fake_press(KEY_EXE);
+    fake_press_text("->CO2+2H2O");
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
-    showed("the sixth reactant says that is as many as fit", "That is as many as fit");
-    showed("and then asks for the desired product", "Desired product");
-    ok("the cap did not run out of keys", fake_ran_out_of_keys() == 0, NULL);
+    showed("no arrow is explained", "Need -> or =");
+    showed("and the text was kept", "atom economy = 45.02 %");
+    all_keys_used("atom economy, no arrow");
+
+    fake_reset();
+    menu_pick(5);
+    equation("CH4+2O2->CO2+2H2Q");      /* not an element */
+    fake_press(KEY_EXE);
+    fake_press(KEY_DEL);
+    fake_press_text("O");
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a bad formula is explained", "Unknown element");
+    showed("and fixed in place", "atom economy = 45.02 %");
+    all_keys_used("atom economy, bad formula");
+
+    fake_reset();
+    menu_pick(5);
+    equation("H2->O2");
+    menu_pick(1);
+    fake_press(KEY_EXE);                /* "That will not balance" */
+    fake_press(KEY_DEL);  fake_press(KEY_DEL);
+    fake_press(KEY_DEL);                /* O2 and "->" are gone: back to H2 */
+    equation("+O2->H2O");
+    menu_pick(1);
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("an equation that cannot balance says so", "That will not balance");
+    showed("and fixing it gives 100 %", "atom economy = 100 %");
+    all_keys_used("atom economy, will not balance");
+
+    /* EXIT in the product menu goes back to the equation, text kept. */
+    fake_reset();
+    menu_pick(5);
+    equation("CH4+2O2->CO2+2H2O");
+    fake_press(KEY_EXIT);               /* leave Desired product */
+    fake_press(KEY_EXE);                /* the equation is still there */
+    menu_pick(2);
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("backing out of the product menu keeps the equation", "atom economy = 45.02 %");
+    all_keys_used("atom economy, back");
+
 
     section("8. Every procedure shows an example");
 
@@ -836,7 +1118,7 @@ int main(void)
     fake_press(KEY_EXIT);               /* the balancer asks straight away */
     screen_balance();
     showed("the balancer says what to type",
-           "C3H8, O2 -> CO2, H2O gives 1, 5, 3, 4");
+           "C3H8+O2->CO2+H2O gives 1, 5, 3, 4");
 
     printf("\n============================================================\n");
     printf("  Screen tests  Total: %d   Passed: %d   Failed: %d\n",

@@ -10,6 +10,7 @@
 #define UI_LINE_LEN   44      /* characters that fit across the screen */
 #define UI_MAX_LINES  40      /* lines one result page can hold */
 #define UI_TEXT_LEN   24      /* room for one typed entry: a formula, a count */
+#define UI_EQUATION_LEN 96    /* room for a typed equation */
 
 /* ---- frame -------------------------------------------------------------- */
 
@@ -49,6 +50,14 @@ int ui_text_input(const char *title, const char *prompt, char *buffer, int lengt
  * and triple bonds. In digit mode the keypad's minus keys type - as well (in
  * the other text fields [-] still types the letter on its key). */
 int ui_bond_input(const char *title, const char *prompt, char *buffer, int length);
+
+/* Type a whole equation, e.g. CH4+2O2->CO2+2H2O. F1-F4 type ( ) + and ->; F5 is
+ * small letters and F6 switches letters/digits (EXE accepts). In digit mode the
+ * keypad's own +, ( ), [.] and the arrow key type those too; in the other
+ * fields they stay the letters printed on them. Text wider than the screen
+ * scrolls so its end stays in view. `buffer` keeps what it holds, so a mistake
+ * can be edited. Returns 1 on EXE, 0 on EXIT. */
+int ui_equation_input(const char *title, const char *prompt, char *buffer, int length);
 
 /* Type a number. DEL rubs out, (-) makes it negative and EXP adds a power of
  * ten. When `allow_blank` is set, pressing EXE on an empty field returns 1 and

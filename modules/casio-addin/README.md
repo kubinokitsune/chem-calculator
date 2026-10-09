@@ -38,6 +38,18 @@ Nothing else needs to be copied, and the Python version can stay alongside it.
   F4) to small letters, and F1–F3 type `(`, `)` and the hydrate dot.
 - In a number field, `(-)` makes a value negative and `EXP` starts a power of
   ten, so `1.74` `EXP` `(-)` `5` is 1.74 × 10⁻⁵.
+- **Atom economy** and the **equation balancer** take the whole equation in
+  one field, e.g. `CH4+2O2->CO2+2H2O` or `C3H8+O2->CO2+H2O`. **F1–F4** type
+  `(` `)` `+` and `->` in any mode; in digit mode (**ALPHA**/F6 to switch) the
+  keypad's own `+`, `(`, `)`, `.` and `→` keys do the same. A capital then a
+  small letter (Cl, Ca) needs **SHIFT** or F5 in between. Long equations scroll
+  so the end stays in view. Atom economy then asks which product is wanted: leave
+  the numbers out and it balances the equation for you; type some and it uses
+  them (a missing one counts as 1), but only if they balance the equation,
+  otherwise it says *Numbers don't balance* so a wrong number can never give a
+  wrong answer: fix it, or delete the numbers to auto-balance. The balancer
+  ignores any numbers typed in front. A mistake is explained and the text stays
+  for you to fix.
 - For a bond enthalpy, pick the bond from the list, or choose *Type a bond* and
   use F1/F2/F3 for `-` `=` `#` (e.g. `C-H`, `O=O`, `N#N`; capitals or small
   letters both work). A bond that is not in the list asks for its kJ/mol.
@@ -111,7 +123,7 @@ make -C test core     # the chemistry only
 make -C test screens  # the menus and screens
 ```
 
-504 checks at present: 317 for the chemistry and 187 for the screens. The
+620 checks at present: 381 for the chemistry and 239 for the screens. The
 expected values are the same hand-worked IB figures the desktop calculator and
 the Python port are tested against, so the three cannot quietly disagree.
 

@@ -219,59 +219,49 @@ static void screen_yield(void)
     ui_result_show();
 }
 
-#define AE_MAX_REACTANTS 6
-
+/* Type the whole equation, say which product is wanted. Typed coefficients are
+ * used as they are (a missing one counts as 1) and must balance; with none
+ * typed it is balanced. */
 static void screen_atom_economy(void)
 {
-    char text[32], prompt[UI_LINE_LEN], wanted[32] = "";
-    chem_formula_t formula;
-    float wanted_mass;
-    double coeff, wanted_coeff, total = 0.0;
-    int n = 0;
+    char text[UI_EQUATION_LEN] = "";
+    chem_species_t left[EQ_SIDE_MAX], right[EQ_SIDE_MAX];
+    const char *names[EQ_SIDE_MAX];
+    int coefficients[BAL_MAX_SPECIES];
+    float percent = 0.0f, wanted_mass = 0.0f, reactants_mass = 0.0f;
+    int n_left, n_right, wanted, i;
 
-    ui_example("CH4 + 2O2, want 2 H2O -> 45.0 %");
+    ui_example("CH4+2O2->CO2+2H2O");
+    for (;;) {
+        int cursor = 0;
+        chem_error_t error;
 
-    while (n < AE_MAX_REACTANTS) {
-        float mass = 0.0f;
-
-        text[0] = 0;
-        if (!ui_text_input("Atom economy", "Reactant formula (blank = done):",
-                           text, (int)sizeof text))
+        if (!ask_equation("Atom economy", "Equation (leave numbers out to balance):",
+                          text, (int)sizeof text, left, &n_left, right, &n_right))
             return;
-        if (text[0] == 0) {
-            if (n > 0)
-                break;
-            ui_message("Atom economy", "Need a reactant");
-            continue;
-        }
-        if (chem_molar_mass(text, &mass) != CHEM_OK) {
-            ui_message("Atom economy", "Check that formula");
-            continue;
-        }
-        snprintf(prompt, sizeof prompt, "Coefficient of %s:", text);
-        if (!ask_positive("Atom economy", prompt, &coeff))
-            return;
-        total += (double)mass * coeff;
-        n++;
+        for (i = 0; i < n_right; i++)
+            names[i] = right[i].formula;
+        wanted = ui_menu("Desired product", names, n_right, &cursor);
+        if (wanted < 0)
+            continue;                   /* back to the equation, text kept */
+
+        error = bal_atom_economy(left, n_left, right, n_right, wanted, &percent,
+                                 coefficients, &wanted_mass, &reactants_mass);
+        if (error == CHEM_OK)
+            break;
+        ui_message("Atom economy",
+                   (error == CHEM_ERR_RANGE) ? "That will not balance"
+                                             : chem_error_text(error));
     }
-    if (n == AE_MAX_REACTANTS)
-        ui_message("Atom economy", "That is as many as fit");
-
-    if (!ask_formula("Atom economy", "Desired product:", wanted,
-                     (int)sizeof wanted, &formula))
-        return;
-    snprintf(prompt, sizeof prompt, "Coefficient of %s:", wanted);
-    if (!ask_positive("Atom economy", prompt, &wanted_coeff))
-        return;
-    wanted_mass = (float)chem_formula_mass(&formula);
 
     ui_result_begin("Atom economy");
-    ui_result_text("Wanted:", wanted);
-    ui_result_value("wanted M x coeff", wanted_mass * wanted_coeff, "g/mol");
-    ui_result_value("reactants M x coeff", total, "g/mol");
+    show_equation(left, n_left, right, n_right, coefficients);
     ui_result_rule();
-    ui_result_value("atom economy",
-                    stoich_atom_economy(wanted_mass * wanted_coeff, total), "%");
+    ui_result_text("Wanted:", right[wanted].formula);
+    ui_result_value("wanted M x coeff", wanted_mass, "g/mol");
+    ui_result_value("reactants M x coeff", reactants_mass, "g/mol");
+    ui_result_rule();
+    ui_result_value("atom economy", percent, "%");
     ui_result_show();
 }
 
@@ -289,7 +279,7 @@ void screen_stoichiometry(void)
         "H2O -> 11.2 % H, 88.8 % O",
         "40 % C, 6.7 % H, 53.3 % O -> CH2O",
         "4.2 g of a possible 5.0 g -> 84 %",
-        "CH4 + 2O2, want 2 H2O -> 45.0 %",
+        "CH4+2O2->CO2+2H2O, want H2O: 45.02 %",
     };
     static int cursor;
 
