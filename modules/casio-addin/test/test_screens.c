@@ -1120,6 +1120,54 @@ int main(void)
     showed("the balancer says what to type",
            "C3H8+O2->CO2+H2O gives 1, 5, 3, 4");
 
+    section("9. The calculator's own look");
+
+    /* Pixels cannot be read back, but the text and the scrolling can. */
+    {
+        static char names[32][16];
+        static const char *items[32];
+        int i, cursor = 0, choice;
+
+        for (i = 0; i < 32; i++) {
+            snprintf(names[i], sizeof names[i], "Item %d", i + 1);
+            items[i] = names[i];
+        }
+
+        /* UP from the top wraps to the last of 32 entries, far below the 9 rows
+         * that fit, and the list scrolls to show it. */
+        fake_reset();
+        fake_press(KEY_UP);
+        fake_press(KEY_EXE);
+        choice = ui_menu("Long menu", items, 32, &cursor);
+        ok("a menu longer than the screen reaches its last entry", choice == 31, NULL);
+        showed("and shows it, numbered like the OS menus", "32:Item 32");
+        ok("the old 32/32 position badge is gone", !fake_screen_has("32/32"), NULL);
+        ok("EXIT does the going back, so there is no BACK key", !fake_screen_has("BACK"), NULL);
+        all_keys_used("long menu");
+
+        /* A page of 14 lines shows its heading, scrolls with DOWN to reach the
+         * last line, and has no BACK key either. */
+        fake_reset();
+        ui_result_begin("Long page");
+        for (i = 0; i < 14; i++)
+            ui_result_line(items[i]);
+        for (i = 0; i < 4; i++)
+            fake_press(KEY_DOWN);
+        fake_press(KEY_EXE);
+        ui_result_show();
+        showed("a result page shows its heading", "Long page");
+        showed("and DOWN scrolls to its last line", "Item 14");
+        ok("the result page has no BACK key", !fake_screen_has("BACK"), NULL);
+        all_keys_used("long page");
+
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_message("Title", "A message");
+        showed("a message is shown", "A message");
+        ok("and has no BACK key", !fake_screen_has("BACK"), NULL);
+        all_keys_used("message");
+    }
+
     printf("\n============================================================\n");
     printf("  Screen tests  Total: %d   Passed: %d   Failed: %d\n",
            passed + failed, passed, failed);

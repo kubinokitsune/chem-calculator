@@ -32,7 +32,8 @@ Nothing else needs to be copied, and the Python version can stay alongside it.
 - **Arrows** move, **EXE** chooses, **EXIT** goes back one level, and EXIT at
   the topic list leaves the add-in.
 - A menu entry can also be picked by typing its number.
-- **F1–F6** are labelled along the bottom of every screen.
+- **F1–F6** are labelled along the bottom of the entry fields, where they type
+  the symbols the keypad lacks.
 - In a formula field the keypad's own printed letters are used: press the key
   with the letter on it. **ALPHA** (or F5) switches to digits, **SHIFT** (or
   F4) to small letters, and F1–F3 type `(`, `)` and the hydrate dot.
@@ -99,11 +100,21 @@ fxsdk build-cg
 which produces `ChemCalc.g3a`. `python3-pil` is not optional — gint converts
 its fonts with it, and the build fails late without it.
 
+## The MENU icon
+
+`assets-cg/make_icons.py` draws `icon-uns.png` and `icon-sel.png` (92 × 64,
+opaque RGB). The tile, its gradient and bevel, and the cyan selected
+background come from the icon template in the fxSDK (MIT licence), kept as
+`template-uns.png` and `template-sel.png`; the script recolours the tile orange
+and draws the white flask. The calculator prints the name "ChemCalc" under the
+icon itself, so none is drawn. Regenerate with `py assets-cg/make_icons.py`
+(needs Pillow).
+
 ## How it is laid out, and how it is tested
 
 ```
 src/core/      the chemistry: plain C99, no calculator headers at all
-src/ui/        title bar, softkeys, menus, entry fields, result pages
+src/ui/        status strip, softkeys, menus, entry fields, result pages
 src/screens/   one file per topic, built out of the two above
 test/          tests that run on a PC
 ```

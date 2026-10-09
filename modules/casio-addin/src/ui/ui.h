@@ -1,4 +1,4 @@
-/* ui.h - the screen furniture: title bar, softkeys, lists, entry fields.
+/* ui.h - the screen furniture: status strip, softkeys, lists, entry fields.
  *
  * This is the part that makes ChemCalc behave like the calculator's own
  * applications: F1-F6 along the bottom, arrow keys to move, EXE to accept and
@@ -14,16 +14,19 @@
 
 /* ---- frame -------------------------------------------------------------- */
 
-/* Clear the screen and draw the title bar. Does not call dupdate(). */
+/* Clear the screen and draw the white status strip: `title` small and grey in
+ * the middle, over a black rule. Does not call dupdate(). */
 void ui_frame(const char *title);
 
-/* Draw the six softkey labels along the bottom. A NULL or "" label leaves
- * that key blank. Does not call dupdate(). */
+/* Draw the six softkey labels along the bottom, as the OS draws command keys:
+ * black text in a black-bordered white tab. A NULL or "" label leaves that key
+ * blank. Does not call dupdate(). */
 void ui_softkeys(const char *const *labels);
 
 /* ---- menus -------------------------------------------------------------- */
 
-/* A list the user moves through with the arrows. `cursor` is kept between
+/* A list the user moves through with the arrows, rows numbered "1:", "2:"... with
+ * the chosen one a black bar and magenta arrows when it scrolls. `cursor` is kept between
  * calls so the list reopens where it was left. Returns the chosen index, or
  * -1 when the user pressed EXIT. */
 int ui_menu(const char *title, const char *const *items, int count, int *cursor);
