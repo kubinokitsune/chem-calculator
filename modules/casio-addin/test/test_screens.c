@@ -98,6 +98,18 @@ static void equation(const char *text)
     fake_press(KEY_EXE);
 }
 
+/* A result page is open: scroll it to the end, so that every line has been on
+ * screen. The body shows the heading and 7 lines, so a page of ten, like atom
+ * economy, hides its answer until it is scrolled; the extra presses are
+ * harmless once the end is reached. */
+static void page_end(void)
+{
+    int i;
+
+    for (i = 0; i < 12; i++)
+        fake_press(KEY_DOWN);
+}
+
 /* The script used exactly the keys the screens asked for. */
 static void all_keys_used(const char *what)
 {
@@ -251,6 +263,7 @@ int main(void)
     /* A long one: 28 characters, small letters, four products. */
     fake_reset();
     equation("KMnO4+HCl->KCl+MnCl2+H2O+Cl2");
+    page_end();                         /* the coefficients are the last line */
     fake_press(KEY_EXIT);
     screen_balance();
     showed("permanganate + HCl is 2, 16, 2, 2, 8, 5",
@@ -258,16 +271,17 @@ int main(void)
     showed("the 16 shows on the HCl line", "16 HCl");
     all_keys_used("permanganate");
 
-    /* 47 characters: wider than the field, so it scrolls while typing. */
+    /* 46 characters: wider than the 36 the field shows, so it scrolls while typing. */
     fake_reset();
     equation("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
+    page_end();
     fake_press(KEY_EXIT);
     screen_balance();
     showed("glucose + dichromate is 1, 4, 16, 6, 4, 4, 22",
            "Coefficients: 1, 4, 16, 6, 4, 4, 22");
     ok("the long equation was never drawn in one piece",
        !fake_screen_has("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O"), "no scrolling");
-    showed("but its end was in view", "6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
+    showed("but its end was in view", "Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
     all_keys_used("long equation");
 
     /* Numbers in front are ignored, and the prompt says so. */
@@ -276,7 +290,7 @@ int main(void)
     fake_press(KEY_EXIT);
     screen_balance();
     showed("a typed coefficient is ignored by the balancer", "Coefficients: 1, 5, 3, 4");
-    showed("and the prompt says so", "numbers in front are ignored");
+    showed("and the prompt says so", "numbers in front ignored");
     all_keys_used("ignored coefficient");
 
     /* Mistakes: the message is shown, the text stays, and it can be fixed. */
@@ -379,8 +393,31 @@ int main(void)
         ok("a 47-character equation is all in the buffer",
            strlen(text) == 47 && strcmp(text + 40, "CH4+CH4") == 0, text);
         ok("the field scrolls rather than running off the screen",
-           !fake_screen_has(text) && fake_screen_has(text + 2),
+           !fake_screen_has(text) && fake_screen_has(text + 11),
            "the whole text was drawn, or the end was not");
+
+        /* The longest equation the field holds, UI_EQUATION_LEN - 1 characters, is
+         * more than twice the screen's width: typing it must keep the end, and
+         * the caret after it, inside the screen. A hundred are typed, so the
+         * last few are refused. */
+        {
+            char many[101] = "";
+            int before, i;
+
+            for (i = 0; i < 25; i++)
+                strcat(many, "CH4+");
+            fake_reset();
+            text[0] = 0;
+            fake_press_text(many);
+            fake_press(KEY_EXE);
+            before = fake_overflows();
+            ui_equation_input("Equation", "Equation:", text, UI_EQUATION_LEN);
+            ok("a hundred typed characters fill the buffer to its limit",
+               (int)strlen(text) == UI_EQUATION_LEN - 1, text);
+            ok("its end is drawn", fake_screen_has(text + strlen(text) - 36), NULL);
+            ok("and so is the caret, inside the screen: nothing ran past the edge",
+               fake_overflows() == before, fake_first_overflow());
+        }
 
         /* DEL takes "->" away in one go; any other character one at a time. */
         fake_reset();
@@ -860,6 +897,22 @@ int main(void)
     screen_tools();
     showed("Fe3+ ends at 3d5", "3d5");
 
+    /* Oganesson's configuration is over 80 characters, more than two lines of
+     * 36: it is split at spaces over as many lines as it needs, and the last of
+     * them is on a line of its own, not cut off. */
+    fake_reset();
+    menu_pick(1);
+    fake_press_text("Og");
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXE);
+    page_end();
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("the heaviest configuration starts on its first line", "\n1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6\n");
+    showed("and its last line is whole", "\n6d10 7s2 7p6\n");
+    all_keys_used("long configuration");
+
     /* Oxidation numbers of permanganate. */
     fake_reset();
     menu_pick(2);                       /* Oxidation numbers */
@@ -921,11 +974,13 @@ int main(void)
     screen_tools();
     showed("benzene has an IHD of 4", "IHD = 4");
 
-    /* Atom economy: one equation, then the product that is wanted. */
+    /* Atom economy: one equation, then the product that is wanted. Its page is
+     * ten lines, so page_end() scrolls down to the answer before leaving. */
     fake_reset();
     menu_pick(5);                       /* Atom economy */
     equation("CH4+2O2->CO2+2H2O");
     menu_pick(2);                       /* Desired product: H2O */
+    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -942,6 +997,7 @@ int main(void)
     menu_pick(5);
     equation("CH4+O2->CO2+H2O");
     menu_pick(2);                       /* H2O */
+    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -956,6 +1012,7 @@ int main(void)
     menu_pick(5);
     equation("CH4+2O2->CO2+2H2O");
     menu_pick(1);                       /* CO2 */
+    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -967,6 +1024,7 @@ int main(void)
     menu_pick(5);
     equation("N2+3H2->2NH3");
     menu_pick(1);
+    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -978,6 +1036,7 @@ int main(void)
     menu_pick(5);
     equation("CH4+2O2->CO2+2H2O");
     menu_pick(2);
+    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -996,6 +1055,7 @@ int main(void)
     fake_press_text("2H2O");            /* ... and the field still holds the rest */
     fake_press(KEY_EXE);
     menu_pick(2);
+    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1011,6 +1071,7 @@ int main(void)
     fake_press_text("->CO2+2H2O");
     fake_press(KEY_EXE);
     menu_pick(2);
+    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1026,6 +1087,7 @@ int main(void)
     fake_press_text("O");
     fake_press(KEY_EXE);
     menu_pick(2);
+    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1042,6 +1104,7 @@ int main(void)
     fake_press(KEY_DEL);                /* O2 and "->" are gone: back to H2 */
     equation("+O2->H2O");
     menu_pick(1);
+    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1056,6 +1119,7 @@ int main(void)
     fake_press(KEY_EXIT);               /* leave Desired product */
     fake_press(KEY_EXE);                /* the equation is still there */
     menu_pick(2);
+    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1134,7 +1198,7 @@ int main(void)
             items[i] = names[i];
         }
 
-        /* UP from the top wraps to the last of 32 entries, far below the 9 rows
+        /* UP from the top wraps to the last of 32 entries, far below the 7 rows
          * that fit, and the list scrolls to show it. */
         fake_reset();
         fake_press(KEY_UP);
@@ -1146,20 +1210,90 @@ int main(void)
         ok("EXIT does the going back, so there is no BACK key", !fake_screen_has("BACK"), NULL);
         all_keys_used("long menu");
 
-        /* A page of 14 lines shows its heading, scrolls with DOWN to reach the
-         * last line, and has no BACK key either. */
+        /* A page of 14 lines shows its heading and 7 lines, scrolls with DOWN
+         * one line at a time to reach the last line, and has no BACK key either. */
         fake_reset();
         ui_result_begin("Long page");
         for (i = 0; i < 14; i++)
             ui_result_line(items[i]);
-        for (i = 0; i < 4; i++)
-            fake_press(KEY_DOWN);
         fake_press(KEY_EXE);
         ui_result_show();
         showed("a result page shows its heading", "Long page");
-        showed("and DOWN scrolls to its last line", "Item 14");
+        showed("and its seventh line", "Item 7");
+        ok("but not its eighth until it scrolls", !fake_screen_has("Item 8"), NULL);
         ok("the result page has no BACK key", !fake_screen_has("BACK"), NULL);
+        all_keys_used("page top");
+
+        fake_reset();
+        ui_result_begin("Long page");
+        for (i = 0; i < 14; i++)
+            ui_result_line(items[i]);
+        for (i = 0; i < 6; i++)
+            fake_press(KEY_DOWN);
+        fake_press(KEY_EXE);
+        ui_result_show();
+        ok("six DOWNs are not enough to reach the 14th line", !fake_screen_has("Item 14"), NULL);
+        all_keys_used("page almost at the end");
+
+        fake_reset();
+        ui_result_begin("Long page");
+        for (i = 0; i < 14; i++)
+            ui_result_line(items[i]);
+        for (i = 0; i < 7; i++)
+            fake_press(KEY_DOWN);
+        fake_press(KEY_EXE);
+        ui_result_show();
+        showed("seven DOWNs scroll to its last line", "Item 14");
         all_keys_used("long page");
+
+        /* a page that ends in a rule and an answer, as the procedures' do:
+         * the answer is last, and is reached by scrolling */
+        fake_reset();
+        ui_result_begin("Answer page");
+        for (i = 0; i < 9; i++)
+            ui_result_line(items[i]);
+        ui_result_rule();
+        ui_result_line("the answer");
+        fake_press(KEY_EXE);
+        ui_result_show();
+        ok("an answer below the fold is not drawn at first", !fake_screen_has("the answer"), NULL);
+        fake_reset();
+        ui_result_begin("Answer page");
+        for (i = 0; i < 9; i++)
+            ui_result_line(items[i]);
+        ui_result_rule();
+        ui_result_line("the answer");
+        page_end();
+        fake_press(KEY_EXE);
+        ui_result_show();
+        showed("but scrolling reaches it", "the answer");
+        all_keys_used("answer page");
+
+        /* every one of the 32 entries is drawn on the way down, in order, and
+         * the sevens are paged by RIGHT */
+        fake_reset();
+        for (i = 0; i < 31; i++)
+            fake_press(KEY_DOWN);
+        fake_press(KEY_EXE);
+        cursor = 0;
+        choice = ui_menu("Long menu", items, 32, &cursor);
+        for (i = 1; i <= 32; i++) {
+            char line[16];
+
+            snprintf(line, sizeof line, "%d:Item %d", i, i);
+            if (!fake_screen_has(line))
+                break;
+        }
+        ok("walking down a 32-item menu draws every item", i == 33 && choice == 31, NULL);
+        all_keys_used("walk the long menu");
+
+        fake_reset();
+        fake_press(KEY_RIGHT);
+        fake_press(KEY_EXE);
+        cursor = 0;
+        choice = ui_menu("Long menu", items, 32, &cursor);
+        ok("RIGHT pages down by the seven rows shown", choice == 7, NULL);
+        all_keys_used("page the long menu");
 
         fake_reset();
         fake_press(KEY_EXE);
@@ -1167,6 +1301,16 @@ int main(void)
         showed("a message is shown", "A message");
         ok("and has no BACK key", !fake_screen_has("BACK"), NULL);
         all_keys_used("message");
+
+        /* the longest message, 37 characters, is wider than the pop-up can be:
+         * it wraps at a space, in two even lines rather than a word on its own */
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_message("Rates", "Two different temperatures are needed");
+        showed("a long message wraps: first line", "\nTwo different\n");
+        showed("and second line", "\ntemperatures are needed\n");
+        ok("and is not drawn in one piece", !fake_screen_has("different temperatures"), NULL);
+        all_keys_used("long message");
     }
 
     section("10. Battery, mode indicators and the menus' background");
@@ -1305,6 +1449,10 @@ int main(void)
         ui_message("Title", "A message");
         ok("so does a message", fake_rects(tint) == 0, NULL);
     }
+
+    /* every screen above has been drawn by now: none ran off the right edge */
+    ok("nothing was drawn past the edge of the screen", fake_overflows() == 0,
+       fake_first_overflow());
 
     printf("\n============================================================\n");
     printf("  Screen tests Total: %d   Passed: %d   Failed: %d\n",

@@ -28,6 +28,26 @@ static int text_at[MAX_TEXTS], text_fg[MAX_TEXTS], texts;
 /* how many rectangles of each colour */
 #define MAX_COLOURS 64
 static int rect_colour[MAX_COLOURS], rect_count[MAX_COLOURS], colours;
+static int rect_last[MAX_COLOURS][4];
+
+/* The fonts. The add-in's own two are 10 px wide on every glyph; gint's
+ * default is proportional, and its widths are those of font8x9.png as fxconv
+ * trims them (95 glyphs from the space, each followed by 1 px of spacing). */
+struct font { int width; };
+font_t font_body = { 10 }, font_bold = { 10 };
+static font_t font_small = { 0 };
+static const font_t *current_font = &font_small;
+static const unsigned char small_width[95] = {
+    5, 2, 6, 7, 8, 6, 8, 3, 4, 4, 8, 8, 3, 7, 2, 5, 7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 2, 3, 5, 7, 5, 6, 8, 7, 7, 7, 7, 7, 7, 7, 7, 6, 7, 7, 7, 8, 7, 8,
+    7, 8, 7, 7, 8, 7, 8, 8, 8, 8, 6, 4, 5, 4, 7, 7, 4, 7, 7, 7, 8, 8, 7, 7,
+    7, 4, 6, 7, 4, 8, 7, 8, 7, 7, 8, 7, 8, 7, 8, 8, 7, 7, 6, 4, 2, 4, 7
+};
+
+/* the last column of the OS's area, and drawing past it */
+#define LAST_COLUMN 389
+static int overflows;
+static char first_overflow[80];
 
 static int centivolts_now, battery_type_now, os_reads;
 static uint32_t ticks;
@@ -168,6 +188,57 @@ int fake_screen_has(const char *text)
 
 /* ---- the drawing calls the add-in makes --------------------------------- */
 
+static int text_width(const char *text, const font_t *font)
+{
+    int width = 0;
+
+    if (font == NULL)
+        font = current_font;
+    if (font->width != 0)
+        return font->width * (int)strlen(text);
+    for (; *text; text++)
+        width += small_width[(*text >= 32 && *text < 127) ? *text - 32 : 0] + 1;
+    return width > 0 ? width - 1 : 0;
+}
+
+static void overflow(const char *what)
+{
+    if (overflows++ == 0)
+        snprintf(first_overflow, sizeof first_overflow, "%s", what);
+}
+
+/* `text` drawn with its left edge at x (halign 0), centred on it (1) or
+ * ending at it (2) must stay inside the OS's area. */
+static void check_text(int x, int halign, const char *text)
+{
+    int width = text_width(text, NULL);
+
+    if (halign == 1)
+        x -= width / 2;
+    else if (halign == 2)
+        x -= width;
+    if (x < 0 || x + width - 1 > LAST_COLUMN)
+        overflow(text);
+}
+
+int fake_overflows(void)
+{
+    return overflows;
+}
+
+const char *fake_first_overflow(void)
+{
+    return first_overflow;
+}
+
+const font_t *dfont(const font_t *font)
+{
+    const font_t *old = current_font;
+
+    current_font = (font != NULL) ? font : &font_small;
+    return old;
+}
+
 static void capture(const char *text, int fg)
 {
     int length = (int)strlen(text);
@@ -198,7 +269,8 @@ void drect(int x1, int y1, int x2, int y2, int colour)
 {
     int i;
 
-    (void)x1; (void)y1; (void)x2; (void)y2;
+    if (x2 > LAST_COLUMN)
+        overflow("a rectangle");
     for (i = 0; i < colours && rect_colour[i] != colour; i++)
         ;
     if (i == colours) {
@@ -210,6 +282,25 @@ void drect(int x1, int y1, int x2, int y2, int colour)
         rect_count[i] = 0;
     }
     rect_count[i]++;
+    rect_last[i][0] = x1;
+    rect_last[i][1] = y1;
+    rect_last[i][2] = x2;
+    rect_last[i][3] = y2;
+}
+
+int fake_last_rect(int colour, int *x1, int *y1, int *x2, int *y2)
+{
+    int i;
+
+    for (i = 0; i < colours; i++)
+        if (rect_colour[i] == colour) {
+            *x1 = rect_last[i][0];
+            *y1 = rect_last[i][1];
+            *x2 = rect_last[i][2];
+            *y2 = rect_last[i][3];
+            return 1;
+        }
+    return 0;
 }
 
 int fake_rects(int colour)
@@ -235,24 +326,27 @@ int fake_text_colour(const char *text)
 
 void dtext(int x, int y, int fg, const char *text)
 {
-    (void)x; (void)y;
+    (void)y;
+    check_text(x, 0, text);
     capture(text, fg);
 }
 
 void dtext_opt(int x, int y, int fg, int bg, int halign, int valign,
                const char *text, int size)
 {
-    (void)x; (void)y; (void)bg; (void)halign; (void)valign; (void)size;
+    (void)y; (void)bg; (void)valign; (void)size;
+    check_text(x, halign, text);
     capture(text, fg);
 }
 
 void dsize(const char *text, const font_t *font, int *width, int *height)
 {
-    (void)font;
+    if (font == NULL)
+        font = current_font;
     if (width != NULL)
-        *width = 8 * (int)strlen(text);
+        *width = text_width(text, font);
     if (height != NULL)
-        *height = 9;
+        *height = (font == &font_small) ? 9 : 20;
 }
 
 void dupdate(void)

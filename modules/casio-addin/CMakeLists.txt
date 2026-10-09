@@ -30,7 +30,11 @@ set(SOURCES
   src/screens/tools_screen.c
 )
 
-add_executable(chemcalc ${SOURCES})
+# The text fonts (made by assets-cg/make_font.py), as gint fonts.
+set(FONTS assets-cg/font-body.png assets-cg/font-bold.png)
+fxconv_declare_assets(${FONTS} WITH_METADATA)
+
+add_executable(chemcalc ${SOURCES} ${FONTS})
 target_compile_options(chemcalc PRIVATE -Wall -Wextra -Os -std=c99)
 target_link_libraries(chemcalc Gint::Gint)
 

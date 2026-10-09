@@ -14,14 +14,19 @@
 #include <string.h>
 
 /* The fx-CG50's own applications are drawn on a 384 x 216 area that sits 6 px
- * in from the left of gint's 396 x 224 screen. gint's font is 8 x 9, so menu
- * rows are 18 px apart (the OS uses 24 with a bigger font). Result pages are
- * denser, 15 px, so a page of ten lines and its heading fit without scrolling. */
-#define ROW_HEIGHT   18
-#define PAGE_ROW     15
+ * in from the left of gint's 396 x 224 screen. The body text is Terminus 10 x 20
+ * (assets-cg/font-body.png, and font-bold.png for headings and answers), so 36
+ * characters fit across. Menu rows are 22 px apart, which leaves 7 of them and
+ * a line for the example; result pages are a little denser, 21 px, so a page
+ * shows its heading and 7 lines. The OS uses 24 px rows. The small print - the
+ * status strip, the softkey labels, the hints and the examples - stays in
+ * gint's own 8 x 9 font, as the OS keeps its small print small. */
+#define FONT_H       20
+#define ROW_HEIGHT   22
+#define PAGE_ROW     21
 #define STRIP_HEIGHT 24          /* white status strip, 1 px rule on its last row */
 #define SOFT_TOP     192         /* top of the softkey tabs */
-#define BODY_TOP     (STRIP_HEIGHT + 2)
+#define BODY_TOP     STRIP_HEIGHT
 #define BODY_BOTTOM  (SOFT_TOP - 4)
 #define BODY_ROWS    ((SOFT_TOP - BODY_TOP) / ROW_HEIGHT)
 #define PAGE_ROWS    ((SOFT_TOP - BODY_TOP) / PAGE_ROW)
@@ -38,11 +43,26 @@
 
 /* ---- small drawing helpers ---------------------------------------------- */
 
-/* Text drawn twice, a pixel apart, reads as bold with only one font. */
-static void bold(int x, int y, int colour, const char *text)
+/* The two body fonts, made by fxconv from assets-cg. gint's own is the default. */
+extern font_t font_body, font_bold;
+
+/* Body text, in the plain font or the bold one. dtext() uses whatever font was
+ * last set, so each call sets its own and puts the default back. */
+static void text_in(font_t *font, int x, int y, int colour, const char *text)
 {
+    dfont(font);
     dtext(x, y, colour, text);
-    dtext(x + 1, y, colour, text);
+    dfont(NULL);
+}
+
+static void big(int x, int y, int colour, const char *text)
+{
+    text_in(&font_body, x, y, colour, text);
+}
+
+static void heavy(int x, int y, int colour, const char *text)
+{
+    text_in(&font_bold, x, y, colour, text);
 }
 
 /* Row `i` of the body, counting from 0, for rows `pitch` px apart. */
@@ -51,8 +71,8 @@ static int row_y(int i, int pitch)
     return BODY_TOP + i * pitch;
 }
 
-/* Where text sits inside a row of `pitch` px. */
-#define TEXT_DY(pitch) (((pitch) - 9) / 2)
+/* Where body text sits inside a row of `pitch` px. */
+#define TEXT_DY(pitch) (((pitch) - FONT_H) / 2)
 
 /* A magenta arrow, 8 px wide and 7 high, pointing down (or up) at the right
  * edge of the row that starts at `y`. */
@@ -123,8 +143,11 @@ static void mode_box(const char *mode)
     drect(x + 2, 6, x + width + 6, 19, digits ? C_WHITE : COL_RED);
     if (digits)
         dtext(x + 4, 8, C_BLACK, mode);
-    else
-        bold(x + 4, 8, C_WHITE, glyph);
+    else {
+        /* small print has no bold: twice, a pixel apart, reads as one */
+        dtext(x + 4, 8, C_WHITE, glyph);
+        dtext(x + 5, 8, C_WHITE, glyph);
+    }
 }
 
 /* ---- the menus' background ---------------------------------------------- */
@@ -138,14 +161,23 @@ static void mode_box(const char *mode)
 #define MARK_X    (OS_RIGHT - 12 - FLASK_W)
 #define MARK_Y    100
 
-/* The colour of column x: 5-bit channels, `paler` percent of the way to white. */
-static int shade(int x, int paler)
+/* The colour of column x: 5-bit channels, `paler` percent of the way to white.
+ * The channels are worked out in 256ths and then rounded to a whole step. With
+ * `dither` the rounding point moves along a 4-column pattern, so where one step
+ * gives way to the next the two colours take turns, in proportion, rather than
+ * meeting in a hard edge. Still one colour per column, so the background stays
+ * a handful of rectangles. */
+static int shade(int x, int paler, int dither)
 {
+    static const unsigned char point[4] = {32, 160, 96, 224};      /* around 128 */
     int t = x <= GRAD_FROM ? 0 : x >= GRAD_TO ? 256 : (x - GRAD_FROM) * 256 / (GRAD_TO - GRAD_FROM);
-    int g = 31 - ((31 - UI_TINT_G) * t + 128) / 256;
-    int b = 31 - ((31 - UI_TINT_B) * t + 128) / 256;
+    int g = 31 * 256 - (31 - UI_TINT_G) * t;
+    int b = 31 * 256 - (31 - UI_TINT_B) * t;
+    int d = dither ? point[x & 3] : 128;
 
-    return C_RGB(31, g + (31 - g) * paler / 100, b + (31 - b) * paler / 100);
+    g += (31 * 256 - g) * paler / 100;
+    b += (31 * 256 - b) * paler / 100;
+    return C_RGB(31, (g + d) >> 8, (b + d) >> 8);
 }
 
 /* Is pixel x of row y of the flask set? Rows are padded to whole bytes. */
@@ -161,14 +193,15 @@ static void menu_background(void)
 
     /* one rectangle for each run of columns that share a colour */
     for (from = x = ROW_LEFT; x <= OS_RIGHT + 1; x++)
-        if (x > OS_RIGHT || shade(x, 0) != shade(from, 0)) {
-            drect(from, STRIP_HEIGHT, x - 1, OS_BOTTOM, shade(from, 0));
+        if (x > OS_RIGHT || shade(x, 0, 1) != shade(from, 0, 1)) {
+            drect(from, STRIP_HEIGHT, x - 1, OS_BOTTOM, shade(from, 0, 1));
             from = x;
         }
 
-    /* the flask: the same gradient, 45% paler, so it stays a watermark */
+    /* the flask: the same gradient, 45% paler, so it stays a watermark. It is
+     * drawn in runs along each row, which dithering would cut to a pixel each. */
     for (x = 0; x < FLASK_W; x++)
-        mark[x] = shade(MARK_X + x, 45);
+        mark[x] = shade(MARK_X + x, 45, 0);
     for (y = 0; y < FLASK_H; y++)
         for (x = 0; x < FLASK_W; x++) {
             if (!mark_set(x, y))
@@ -202,7 +235,7 @@ void ui_softkeys(const char *const *labels)
 /* ---- menus -------------------------------------------------------------- */
 
 /* The example shown on entry screens, set by each procedure as it starts. */
-static char current_example[UI_LINE_LEN + 20];
+static char current_example[64];
 
 void ui_example(const char *text)
 {
@@ -245,13 +278,14 @@ int ui_menu_hints(const char *title, const char *const *items,
             if (picked)
                 drect(ROW_LEFT, y, ROW_RIGHT, y + ROW_HEIGHT - 1, C_BLACK);
             snprintf(line, sizeof line, "%d:%s", top + i + 1, items[top + i]);
-            dtext(10, y + TEXT_DY(ROW_HEIGHT), picked ? C_WHITE : C_BLACK, line);
+            big(10, y + TEXT_DY(ROW_HEIGHT), picked ? C_WHITE : C_BLACK, line);
         }
         scroll_arrows(0, ROW_HEIGHT, top, BODY_ROWS, count);
         /* The example for whatever is highlighted, along the bottom: it says
          * what the option is for without having to open it. */
         if (hints != NULL && hints[here] != NULL && hints[here][0] != 0) {
-            int y = BODY_BOTTOM - 14;
+            int y = BODY_BOTTOM - 6;
+
             dtext(10, y, COL_GREY, "e.g.");
             dtext(44, y, C_BLACK, hints[here]);
         }
@@ -371,17 +405,17 @@ static void entry_screen(const char *title, const char *prompt,
 
     ui_frame(title);
     mode_box(mode);
-    dtext(10, row_y(0, ROW_HEIGHT) + TEXT_DY(ROW_HEIGHT), C_BLACK, prompt);
+    big(10, row_y(0, ROW_HEIGHT) + TEXT_DY(ROW_HEIGHT), C_BLACK, prompt);
 
     /* Text wider than the line scrolls: drop letters off the front until the
      * end, where the cursor is, fits. */
-    for (dsize(text, NULL, &caret, NULL); caret > FIELD_WIDTH && text[0] != 0; text++)
-        dsize(text + 1, NULL, &caret, NULL);
-    dtext(10, y, C_BLACK, text);
-    drect(11 + caret, y - 1, 12 + caret, y + 9, C_BLACK);
+    for (dsize(text, &font_body, &caret, NULL); caret > FIELD_WIDTH && text[0] != 0; text++)
+        dsize(text + 1, &font_body, &caret, NULL);
+    big(10, y, C_BLACK, text);
+    drect(11 + caret, y + 2, 12 + caret, y + 17, C_BLACK);
 
     if (current_example[0] != 0) {
-        int ey = row_y(3, ROW_HEIGHT) + TEXT_DY(ROW_HEIGHT);
+        int ey = row_y(3, ROW_HEIGHT) + (ROW_HEIGHT - 9) / 2;
 
         dtext(10, ey, COL_GREY, "e.g.");
         dtext(44, ey, C_BLACK, current_example);
@@ -701,7 +735,7 @@ void ui_result_show(void)
         int i;
 
         ui_frame("ChemCalc");
-        bold(10, row_y(0, PAGE_ROW) + TEXT_DY(PAGE_ROW), C_BLUE, page_title);
+        heavy(10, row_y(0, PAGE_ROW) + TEXT_DY(PAGE_ROW), C_BLUE, page_title);
 
         /* Everything after the last rule is the answer, so it is drawn bold. */
         for (i = 0; i < rows && top + i < page_used; i++) {
@@ -710,10 +744,9 @@ void ui_result_show(void)
 
             if (page[top + i][0] == '\x01')
                 drect(10, y + PAGE_ROW / 2, ROW_RIGHT - 6, y + PAGE_ROW / 2, C_BLACK);
-            else if (answer)
-                bold(12, y + TEXT_DY(PAGE_ROW), C_BLACK, page[top + i]);
             else
-                dtext(12, y + TEXT_DY(PAGE_ROW), C_BLACK, page[top + i]);
+                text_in(answer ? &font_bold : &font_body, 12, y + TEXT_DY(PAGE_ROW),
+                        C_BLACK, page[top + i]);
         }
         scroll_arrows(1, PAGE_ROW, top, rows, page_used);
         dupdate();
@@ -728,22 +761,60 @@ void ui_result_show(void)
     }
 }
 
+/* A message is wrapped at spaces into lines of up to MSG_COLS characters, as
+ * evenly as a greedy fill allows: aim for the length of the message shared out
+ * over the lines it needs, and a little over, so no lone word is left over. */
+#define MSG_COLS  30
+#define MSG_LINES 3
+
+static int wrap(const char *message, char lines[MSG_LINES][MSG_COLS + 1])
+{
+    int n = 0, total = (int)strlen(message), needed = (total + MSG_COLS - 1) / MSG_COLS;
+    int limit = needed > 1 ? (total + needed - 1) / needed + 4 : MSG_COLS;
+
+    if (limit > MSG_COLS)
+        limit = MSG_COLS;
+    while (*message && n < MSG_LINES) {
+        int cut = (int)strlen(message);
+
+        if (cut > limit)
+            for (cut = limit; cut > 0 && message[cut] != ' '; cut--)
+                ;
+        if (cut == 0)
+            cut = limit;            /* a word too long for a line is split */
+        memcpy(lines[n], message, (size_t)cut);
+        lines[n++][cut] = 0;
+        for (message += cut; *message == ' '; message++)
+            ;
+    }
+    return n;
+}
+
 void ui_message(const char *title, const char *message)
 {
-    int width, middle = DHEIGHT / 2, x1, x2, y1 = middle - 24, y2 = middle + 24;
+    char lines[MSG_LINES][MSG_COLS + 1];
+    int n = wrap(message, lines), middle = DHEIGHT / 2, i, widest = 0;
+    int width[MSG_LINES], half = n * ROW_HEIGHT / 2 + 14, x1, x2;
+    int y1 = middle - half, y2 = middle + half;
 
     ui_frame(title);
-    dsize(message, NULL, &width, NULL);
-    x1 = DWIDTH / 2 - width / 2 - 20;
-    x2 = DWIDTH / 2 + width / 2 + 20;
+    for (i = 0; i < n; i++) {
+        dsize(lines[i], &font_body, &width[i], NULL);
+        if (width[i] > widest)
+            widest = width[i];
+    }
+    x1 = DWIDTH / 2 - widest / 2 - 20;
+    x2 = DWIDTH / 2 + widest / 2 + 20;
     /* the OS's pop-up frame, outside in: 1 px black, 1 white, 4 blue, 2 black */
     drect(x1, y1, x2, y2, C_BLACK);
     drect(x1 + 1, y1 + 1, x2 - 1, y2 - 1, C_WHITE);
     drect(x1 + 2, y1 + 2, x2 - 2, y2 - 2, C_BLUE);
     drect(x1 + 6, y1 + 6, x2 - 6, y2 - 6, C_BLACK);
     drect(x1 + 8, y1 + 8, x2 - 8, y2 - 8, C_WHITE);
-    dtext_opt(DWIDTH / 2, middle, C_BLACK, C_NONE, DTEXT_CENTER, DTEXT_MIDDLE,
-              message, -1);
+    for (i = 0; i < n; i++)
+        big(DWIDTH / 2 - width[i] / 2,
+            middle - n * ROW_HEIGHT / 2 + i * ROW_HEIGHT + TEXT_DY(ROW_HEIGHT),
+            C_BLACK, lines[i]);
     dupdate();
     getkey();
 }

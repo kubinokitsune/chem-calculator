@@ -236,7 +236,7 @@ static void screen_atom_economy(void)
         int cursor = 0;
         chem_error_t error;
 
-        if (!ask_equation("Atom economy", "Equation (leave numbers out to balance):",
+        if (!ask_equation("Atom economy", "Equation (omit numbers to balance):",
                           text, (int)sizeof text, left, &n_left, right, &n_right))
             return;
         for (i = 0; i < n_right; i++)

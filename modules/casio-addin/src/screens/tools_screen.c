@@ -11,7 +11,7 @@ static void screen_configuration(void)
 {
     char text[16] = "";
     tools_subshell_t shells[TOOLS_MAX_SUBSHELLS];
-    char written[128], line[UI_LINE_LEN];
+    char written[128], line[UI_LINE_LEN], *rest, *split;
     double charge = 0.0;
     int z, count, core;
 
@@ -43,17 +43,16 @@ static void screen_configuration(void)
     ui_result_line(line);
     ui_result_rule();
 
-    /* Long configurations are split over two lines so nothing is lost. */
-    if ((int)strlen(written) < UI_LINE_LEN - 1) {
-        ui_result_line(written);
-    } else {
-        char *split = written + UI_LINE_LEN - 12;
-        while (split > written && *split != ' ')
+    /* Long configurations are split at spaces over as many lines as they need,
+     * so nothing is lost: the heaviest elements run to over 80 characters. */
+    for (rest = written; (int)strlen(rest) >= UI_LINE_LEN; rest = split + 1) {
+        split = rest + UI_LINE_LEN - 1;
+        while (split > rest && *split != ' ')
             split--;
         *split = 0;
-        ui_result_line(written);
-        ui_result_line(split + 1);
+        ui_result_line(rest);
     }
+    ui_result_line(rest);
 
     core = tools_noble_core(z - (int)charge + ((charge > 0) ? (int)charge : 0));
     if (core > 0 && charge == 0.0) {

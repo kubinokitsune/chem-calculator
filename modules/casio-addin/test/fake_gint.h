@@ -46,6 +46,16 @@ void fake_battery(int centivolts, int type);
 void fake_advance(int seconds);
 int fake_os_reads(void);
 
+/* Text or rectangles drawn past the last column of the OS's 384 x 216 area
+ * since the program started (fake_reset does not clear it), and the first
+ * offender. Text is measured in the font it was drawn in. */
+int fake_overflows(void);
+const char *fake_first_overflow(void);
+
+/* Where the last rectangle drawn in `colour` was: x1 y1 x2 y2. Returns 0 if
+ * there was none. */
+int fake_last_rect(int colour, int *x1, int *y1, int *x2, int *y2);
+
 /* Keys queued but never read - a sign the screen asked for less than
  * expected. And the opposite: how often a screen asked when nothing was left. */
 int fake_keys_left(void);

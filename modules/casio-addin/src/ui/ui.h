@@ -7,7 +7,7 @@
 #ifndef UI_H
 #define UI_H
 
-#define UI_LINE_LEN   44      /* characters that fit across the screen */
+#define UI_LINE_LEN   37      /* room for 36 characters, which fit across the screen */
 #define UI_MAX_LINES  40      /* lines one result page can hold */
 #define UI_TEXT_LEN   24      /* room for one typed entry: a formula, a count */
 #define UI_EQUATION_LEN 96    /* room for a typed equation */
@@ -96,7 +96,8 @@ void ui_result_rule(void);
  * screenful. Returns when EXIT or EXE is pressed. */
 void ui_result_show(void);
 
-/* A one-line message in the middle of the screen, dismissed with any key. */
+/* A message in the middle of the screen, dismissed with any key. A long one is
+ * wrapped at spaces onto up to three lines of 30 characters. */
 void ui_message(const char *title, const char *message);
 
 #endif /* UI_H */

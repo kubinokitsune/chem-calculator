@@ -112,6 +112,23 @@ icon itself, so none is drawn. The same script writes `src/ui/flask_mark.h`,
 the flask at 3x that the menus show as a pale watermark. Regenerate both with
 `py assets-cg/make_icons.py` (needs Pillow).
 
+## The text
+
+Body text - menu rows, prompts, what you type, the lines of an answer - is set
+in a 10 × 20 pixel bitmap font, Terminus, so 36 characters fit across and a menu
+shows 7 rows (22 px apart; a result page shows its heading and 7 lines, 21 px
+apart). Headings and answers use the bold cut. The small print - the status
+strip, the softkey labels, the grey hints and the "e.g." examples - stays in
+gint's own 8 × 9 font, as the calculator's does.
+
+`assets-cg/make_font.py` writes `font-body.png` and `font-bold.png` from the
+Terminus bitmaps (Debian/Ubuntu package `xfonts-terminus`), and
+`assets-cg/fxconv-metadata.txt` has fxconv turn them into the gint fonts
+`font_body` and `font_bold`. Terminus Font is Copyright (C) 2020 Dimitar Toshkov
+Zhekov and is used under the SIL Open Font License 1.1; the licence is
+`assets-cg/LICENSE-terminus-OFL.txt`. Regenerate the PNGs with
+`py assets-cg/make_font.py` (needs Pillow).
+
 ## The status strip and the menus
 
 - The **battery** at the top left is a real reading: `src/ui/battery.c` asks the
@@ -124,7 +141,10 @@ the flask at 3x that the menus show as a pale watermark. Regenerate both with
   small letters here, so it has no indicator of its own.
 - Menus are drawn over a gradient from white to light orange with a pale flask,
   like the calculator's own application menus; entry and result screens stay
-  white, as theirs do.
+  white, as theirs do. The gradient is dithered where one colour step gives way
+  to the next, so it does not show bands.
+- A long answer scrolls with the arrows (magenta arrows say which way), and a
+  message too wide for its box wraps onto a second line.
 
 ## How it is laid out, and how it is tested
 
@@ -150,7 +170,8 @@ make -C test core     # the chemistry only
 make -C test screens  # the menus and screens
 ```
 
-620 checks at present: 381 for the chemistry and 239 for the screens. The
+714 checks at present: 399 for the chemistry and 315 for the screens, among
+them that nothing is drawn past the screen's right edge. The
 expected values are the same hand-worked IB figures the desktop calculator and
 the Python port are tested against, so the three cannot quietly disagree.
 
