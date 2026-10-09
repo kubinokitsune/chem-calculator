@@ -627,7 +627,7 @@ void ui_result_show(void)
             int y = row_y(i + 1, PAGE_ROW);
             int answer = (page_last_rule >= 0 && top + i > page_last_rule);
 
-            if (page[top + i][0] == '')
+            if (page[top + i][0] == '\x01')
                 drect(10, y + PAGE_ROW / 2, ROW_RIGHT - 6, y + PAGE_ROW / 2, C_BLACK);
             else if (answer)
                 bold(12, y + TEXT_DY(PAGE_ROW), C_BLACK, page[top + i]);

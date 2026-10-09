@@ -1,7 +1,8 @@
 """Draw the two MENU icons for the add-in (92 x 64, as the fx-CG50 wants).
 
 The tile, its dithered gradient, bevel and the cyan "selected" background come
-from the icon template in the fxSDK (MIT licence), stored here
+from the icon template in the fxSDK (Copyright (C) 2015-2022 gint/fxSDK
+contributors, MIT licence; see LICENSE-fxsdk-template.txt), stored here
 as template-uns.png / template-sel.png. The tile is recoloured orange and a
 white conical flask is drawn on it. The add-in NAME below the tile (y >= 43) is
 printed by the calculator itself, so nothing is drawn there.

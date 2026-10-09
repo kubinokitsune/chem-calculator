@@ -104,7 +104,8 @@ its fonts with it, and the build fails late without it.
 
 `assets-cg/make_icons.py` draws `icon-uns.png` and `icon-sel.png` (92 × 64,
 opaque RGB). The tile, its gradient and bevel, and the cyan selected
-background come from the icon template in the fxSDK (MIT licence), kept as
+background come from the icon template in the fxSDK (© gint/fxSDK
+contributors, MIT licence, see `assets-cg/LICENSE-fxsdk-template.txt`), kept as
 `template-uns.png` and `template-sel.png`; the script recolours the tile orange
 and draws the white flask. The calculator prints the name "ChemCalc" under the
 icon itself, so none is drawn. Regenerate with `py assets-cg/make_icons.py`
