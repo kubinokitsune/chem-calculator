@@ -13,7 +13,7 @@ static void screen_configuration(void)
     tools_subshell_t shells[TOOLS_MAX_SUBSHELLS];
     char written[128], line[UI_LINE_LEN], *rest, *split;
     double charge = 0.0;
-    int z, count, core;
+    int z, count;
 
     ui_example("Fe, charge 0 -> ...3d6 4s2; charge 3 -> 3d5");
     if (!ui_text_input("Electron configuration", "Element:", text, (int)sizeof text))
@@ -54,26 +54,7 @@ static void screen_configuration(void)
     }
     ui_result_line(rest);
 
-    core = tools_noble_core(z - (int)charge + ((charge > 0) ? (int)charge : 0));
-    if (core > 0 && charge == 0.0) {
-        const chem_element_t *noble = chem_element(core);
-        int i, shown = 0;
-
-        line[0] = 0;
-        snprintf(line, sizeof line, "[%s] ", noble->symbol);
-        for (i = 0; i < count; i++) {
-            char part[16];
-            int electrons_before = 0, j;
-
-            for (j = 0; j <= i; j++)
-                electrons_before += shells[j].electrons;
-            if (electrons_before <= core)
-                continue;
-            snprintf(part, sizeof part, "%s%d%c%d", shown ? " " : "",
-                     shells[i].n, shells[i].letter, shells[i].electrons);
-            strncat(line, part, sizeof line - strlen(line) - 1);
-            shown = 1;
-        }
+    if (charge == 0.0 && tools_shorthand(z, line, sizeof line)) {
         ui_result_rule();
         ui_result_line(line);
     }

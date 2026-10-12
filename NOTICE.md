@@ -53,10 +53,11 @@ Copyright (C) 2015-2022 gint/fxSDK contributors, used under the MIT licence.
 The full licence text is in
 [`modules/casio-addin/assets-cg/LICENSE-fxsdk-template.txt`](modules/casio-addin/assets-cg/LICENSE-fxsdk-template.txt).
 
-The add-in's text is set in the 10 x 20 bitmaps of
-[Terminus Font](https://terminus-font.sourceforge.net/)
-(`modules/casio-addin/assets-cg/font-body.png` and `font-bold.png`, made from
-its "ter-u20n" and "ter-u20b" glyphs by `make_font.py`), Copyright (C) 2020
-Dimitar Toshkov Zhekov, used under the SIL Open Font License 1.1. The full
+The add-in's text is set in a bitmap conversion of the 10×20
+ter-u20n/ter-u20b glyphs from
+[Terminus Font](https://terminus-font.sourceforge.net/) by Dimitar Toshkov
+Zhekov, Copyright (C) 2020 (SIL OFL 1.1); not an official Terminus release
+(`modules/casio-addin/assets-cg/font-body.png` and `font-bold.png`, made by
+`make_font.py`). The full
 licence text is in
 [`modules/casio-addin/assets-cg/LICENSE-terminus-OFL.txt`](modules/casio-addin/assets-cg/LICENSE-terminus-OFL.txt).

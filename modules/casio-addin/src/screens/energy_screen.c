@@ -99,7 +99,8 @@ static int collect_bonds(const char *title, bond_set_t *set)
                 snprintf(use->name, sizeof use->name, "%s", known);
                 use->enthalpy = energy_bond_enthalpy(known);
             } else {
-                snprintf(line, sizeof line, "Not in booklet. kJ/mol of %s:", use->name);
+                ui_message(title, "Bond not in the booklet");
+                snprintf(line, sizeof line, "kJ/mol of %s:", use->name);
                 if (!ask_positive(title, line, &use->enthalpy))
                     continue;
             }

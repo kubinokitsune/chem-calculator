@@ -209,6 +209,36 @@ int tools_noble_core(int z)
     return core;
 }
 
+int tools_shorthand(int z, char *out, int length)
+{
+    tools_subshell_t atom[TOOLS_MAX_SUBSHELLS], core[TOOLS_MAX_SUBSHELLS];
+    int gas = tools_noble_core(z), atoms, cores, i, j, used;
+
+    if (length <= 0)
+        return 0;
+    out[0] = 0;
+    atoms = tools_configuration(z, 0, atom, TOOLS_MAX_SUBSHELLS);
+    cores = tools_configuration(gas, 0, core, TOOLS_MAX_SUBSHELLS);
+    if (gas == 0 || atoms <= 0 || cores <= 0)
+        return 0;
+
+    used = snprintf(out, (size_t)length, "[%s]", chem_element(gas)->symbol);
+    for (i = 0; i < atoms; i++) {
+        int left = atom[i].electrons;
+
+        /* The core is a set of subshells, not the first few electrons written:
+         * for lead the 4f14 stays but 5s, 5p and 4d belong to [Xe]. */
+        for (j = 0; j < cores; j++) {
+            if (core[j].n == atom[i].n && core[j].letter == atom[i].letter)
+                left -= core[j].electrons;
+        }
+        if (left > 0 && used < length)
+            used += snprintf(out + used, (size_t)(length - used), " %d%c%d",
+                             atom[i].n, atom[i].letter, left);
+    }
+    return 1;
+}
+
 /* ---- oxidation numbers -------------------------------------------------- */
 
 /* The oxidation number an element takes when it is not the unknown one.

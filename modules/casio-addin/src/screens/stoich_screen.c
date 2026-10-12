@@ -258,7 +258,14 @@ static void screen_atom_economy(void)
     ui_result_begin("Atom economy");
     show_equation(left, n_left, right, n_right, coefficients);
     ui_result_rule();
-    snprintf(label, sizeof label, "%s M x coeff", right[wanted].formula);
+    /* A long formula in the label would push the value and unit off the line:
+     * it gets a line of its own and the label says "wanted". */
+    if (strlen(right[wanted].formula) <= 8) {
+        snprintf(label, sizeof label, "%s M x coeff", right[wanted].formula);
+    } else {
+        ui_result_text("wanted:", right[wanted].formula);
+        snprintf(label, sizeof label, "wanted M x coeff");
+    }
     ui_result_value(label, wanted_mass, "g/mol");
     ui_result_value("reactants M x coeff", reactants_mass, "g/mol");
     ui_result_rule();

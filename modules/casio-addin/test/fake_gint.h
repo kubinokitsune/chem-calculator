@@ -39,7 +39,7 @@ int fake_rects(int colour);
 int fake_text_colour(const char *text);
 
 /* The OS's battery: `centivolts` and type (1 alkaline, 2 Ni-MH) as the syscalls
- * report them, and time passing, since the add-in asks at most every 10 s.
+ * report them, and time passing, since the add-in asks at most every 30 s.
  * fake_battery lets enough time pass for the next draw to ask again. How often
  * the add-in asked is fake_os_reads(). fake_reset puts back 6.00 V alkaline. */
 void fake_battery(int centivolts, int type);

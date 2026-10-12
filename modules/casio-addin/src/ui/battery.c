@@ -10,7 +10,7 @@
  *           estimate the level: 1 alkaline, 2 Ni-MH (0 on the emulator).
  * Neither is wrapped by gint, and syscalls are only safe in the OS's world,
  * so they run inside gint_world_switch(), which takes a moment: hence the
- * 10-second cache, so that key handling never waits on it.
+ * 30-second cache, so that key handling never waits on it.
  */
 
 #include "battery.h"
@@ -20,7 +20,7 @@
 
 #include <stdint.h>
 
-#define REFRESH_TICKS (10 * 128)        /* rtc_ticks() counts 128 a second */
+#define REFRESH_TICKS (30 * 128)        /* rtc_ticks() counts 128 a second */
 
 #ifdef __sh__
 /* Casio's syscall convention: r0 is the number and r4... the arguments, called
@@ -60,6 +60,11 @@ int battery_bars(int centivolts, int type)
     return (centivolts >= need[0]) + (centivolts >= need[1]) + (centivolts >= need[2]);
 }
 
+/* A reading outside 2.00 V..9.00 V is not a battery (a failed call, or garbage
+ * from another OS version), so it counts as no reading at all. */
+#define VOLTS_MIN 200
+#define VOLTS_MAX 900
+
 static int os_centivolts, os_type;
 
 /* Runs in the OS's world; the answer is left in the statics for the caller. */
@@ -80,7 +85,8 @@ int battery_level(void)
     /* unsigned, so it also refreshes when the clock wraps at midnight */
     if (!have || now - read_at >= REFRESH_TICKS) {
         gint_world_switch(GINT_CALL(read_os, 0));
-        bars = os_centivolts > 0 ? battery_bars(os_centivolts, os_type) : -1;
+        bars = (os_centivolts >= VOLTS_MIN && os_centivolts <= VOLTS_MAX)
+               ? battery_bars(os_centivolts, os_type) : -1;
         read_at = now;
         have = 1;
     }

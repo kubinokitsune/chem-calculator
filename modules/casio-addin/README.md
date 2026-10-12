@@ -115,27 +115,28 @@ the flask at 3x that the menus show as a pale watermark. Regenerate both with
 ## The text
 
 Body text - menu rows, prompts, what you type, the lines of an answer - is set
-in a 10 × 20 pixel bitmap font, Terminus, so 36 characters fit across and a menu
+in a 10 × 20 pixel bitmap font, so 36 characters fit across and a menu
 shows 7 rows (22 px apart; a result page shows its heading and 7 lines, 21 px
 apart). Headings and answers use the bold cut. The small print - the status
 strip, the softkey labels, the grey hints and the "e.g." examples - stays in
 gint's own 8 × 9 font, as the calculator's does.
 
-`assets-cg/make_font.py` writes `font-body.png` and `font-bold.png` from the
-Terminus bitmaps (Debian/Ubuntu package `xfonts-terminus`), and
+`assets-cg/make_font.py` writes `font-body.png` and `font-bold.png`, and
 `assets-cg/fxconv-metadata.txt` has fxconv turn them into the gint fonts
-`font_body` and `font_bold`. Terminus Font is Copyright (C) 2020 Dimitar Toshkov
-Zhekov and is used under the SIL Open Font License 1.1; the licence is
-`assets-cg/LICENSE-terminus-OFL.txt`. Regenerate the PNGs with
+`font_body` and `font_bold`. The font is a bitmap conversion of the 10×20
+ter-u20n/ter-u20b glyphs from Terminus Font by Dimitar Toshkov Zhekov (SIL OFL
+1.1); not an official Terminus release. The glyphs come from the Debian/Ubuntu
+package `xfonts-terminus` and the licence is `assets-cg/LICENSE-terminus-OFL.txt`. Regenerate the PNGs with
 `py assets-cg/make_font.py` (needs Pillow).
 
 ## The status strip and the menus
 
 - The **battery** at the top left is a real reading: `src/ui/battery.c` asks the
   OS for the main battery voltage (syscall 0x1186, in centivolts) and the
-  battery type setting (0x12D5), inside a gint world switch, at most every 10
+  battery type setting (0x12D5), inside a gint world switch, at most every 30
   seconds. Bars are approximate (3 for a fresh set of 4 AAAs): the thresholds
-  are in the source. If the OS gives no reading, no battery is drawn.
+  are in the source. A reading outside 2.00 to 9.00 V is not a battery:
+  like no reading at all, it draws no battery.
 - The input mode beside it is white on a red box, **A** for capitals and **a**
   for small letters, or a plain framed **123** for digits. SHIFT only toggles
   small letters here, so it has no indicator of its own.
@@ -144,7 +145,8 @@ Zhekov and is used under the SIL Open Font License 1.1; the licence is
   white, as theirs do. The gradient is dithered where one colour step gives way
   to the next, so it does not show bands.
 - A long answer scrolls with the arrows (magenta arrows say which way), and a
-  message too wide for its box wraps onto a second line.
+  message too wide for its box wraps onto up to three lines of about 30
+  characters.
 
 ## How it is laid out, and how it is tested
 
@@ -170,7 +172,7 @@ make -C test core     # the chemistry only
 make -C test screens  # the menus and screens
 ```
 
-714 checks at present: 399 for the chemistry and 315 for the screens, among
+788 checks at present: 426 for the chemistry and 362 for the screens, among
 them that nothing is drawn past the screen's right edge. The
 expected values are the same hand-worked IB figures the desktop calculator and
 the Python port are tested against, so the three cannot quietly disagree.

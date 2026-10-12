@@ -55,6 +55,11 @@ void tools_configuration_text(const tools_subshell_t *shells, int count,
 /* The noble gas the shorthand starts from, or 0 if there is none. */
 int tools_noble_core(int z);
 
+/* The atom's shorthand, "[Xe] 4f14 5d10 6s2 6p2": the core gas's subshells
+ * removed from the full configuration, the rest in the same order. Returns 0
+ * (and writes nothing) when there is no core. */
+int tools_shorthand(int z, char *out, int length);
+
 /* ---- oxidation numbers -------------------------------------------------- */
 
 /* Oxidation number of each element of a formula, in the order the formula

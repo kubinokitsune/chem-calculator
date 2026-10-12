@@ -702,6 +702,7 @@ int main(void)
     fake_press(KEY_EXE);
     menu_pick(2);
     fake_press_text("c-s");  fake_press(KEY_EXE);
+    fake_press(KEY_EXE);                /* "not in the booklet" */
     fake_press_number("272");           /* its kJ/mol */
     fake_press_number("2");
     menu_pick(1);
@@ -709,10 +710,27 @@ int main(void)
     bond_pick("C-H");        fake_press_number("1");
     menu_pick(1);
     bond_finish();
-    showed("an unknown bond asks for its enthalpy", "Not in booklet. kJ/mol of c-s:");
+    showed("an unknown bond is said to be missing", "Bond not in the booklet");
+    showed("and asks for its enthalpy", "kJ/mol of c-s:");
     showed("and the typed value is used, in the spelling typed", "2 x c-s (272) = 544");
     showed("so dH is 544 - 414 = 130", "dH = 130 kJ/mol");
     showed("which is endothermic", "endothermic");
+
+    /* The longest bond name still shows the prompt to its colon. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("Cs-Cs-Cs-Cs-Cs");  fake_press(KEY_EXE);
+    fake_press(KEY_EXE);
+    fake_press_number("272");
+    fake_press_number("2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("C-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("a long bond name keeps the prompt's colon", "kJ/mol of Cs-Cs-Cs-Cs-Cs:");
 
     /* Equal bonds broken and formed: nothing changes, and it must not be
      * called endothermic. */
@@ -878,6 +896,7 @@ int main(void)
     bond_pick("C-H");        fake_press(KEY_EXIT);     /* the count field */
     menu_pick(2);
     fake_press_text("c-s");  fake_press(KEY_EXE);
+    fake_press(KEY_EXE);                               /* "not in the booklet" */
     fake_press(KEY_EXIT);                              /* the kJ/mol field */
     bond_pick("H-H");        fake_press_number("1");
     menu_pick(1);
@@ -995,7 +1014,18 @@ int main(void)
     screen_tools();
     showed("the heaviest configuration starts on its first line", "\n1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6\n");
     showed("and its last line is whole", "\n6d10 7s2 7p6\n");
+    showed("its shorthand drops the whole [Rn] core", "\n[Rn] 5f14 6d10 7s2 7p6\n");
     all_keys_used("long configuration");
+
+    fake_reset();
+    menu_pick(1);
+    fake_press_text("Pb");
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("lead's shorthand keeps 4f14 and drops 5s2 5p6", "\n[Xe] 4f14 5d10 6s2 6p2\n");
 
     /* Oxidation numbers of permanganate. */
     fake_reset();
@@ -1074,6 +1104,19 @@ int main(void)
     showed("the equation is shown as used", "2 O2");
     ok("and it is not the old 71 %", !fake_screen_has("71"), NULL);
     all_keys_used("atom economy");
+
+    /* A long product formula must not push the value or its unit off the line. */
+    fake_reset();
+    menu_pick(5);                       /* Atom economy */
+    equation("3CaCl2+2Na3PO4->Ca3(PO4)2+6NaCl");
+    menu_pick(1);                       /* Desired product: Ca3(PO4)2 */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a long product is named on its own line", "wanted: Ca3(PO4)2");
+    showed("and its value and unit are whole", "wanted M x coeff = 310.2 g/mol");
+    showed("with the atom economy beneath", "atom economy = ");
+    all_keys_used("atom economy, long product");
 
     /* No numbers typed: it balances the equation, and says what it used. */
     fake_reset();
@@ -1450,6 +1493,23 @@ int main(void)
            fake_rects(C_BLUE) == 0, NULL);
         ok("and the menu still works", fake_screen_has("1:Item 1"), NULL);
 
+        /* only 2.00 V to 9.00 V is a battery: anything else is no reading */
+        fake_battery(199, 1);
+        ok("1.99 V is no reading", battery_level() == -1, NULL);
+        fake_battery(200, 1);
+        ok("2.00 V is a reading, empty", battery_level() == 0, NULL);
+        fake_battery(900, 1);
+        ok("9.00 V is a reading, full", battery_level() == 3, NULL);
+        fake_battery(901, 1);
+        ok("9.01 V is no reading", battery_level() == -1, NULL);
+        fake_battery(-5, 1);
+        ok("a negative reading is none", battery_level() == -1, NULL);
+        fake_reset();
+        fake_battery(901, 1);
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("and an implausible one draws no icon", fake_rects(C_BLUE) == 0, NULL);
+
         /* many redraws, few questions: it must not slow the keys down */
         fake_reset();
         for (v = 0; v < 5; v++)
@@ -1458,13 +1518,13 @@ int main(void)
         ui_menu("Battery", items, 3, &cursor);
         ok("six redraws ask the OS once", fake_os_reads() == 1, NULL);
         fake_press(KEY_EXE);
-        fake_advance(9);
+        fake_advance(29);
         ui_menu("Battery", items, 3, &cursor);
-        ok("and 9 seconds later still once", fake_os_reads() == 1, NULL);
+        ok("and 29 seconds later still once", fake_os_reads() == 1, NULL);
         fake_press(KEY_EXE);
         fake_advance(2);
         ui_menu("Battery", items, 3, &cursor);
-        ok("11 seconds later it asks again", fake_os_reads() == 2, NULL);
+        ok("31 seconds later it asks again", fake_os_reads() == 2, NULL);
 
         /* the mode indicator: white on a solid red box, A or a, as the OS's ALPHA */
         fake_reset();

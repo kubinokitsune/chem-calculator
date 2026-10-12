@@ -7,7 +7,7 @@
 int battery_bars(int centivolts, int type);
 
 /* The bars to show now, 0 to 3, or -1 when the OS gives no reading. It asks the
- * OS at most every 10 seconds and reuses the answer in between. */
+ * OS at most every 30 seconds and reuses the answer in between. */
 int battery_level(void);
 
 #endif

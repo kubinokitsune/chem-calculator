@@ -16,6 +16,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static int passed, failed;
@@ -1003,6 +1004,45 @@ int main(void)
 
         int_is("argon is the core before potassium", tools_noble_core(19), 18);
         int_is("nothing comes before hydrogen", tools_noble_core(1), 0);
+        {
+            static const struct { int z; const char *expect; } short_cases[] = {
+                {11, "[Ne] 3s1"},                  /* Na */
+                {18, "[Ne] 3s2 3p6"},              /* Ar: the gas before it is the core */
+                {24, "[Ar] 3d5 4s1"},              /* Cr exception */
+                {26, "[Ar] 3d6 4s2"},              /* Fe */
+                {29, "[Ar] 3d10 4s1"},             /* Cu exception */
+                {36, "[Ar] 3d10 4s2 4p6"},         /* Kr */
+                {42, "[Kr] 4d5 5s1"},              /* Mo exception */
+                {47, "[Kr] 4d10 5s1"},             /* Ag exception */
+                {54, "[Kr] 4d10 5s2 5p6"},         /* Xe */
+                {82, "[Xe] 4f14 5d10 6s2 6p2"},    /* Pb */
+                /* U: the add-in does not model its 6d exception, so this is
+                 * its plain fill; what matters is that exactly [Rn] is gone. */
+                {92, "[Rn] 5f4 7s2"},
+                {118, "[Rn] 5f14 6d10 7s2 7p6"},   /* Og */
+            };
+            int c, z, wrong = 0;
+
+            for (c = 0; c < (int)(sizeof short_cases / sizeof short_cases[0]); c++) {
+                ok("shorthand found", tools_shorthand(short_cases[c].z, text, sizeof text), NULL);
+                text_is("shorthand", text, short_cases[c].expect);
+            }
+            int_is("hydrogen has no shorthand", tools_shorthand(1, text, sizeof text), 0);
+            int_is("neither has helium", tools_shorthand(2, text, sizeof text), 0);
+
+            /* the core plus what is written must be every electron */
+            for (z = 3; z <= 118; z++) {
+                int total = tools_noble_core(z);
+                const char *p;
+
+                tools_shorthand(z, text, sizeof text);
+                for (p = strchr(text, ']'); p && (p = strpbrk(p, "spdf")); p++)
+                    total += atoi(p + 1);
+                if (total != z)
+                    wrong++;
+            }
+            int_is("shorthand keeps every electron", wrong, 0);
+        }
         int_is("an impossible atomic number is refused",
                tools_configuration(0, 0, shells, TOOLS_MAX_SUBSHELLS), -1);
 
