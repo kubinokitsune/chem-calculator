@@ -106,6 +106,7 @@ exceptions[] = {
     {92, 5, 'f', 6, 'd', 1},   /* U   [Rn] 5f3 6d1 7s2 */
     {93, 5, 'f', 6, 'd', 1},   /* Np  [Rn] 5f4 6d1 7s2 */
     {96, 5, 'f', 6, 'd', 1},   /* Cm  [Rn] 5f7 6d1 7s2 */
+    {103, 6, 'd', 7, 'p', 1},  /* Lr  [Rn] 5f14 7s2 7p1 (NIST; some tables give 6d1) */
 };
 static const int exception_count =
     (int)(sizeof exceptions / sizeof exceptions[0]);

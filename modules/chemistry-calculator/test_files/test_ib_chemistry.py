@@ -423,7 +423,7 @@ NIST_EXCEPTIONS = {
     79: ("Au", "[Xe] 4f14 5d10 6s1"), 57: ("La", "[Xe] 5d1 6s2"),
     58: ("Ce", "[Xe] 4f1 5d1 6s2"), 64: ("Gd", "[Xe] 4f7 5d1 6s2"), 89: ("Ac", "[Rn] 6d1 7s2"),
     90: ("Th", "[Rn] 6d2 7s2"), 91: ("Pa", "[Rn] 5f2 6d1 7s2"), 92: ("U", "[Rn] 5f3 6d1 7s2"),
-    93: ("Np", "[Rn] 5f4 6d1 7s2"), 96: ("Cm", "[Rn] 5f7 6d1 7s2"),
+    93: ("Np", "[Rn] 5f4 6d1 7s2"), 96: ("Cm", "[Rn] 5f7 6d1 7s2"), 103: ("Lr", "[Rn] 5f14 7s2 7p1"),
 }
 _PLAIN = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
 for z, (sym, want) in NIST_EXCEPTIONS.items():

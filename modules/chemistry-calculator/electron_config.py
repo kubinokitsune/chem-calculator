@@ -22,7 +22,7 @@ ORDER = [
 NOBLE_GASES = [(2, "He"), (10, "Ne"), (18, "Ar"), (36, "Kr"), (54, "Xe"), (86, "Rn")]
 # Ground states that break the Madelung order: Z -> (from, to, electrons moved).
 # Source: NIST Atomic Spectra Database, "Ground Levels and Ionization Energies
-# for the Neutral Atoms" (physics.nist.gov/PhysRefData/IonEnergy/tblNew.html),
+# for the Neutral Atoms" (physics.nist.gov/PhysRefData/ASD/ionEnergy.html),
 # cross-checked with the CRC Handbook table "Electron Configuration of Neutral
 # Atoms in the Ground State". The IB syllabus (S1.3, Z <= 36) only expects Cr
 # and Cu; the rest are kept because they are the real ground states.
@@ -48,6 +48,7 @@ EXCEPTIONS = {
     92: ("5f", "6d", 1),   # U   [Rn] 5f3 6d1 7s2
     93: ("5f", "6d", 1),   # Np  [Rn] 5f4 6d1 7s2
     96: ("5f", "6d", 1),   # Cm  [Rn] 5f7 6d1 7s2
+    103: ("6d", "7p", 1),  # Lr  [Rn] 5f14 7s2 7p1 (NIST; some tables give 6d1)
 }
 _SUPER = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
 
