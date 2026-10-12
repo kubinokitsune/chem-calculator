@@ -45,7 +45,7 @@ typedef struct {
 
 /* Fill the subshells for an atom or ion. Writes the configuration in order
  * and returns how many subshells were used, or -1 on bad input.
- * Chromium and copper (and their groups) get the half-filled exception. */
+ * Ground-state exceptions (Cr, Cu, Pd, Au, ... see tools.c) are applied. */
 int tools_configuration(int z, int charge, tools_subshell_t *out, int max);
 
 /* Write a configuration as text: "1s2 2s2 2p6 ...". */

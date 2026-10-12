@@ -734,6 +734,14 @@ ok("Fe³⁺ loses 4s first", "/api/electron_config", {"element": "Fe", "charge":
 ok("chromium exception is explained", "/api/electron_config", {"element": "Cr", "charge": "0"},
    configuration="1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁵ 4s¹",
    detailed=lambda d: any("exception" in x for x in d))
+ok("lead shorthand keeps 4f", "/api/electron_config", {"element": "Pb", "charge": "0"},
+   shorthand="[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p²")
+ok("uranium shorthand", "/api/electron_config", {"element": "U", "charge": "0"},
+   shorthand="[Rn] 5f³ 6d¹ 7s²")
+ok("oganesson shorthand", "/api/electron_config", {"element": "Og", "charge": "0"},
+   shorthand="[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁶")
+ok("gold shorthand", "/api/electron_config", {"element": "Au", "charge": "0"},
+   shorthand="[Xe] 4f¹⁴ 5d¹⁰ 6s¹")
 ok("by name", "/api/electron_config", {"element": "iron", "charge": ""},
    configuration="1s² 2s² 2p⁶ 3s² 3p⁶ 3d⁶ 4s²")
 ok("by atomic number", "/api/electron_config", {"element": "17", "charge": "-1"},

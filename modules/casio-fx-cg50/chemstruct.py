@@ -12,7 +12,10 @@ NOBLE = [(2, "He"), (10, "Ne"), (18, "Ar"), (36, "Kr"), (54, "Xe"), (86, "Rn")]
 SYMBOLS = ("H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co "
            "Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb "
            "Te I Xe Cs Ba").split()
-EXCEPTIONS = {24: ("4s", "3d"), 29: ("4s", "3d"), 42: ("5s", "4d"), 47: ("5s", "4d")}
+# Z -> (from, to, electrons moved): NIST ground states, as in the desktop electron_config.py
+EXCEPTIONS = {24: ("4s", "3d", 1), 29: ("4s", "3d", 1), 41: ("5s", "4d", 1),
+              42: ("5s", "4d", 1), 44: ("5s", "4d", 1), 45: ("5s", "4d", 1),
+              46: ("5s", "4d", 2), 47: ("5s", "4d", 1)}
 
 FIXED = {"F": -1, "Li": 1, "Na": 1, "K": 1, "Rb": 1, "Cs": 1, "Be": 2, "Mg": 2,
          "Ca": 2, "Sr": 2, "Ba": 2, "Al": 3, "Zn": 2, "Cd": 2, "Ag": 1, "H": 1, "O": -2}
@@ -45,7 +48,7 @@ def configuration(Z, charge=0):
         raise ValueError("No electrons left")
     config = fill(Z)
     if Z in EXCEPTIONS:
-        s_label, d_label = EXCEPTIONS[Z]
+        s_label, d_label, moved = EXCEPTIONS[Z]
         s_part = None
         d_part = None
         for part in config:
@@ -53,9 +56,9 @@ def configuration(Z, charge=0):
                 s_part = part
             if part[0] == d_label:
                 d_part = part
-        if s_part and d_part and s_part[1] > 0:
-            s_part[1] -= 1
-            d_part[1] += 1
+        if s_part and d_part and s_part[1] >= moved:
+            s_part[1] -= moved
+            d_part[1] += moved
     if charge > 0:
         left = charge
         while left > 0:
