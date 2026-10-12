@@ -132,12 +132,19 @@ package `xfonts-terminus` and the licence is `assets-cg/LICENSE-terminus-OFL.txt
 
 ## The status strip and the menus
 
-- The **battery** at the top left is a real reading: `src/ui/battery.c` asks the
-  OS for the main battery voltage (syscall 0x1186, in centivolts) and the
-  battery type setting (0x12D5), inside a gint world switch, at most every 30
-  seconds. Bars are approximate (3 for a fresh set of 4 AAAs): the thresholds
-  are in the source. A reading outside 2.00 to 9.00 V is not a battery:
-  like no reading at all, it draws no battery.
+- The **battery** at the top left is the calculator's own icon, not an
+  estimate: `src/ui/battery.c` has the OS draw its status bar into the OS's
+  VRAM (`DisplayStatusArea`, syscall 0x1D81, inside a gint world switch), once
+  without and once with the battery, and copies the pixels that differ. So it
+  always matches the status bar of the built-in apps (levels, low-battery
+  state and all), whatever the battery type. No syscall that returns the
+  battery *level* is documented, and the voltage ones (0x1186, 0x12D5) give a
+  raw reading with no published thresholds (and a scale that community tools
+  correct by about 10 % on the fx-CG50), so those are not used. If the OS
+  draws no battery the strip shows none rather than a made-up one. It asks the
+  OS at most every 30 seconds. Not yet checked on a real calculator: the OS
+  may keep the level it measured when ChemCalc started, instead of
+  re-measuring while it runs.
 - The letter mode beside it is drawn as the calculator's own ALPHA indicator
   is (Software User's Guide, "Status Bar"): a red box with a white **A** for
   capitals or **a** for small letters, and the yellow padlock of alpha-lock,
@@ -177,7 +184,7 @@ make -C test core     # the chemistry only
 make -C test screens  # the menus and screens
 ```
 
-805 checks at present: 426 for the chemistry and 379 for the screens, among
+793 checks at present: 426 for the chemistry and 367 for the screens, among
 them that nothing is drawn past the screen's right edge. The
 expected values are the same hand-worked IB figures the desktop calculator and
 the Python port are tested against, so the three cannot quietly disagree.

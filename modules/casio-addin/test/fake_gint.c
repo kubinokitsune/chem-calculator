@@ -50,7 +50,7 @@ static const unsigned char small_width[95] = {
 static int overflows;
 static char first_overflow[80];
 
-static int centivolts_now, battery_type_now, os_reads;
+static int bars_now, os_reads;
 static uint32_t ticks;
 
 void fake_reset(void)
@@ -58,7 +58,7 @@ void fake_reset(void)
     texts = 0;
     colours = 0;
     frames = 0;
-    fake_battery(600, 1);
+    fake_battery(3);
     os_reads = 0;
     captured[0] = 0;
     captured_used = 0;
@@ -405,10 +405,9 @@ key_event_t getkey(void)
 
 /* ---- the OS: battery and clock ------------------------------------------ */
 
-void fake_battery(int centivolts, int type)
+void fake_battery(int bars)
 {
-    centivolts_now = centivolts;
-    battery_type_now = type;
+    bars_now = bars;
     fake_advance(60);
 }
 
@@ -432,21 +431,66 @@ int gint_world_switch(gint_call_t call)
     return call.function(call.arg);
 }
 
-/* The two syscalls battery.c uses, answering by their numbers on WikiPrizm. */
-int fake_os_syscall(int number, int arg)
+/* The status area syscalls battery.c uses, answering by their numbers on
+ * WikiPrizm. The OS draws into its own 384 x 216 VRAM, as the real one does. */
+#define OS_W 384
+static uint16_t os_vram[216 * OS_W];
+static int status_enabled, status_flags;
+
+int fake_os_status(void)
 {
+    return status_flags + (status_enabled ? 0x10000 : 0);
+}
+
+static void os_draw_status_area(void)
+{
+    int x, y;
+
+    if (!status_enabled)
+        return;
+    for (y = 0; y < 24; y++)
+        for (x = 0; x < OS_W; x++)
+            os_vram[y * OS_W + x] = 0xFFFF;                 /* the white header */
+    if (!(status_flags & 1) || bars_now == -1)
+        return;
+    if (bars_now == -2) {                                   /* garbage across the bar */
+        for (x = 0; x < 60; x++)
+            os_vram[5 * OS_W + x] = 0;
+        return;
+    }
+    for (y = 5; y <= 21; y++)                               /* the body, at 6 3 */
+        for (x = 6; x <= 19; x++)
+            os_vram[y * OS_W + x] = (y == 5 || y == 21 || x == 6 || x == 19) ? 0 : 0xFFFF;
+    for (y = 0; y < 3 * bars_now; y++)                      /* bars 3 rows high, 8 wide */
+        for (x = 9; x <= 16; x++)
+            os_vram[(16 - y - y / 3) * OS_W + x] = C_BLUE;
+}
+
+uintptr_t fake_os_syscall(int number, uintptr_t a, uintptr_t b, uintptr_t c, uintptr_t d)
+{
+    (void)c;
+    (void)d;
     switch (number) {
-    case 0x1186:                        /* GetMainBatteryVoltage(1) */
-        if (arg != 1) {
-            fprintf(stderr, "fake_gint: GetMainBatteryVoltage wants 1, got %d\n", arg);
-            exit(2);
-        }
-        os_reads++;
-        return centivolts_now;
-    case 0x12D5:                        /* GetBatteryType() */
-        return battery_type_now;
+    case 0x1E6:                         /* GetVRAMAddress() */
+        return (uintptr_t)os_vram;
+    case 0x2B7:                         /* EnableStatusArea(opt): 0 on, 3 off */
+        if (a == 0)
+            os_reads++;
+        status_enabled = (a == 0);
+        return 0;
+    case 0x2B8:                         /* DefineStatusAreaFlags(mode, flags, 0, 0) */
+        status_flags = a == 1 ? 0x303 : a == 3 ? (int)b : status_flags;
+        return 0;
+    case 0x1D81:                        /* DisplayStatusArea() */
+        os_draw_status_area();
+        return 0;
     default:
         fprintf(stderr, "fake_gint: unexpected syscall 0x%x\n", number);
         exit(2);
     }
+}
+
+void dpixel(int x, int y, int colour)
+{
+    drect(x, y, x, y, colour);
 }

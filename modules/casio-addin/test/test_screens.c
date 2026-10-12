@@ -1474,69 +1474,48 @@ int main(void)
         int cursor = 0, v;
         char text[UI_EQUATION_LEN] = "";
 
-        /* centivolts a reading must reach for 1, 2 and 3 bars: alkaline, Ni-MH */
-        ok("alkaline: 4.49 V is empty, 4.50 V one bar",
-           battery_bars(449, 1) == 0 && battery_bars(450, 1) == 1, NULL);
-        ok("alkaline: 4.89 V is one bar, 4.90 V two",
-           battery_bars(489, 1) == 1 && battery_bars(490, 1) == 2, NULL);
-        ok("alkaline: 5.39 V is two bars, 5.40 V three, and fresh cells stay at three",
-           battery_bars(539, 1) == 2 && battery_bars(540, 1) == 3 && battery_bars(640, 1) == 3, NULL);
-        ok("Ni-MH: 4.39 V is empty, 4.40 V one bar",
-           battery_bars(439, 2) == 0 && battery_bars(440, 2) == 1, NULL);
-        ok("Ni-MH: 4.59 V is one bar, 4.60 V two",
-           battery_bars(459, 2) == 1 && battery_bars(460, 2) == 2, NULL);
-        ok("Ni-MH: 4.79 V is two bars, 4.80 V three",
-           battery_bars(479, 2) == 2 && battery_bars(480, 2) == 3, NULL);
-        ok("the battery type matters: 4.70 V is one bar of alkaline, two of Ni-MH",
-           battery_bars(470, 1) == 1 && battery_bars(470, 2) == 2, NULL);
-        ok("an unknown type (0, as on the emulator) is read as alkaline",
-           battery_bars(470, 0) == battery_bars(470, 1), NULL);
-        ok("nothing at all is no bars", battery_bars(0, 1) == 0, NULL);
-
-        /* the strip: the OS's reading, as blue bars. Only a menu is drawn here,
-         * and the one thing in a menu that is blue is the battery. */
+        /* the strip: the OS's own battery icon, copied pixel for pixel from its
+         * status bar. Only a menu is drawn here, and the one thing in a menu
+         * that is blue is the battery. */
         fake_reset();
         fake_press(KEY_EXE);
         ui_menu("Battery", items, 3, &cursor);
-        ok("6.00 V alkaline shows three blue bars", fake_rects(C_BLUE) == 3, NULL);
+        ok("three bars on the OS's icon are three blue bars here", fake_rects(C_BLUE) == 3 * 24, NULL);
         ok("the OS was asked once", fake_os_reads() == 1, NULL);
+        {
+            int x1, y1, x2, y2;
+
+            ok("and they sit where the OS has them, 6 px in from the left",
+               fake_last_rect(C_BLUE, &x1, &y1, &x2, &y2) && x1 == 22 && y1 == 16, NULL);
+        }
+        ok("the OS's status area is left as it was found: off, with its default flags",
+           fake_os_status() == 0x303, NULL);
 
         fake_reset();
-        fake_battery(480, 1);
+        fake_battery(1);
         fake_press(KEY_EXE);
         ui_menu("Battery", items, 3, &cursor);
-        ok("4.80 V alkaline shows one bar", fake_rects(C_BLUE) == 1, NULL);
+        ok("one bar on the OS's icon is one bar here", fake_rects(C_BLUE) == 24, NULL);
 
         fake_reset();
-        fake_battery(500, 2);
+        fake_battery(0);
         fake_press(KEY_EXE);
         ui_menu("Battery", items, 3, &cursor);
-        ok("5.00 V Ni-MH shows three bars", fake_rects(C_BLUE) == 3, NULL);
+        ok("an empty OS icon is drawn, with no bars", fake_rects(C_BLUE) == 0 && battery_draw() == 1, NULL);
 
         fake_reset();
-        fake_battery(0, 1);
+        fake_battery(-1);
         fake_press(KEY_EXE);
         ui_menu("Battery", items, 3, &cursor);
-        ok("no reading from the OS draws no battery, not a made-up one",
-           fake_rects(C_BLUE) == 0, NULL);
+        ok("when the OS draws no battery none is shown, not a made-up one",
+           fake_rects(C_BLUE) == 0 && battery_draw() == 0, NULL);
         ok("and the menu still works", fake_screen_has("1:Item 1"), NULL);
 
-        /* only 2.00 V to 9.00 V is a battery: anything else is no reading */
-        fake_battery(199, 1);
-        ok("1.99 V is no reading", battery_level() == -1, NULL);
-        fake_battery(200, 1);
-        ok("2.00 V is a reading, empty", battery_level() == 0, NULL);
-        fake_battery(900, 1);
-        ok("9.00 V is a reading, full", battery_level() == 3, NULL);
-        fake_battery(901, 1);
-        ok("9.01 V is no reading", battery_level() == -1, NULL);
-        fake_battery(-5, 1);
-        ok("a negative reading is none", battery_level() == -1, NULL);
         fake_reset();
-        fake_battery(901, 1);
+        fake_battery(-2);
         fake_press(KEY_EXE);
         ui_menu("Battery", items, 3, &cursor);
-        ok("and an implausible one draws no icon", fake_rects(C_BLUE) == 0, NULL);
+        ok("a change as wide as the whole bar is not a battery icon", battery_draw() == 0, NULL);
 
         /* many redraws, few questions: it must not slow the keys down */
         fake_reset();

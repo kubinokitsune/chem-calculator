@@ -41,13 +41,17 @@ int fake_frames(void);
 int fake_rects(int colour);
 int fake_text_colour(const char *text);
 
-/* The OS's battery: `centivolts` and type (1 alkaline, 2 Ni-MH) as the syscalls
- * report them, and time passing, since the add-in asks at most every 30 s.
- * fake_battery lets enough time pass for the next draw to ask again. How often
- * the add-in asked is fake_os_reads(). fake_reset puts back 6.00 V alkaline. */
-void fake_battery(int centivolts, int type);
+/* The OS's status bar: its battery icon shows `bars` blue bars (0 to 3), or
+ * -1 for the OS drawing no battery, or -2 for a stray line across the whole bar
+ * instead. Time passes, since the add-in asks at most every 30 s: fake_battery
+ * lets enough pass for the next draw to ask again. How often the add-in asked
+ * is fake_os_reads(). fake_reset puts back three bars. fake_os_status() is the
+ * status area's flags now (0x303 is the OS's default), plus 0x10000 if it is
+ * enabled. */
+void fake_battery(int bars);
 void fake_advance(int seconds);
 int fake_os_reads(void);
+int fake_os_status(void);
 
 /* Text or rectangles drawn past the last column of the OS's 384 x 216 area
  * since the program started (fake_reset does not clear it), and the first

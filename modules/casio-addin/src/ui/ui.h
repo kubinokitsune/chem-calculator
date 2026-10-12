@@ -14,8 +14,8 @@
 
 /* ---- frame -------------------------------------------------------------- */
 
-/* Clear the screen and draw the white status strip: the battery at the left (a
- * real reading, left out when the OS gives none), `title` small and grey in
+/* Clear the screen and draw the white status strip: the battery at the left (the
+ * OS's own icon, left out when the OS draws none), `title` small and grey in
  * the middle, over a black rule. Does not call dupdate(). */
 void ui_frame(const char *title);
 

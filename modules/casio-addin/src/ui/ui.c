@@ -96,29 +96,12 @@ static void scroll_arrows(int first_row, int first, int shown, int total)
         arrow(row_y(first_row + shown - 1), 0);
 }
 
-/* The OS's battery icon, 14 x 19 at the left of the strip: a black outline, a
- * white inside and up to three blue bars, filled from the bottom. */
-static void battery_icon(int bars)
-{
-    int x = ROW_LEFT + 6, y = 3, i;
-
-    drect(x, y + 2, x + 13, y + 18, C_BLACK);               /* the body */
-    drect(x + 3, y, x + 10, y + 1, C_BLACK);                /* the terminal */
-    drect(x + 5, y + 2, x + 8, y + 3, C_WHITE);             /* open at the top */
-    drect(x + 2, y + 4, x + 11, y + 16, C_WHITE);
-    for (i = 0; i < bars; i++)
-        drect(x + 3, y + 13 - 4 * i, x + 10, y + 15 - 4 * i, C_BLUE);
-}
-
-/* The status strip: the battery, the screen's name, small and grey, in the
- * middle, over a black rule. */
+/* The status strip: the OS's own battery icon, the screen's name, small and
+ * grey, in the middle, over a black rule. */
 void ui_frame(const char *title)
 {
-    int bars = battery_level();
-
     dclear(C_WHITE);
-    if (bars >= 0)
-        battery_icon(bars);
+    battery_draw();
     dtext_opt(DWIDTH / 2, STRIP_HEIGHT / 2 - 1, COL_GREY, C_NONE,
               DTEXT_CENTER, DTEXT_MIDDLE, title, -1);
     drect(ROW_LEFT + 2, STRIP_HEIGHT - 1, ROW_RIGHT + 6, STRIP_HEIGHT - 1, C_BLACK);
