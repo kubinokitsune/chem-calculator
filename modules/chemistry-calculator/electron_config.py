@@ -2,9 +2,9 @@
 electron_config.py — electron configurations (IB S1.3)
 
 Sub-levels are filled in the order given by the Madelung (n + l) rule, written
-as 1s² 2s² 2p⁶ ... .  Chromium and copper (and the ones below them) are the
-usual exceptions: a half-full or full d sub-level is more stable, so one 4s
-electron moves across.
+as 1s² 2s² 2p⁶ ... .  Chromium and copper (and the ones below them, plus a few
+f-block atoms) are the exceptions in EXCEPTIONS: a half-full or full d sub-level
+is more stable, so an s electron moves across.
 
 For ions, electrons are removed from the highest main level first — so for
 transition metals the 4s electrons go before the 3d ones.
@@ -20,9 +20,34 @@ ORDER = [
     ("6p", 6), ("7s", 2), ("5f", 14), ("6d", 10), ("7p", 6),
 ]
 NOBLE_GASES = [(2, "He"), (10, "Ne"), (18, "Ar"), (36, "Kr"), (54, "Xe"), (86, "Rn")]
-# Atoms whose ground state moves one s electron into the d sub-level
+# Ground states that break the Madelung order: Z -> (from, to, electrons moved).
+# Source: NIST Atomic Spectra Database, "Ground Levels and Ionization Energies
+# for the Neutral Atoms" (physics.nist.gov/PhysRefData/IonEnergy/tblNew.html),
+# cross-checked with the CRC Handbook table "Electron Configuration of Neutral
+# Atoms in the Ground State". The IB syllabus (S1.3, Z <= 36) only expects Cr
+# and Cu; the rest are kept because they are the real ground states.
+# casio-addin/src/core/tools.c carries the same table; test_ib_chemistry.py
+# parses it and checks the two agree.
 EXCEPTIONS = {
-    24: "Cr", 29: "Cu", 41: "Nb", 42: "Mo", 44: "Ru", 45: "Rh", 47: "Ag", 78: "Pt", 79: "Au",
+    24: ("4s", "3d", 1),   # Cr  [Ar] 3d5 4s1
+    29: ("4s", "3d", 1),   # Cu  [Ar] 3d10 4s1
+    41: ("5s", "4d", 1),   # Nb  [Kr] 4d4 5s1
+    42: ("5s", "4d", 1),   # Mo  [Kr] 4d5 5s1
+    44: ("5s", "4d", 1),   # Ru  [Kr] 4d7 5s1
+    45: ("5s", "4d", 1),   # Rh  [Kr] 4d8 5s1
+    46: ("5s", "4d", 2),   # Pd  [Kr] 4d10
+    47: ("5s", "4d", 1),   # Ag  [Kr] 4d10 5s1
+    57: ("4f", "5d", 1),   # La  [Xe] 5d1 6s2
+    58: ("4f", "5d", 1),   # Ce  [Xe] 4f1 5d1 6s2
+    64: ("4f", "5d", 1),   # Gd  [Xe] 4f7 5d1 6s2
+    78: ("6s", "5d", 1),   # Pt  [Xe] 4f14 5d9 6s1
+    79: ("6s", "5d", 1),   # Au  [Xe] 4f14 5d10 6s1
+    89: ("5f", "6d", 1),   # Ac  [Rn] 6d1 7s2
+    90: ("5f", "6d", 2),   # Th  [Rn] 6d2 7s2
+    91: ("5f", "6d", 1),   # Pa  [Rn] 5f2 6d1 7s2
+    92: ("5f", "6d", 1),   # U   [Rn] 5f3 6d1 7s2
+    93: ("5f", "6d", 1),   # Np  [Rn] 5f4 6d1 7s2
+    96: ("5f", "6d", 1),   # Cm  [Rn] 5f7 6d1 7s2
 }
 _SUPER = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
 
@@ -42,22 +67,14 @@ def _fill(electrons):
 
 
 def _apply_exception(config, Z):
-    """Move one s electron into the d sub-level for Cr, Cu and friends."""
+    """Move the electrons the ground state moves (see EXCEPTIONS)."""
     if Z not in EXCEPTIONS:
         return config
-    s_label = {24: "4s", 29: "4s", 41: "5s", 42: "5s", 44: "5s", 45: "5s", 47: "5s",
-               78: "6s", 79: "6s"}[Z]
-    d_label = {24: "3d", 29: "3d", 41: "4d", 42: "4d", 44: "4d", 45: "4d", 47: "4d",
-               78: "5d", 79: "5d"}[Z]
-    moved = 2 if Z == 45 else 1          # Rh keeps 5s⁰
-    s = next((p for p in config if p[0] == s_label), None)
-    d = next((p for p in config if p[0] == d_label), None)
-    if s and d and s[1] >= moved:
-        s[1] -= moved
-        d[1] += moved
-        if s[1] == 0:
-            config = [p for p in config if p is not s]
-    return config
+    src, dst, moved = EXCEPTIONS[Z]
+    counts = dict(config)
+    counts[src] -= moved
+    counts[dst] = counts.get(dst, 0) + moved
+    return [[label, n] for label, n in counts.items() if n > 0]
 
 
 def _sort_for_writing(config):
@@ -121,13 +138,10 @@ def noble_gas_shorthand(symbol_or_number, charge=0):
             core_symbol, core_electrons = sym, z
     if not core_symbol:
         return text
-    remaining, left = [], core_electrons
-    for label, count in config:
-        if left >= count:
-            left -= count
-            continue
-        remaining.append((label, count - left))
-        left = 0
+    # the core is a set of sub-levels (Madelung order), not the first electrons written
+    core = dict(electron_configuration(core_electrons)[1])
+    remaining = [(label, count - core.get(label, 0)) for label, count in config
+                 if count > core.get(label, 0)]
     shown = " ".join(f"{label}{str(count).translate(_SUPER)}" for label, count in remaining)
     return f"[{core_symbol}] {shown}".strip()
 
@@ -162,8 +176,10 @@ def configuration_lines(symbol_or_number, charge=0):
         + (f", plus {d_electrons} in the d sub-level" if d_electrons else ""),
     ]
     if int(charge) == 0 and element["number"] in EXCEPTIONS:
-        lines.append(f"Note: {element['symbol']} is an exception — an s electron moves into the "
-                     "d sub-level because a half-full or full d sub-level is more stable.")
+        src, dst, moved = EXCEPTIONS[element["number"]]
+        lines.append(f"Note: {element['symbol']} is an exception — {moved} electron"
+                     f"{'s' if moved > 1 else ''} move{'' if moved > 1 else 's'} from {src} into {dst} "
+                     "(the measured ground state; a half-full or full sub-level is more stable).")
     if int(charge) > 0:
         lines.append("Electrons are removed from the highest main level first "
                      "(so 4s goes before 3d).")

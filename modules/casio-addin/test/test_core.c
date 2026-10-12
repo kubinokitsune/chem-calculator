@@ -1016,10 +1016,24 @@ int main(void)
                 {47, "[Kr] 4d10 5s1"},             /* Ag exception */
                 {54, "[Kr] 4d10 5s2 5p6"},         /* Xe */
                 {82, "[Xe] 4f14 5d10 6s2 6p2"},    /* Pb */
-                /* U: the add-in does not model its 6d exception, so this is
-                 * its plain fill; what matters is that exactly [Rn] is gone. */
-                {92, "[Rn] 5f4 7s2"},
+                {92, "[Rn] 5f3 6d1 7s2"},          /* U, NIST */
                 {118, "[Rn] 5f14 6d10 7s2 7p6"},   /* Og */
+                /* the exceptions, ground states from the NIST Atomic Spectra
+                 * Database (the desktop test_ib_chemistry.py has the same list) */
+                {41, "[Kr] 4d4 5s1"},               /* Nb */
+                {44, "[Kr] 4d7 5s1"},               /* Ru */
+                {45, "[Kr] 4d8 5s1"},               /* Rh */
+                {46, "[Kr] 4d10"},                  /* Pd: 5s empty */
+                {57, "[Xe] 5d1 6s2"},               /* La: 5d was never reached by the fill */
+                {58, "[Xe] 4f1 5d1 6s2"},           /* Ce */
+                {64, "[Xe] 4f7 5d1 6s2"},           /* Gd */
+                {78, "[Xe] 4f14 5d9 6s1"},          /* Pt */
+                {79, "[Xe] 4f14 5d10 6s1"},         /* Au: 4f sits between 6s and 5d */
+                {89, "[Rn] 6d1 7s2"},               /* Ac */
+                {90, "[Rn] 6d2 7s2"},               /* Th */
+                {91, "[Rn] 5f2 6d1 7s2"},           /* Pa */
+                {93, "[Rn] 5f4 6d1 7s2"},           /* Np */
+                {96, "[Rn] 5f7 6d1 7s2"},           /* Cm */
             };
             int c, z, wrong = 0;
 
@@ -1045,6 +1059,47 @@ int main(void)
         }
         int_is("an impossible atomic number is refused",
                tools_configuration(0, 0, shells, TOOLS_MAX_SUBSHELLS), -1);
+
+        /* the exceptions apply to ions too: Ag+ is 4d10, Cu2+ is 3d9 */
+        count = tools_configuration(47, 1, shells, TOOLS_MAX_SUBSHELLS);
+        tools_configuration_text(shells, count, text, sizeof text);
+        text_is("Ag+ is 4d10", text,
+                "1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6 4d10");
+        count = tools_configuration(29, 2, shells, TOOLS_MAX_SUBSHELLS);
+        tools_configuration_text(shells, count, text, sizeof text);
+        text_is("Cu2+ is 3d9", text, "1s2 2s2 2p6 3s2 3p6 3d9");
+
+        /* every element against the golden file the desktop test also checks
+         * (written out from electron_config.py; exceptions hand-checked
+         * against NIST in test_ib_chemistry.py) */
+        {
+            FILE *golden = fopen("../../chemistry-calculator/test_files/electron_configs.txt", "r");
+            char row[256];
+            int rows = 0, mismatches = 0;
+
+            ok("golden configuration file opens", golden != NULL,
+               "run from modules/casio-addin/test (make -C test)");
+            while (golden && fgets(row, sizeof row, golden)) {
+                int z = atoi(row);
+                char *expect = row;
+
+                if (z < 1)
+                    continue;               /* comment lines */
+                expect = strchr(strchr(row, ' ') + 1, ' ') + 1;
+                expect[strcspn(expect, "\r\n")] = 0;
+                count = tools_configuration(z, 0, shells, TOOLS_MAX_SUBSHELLS);
+                tools_configuration_text(shells, count, text, sizeof text);
+                if (strcmp(text, expect) != 0) {
+                    mismatches++;
+                    printf("         Z=%d got \"%s\" expected \"%s\"\n", z, text, expect);
+                }
+                rows++;
+            }
+            if (golden)
+                fclose(golden);
+            int_is("golden file has all 118 elements", rows, 118);
+            int_is("add-in matches the desktop for every element", mismatches, 0);
+        }
 
         /* the electrons must always add up to the atom or ion */
         {

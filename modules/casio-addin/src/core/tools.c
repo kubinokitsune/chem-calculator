@@ -77,11 +77,54 @@ static const struct { int n; char letter; int room; } filling_order[] = {
 static const int filling_count =
     (int)(sizeof filling_order / sizeof filling_order[0]);
 
-/* Chromium and copper and the ones below them take one electron from s to
- * leave a half-filled or full d subshell. */
-static int is_exception(int z)
+/* Ground states that break the filling order: electrons move from one subshell
+ * to another, wherever the two sit in the fill order (gold's 6s is separated
+ * from its 5d by 4f). Source: NIST Atomic Spectra Database, "Ground Levels and
+ * Ionization Energies for the Neutral Atoms", cross-checked with the CRC
+ * Handbook table "Electron Configuration of Neutral Atoms in the Ground State".
+ * The IB syllabus (S1.3, Z <= 36) only expects Cr and Cu; the rest are the real
+ * ground states. This table is the same as EXCEPTIONS in the desktop
+ * electron_config.py; test_ib_chemistry.py parses it and checks they agree. */
+static const struct { int z, from_n; char from_l; int to_n; char to_l; int moved; }
+exceptions[] = {
+    {24, 4, 's', 3, 'd', 1},   /* Cr  [Ar] 3d5 4s1 */
+    {29, 4, 's', 3, 'd', 1},   /* Cu  [Ar] 3d10 4s1 */
+    {41, 5, 's', 4, 'd', 1},   /* Nb  [Kr] 4d4 5s1 */
+    {42, 5, 's', 4, 'd', 1},   /* Mo  [Kr] 4d5 5s1 */
+    {44, 5, 's', 4, 'd', 1},   /* Ru  [Kr] 4d7 5s1 */
+    {45, 5, 's', 4, 'd', 1},   /* Rh  [Kr] 4d8 5s1 */
+    {46, 5, 's', 4, 'd', 2},   /* Pd  [Kr] 4d10 */
+    {47, 5, 's', 4, 'd', 1},   /* Ag  [Kr] 4d10 5s1 */
+    {57, 4, 'f', 5, 'd', 1},   /* La  [Xe] 5d1 6s2 */
+    {58, 4, 'f', 5, 'd', 1},   /* Ce  [Xe] 4f1 5d1 6s2 */
+    {64, 4, 'f', 5, 'd', 1},   /* Gd  [Xe] 4f7 5d1 6s2 */
+    {78, 6, 's', 5, 'd', 1},   /* Pt  [Xe] 4f14 5d9 6s1 */
+    {79, 6, 's', 5, 'd', 1},   /* Au  [Xe] 4f14 5d10 6s1 */
+    {89, 5, 'f', 6, 'd', 1},   /* Ac  [Rn] 6d1 7s2 */
+    {90, 5, 'f', 6, 'd', 2},   /* Th  [Rn] 6d2 7s2 */
+    {91, 5, 'f', 6, 'd', 1},   /* Pa  [Rn] 5f2 6d1 7s2 */
+    {92, 5, 'f', 6, 'd', 1},   /* U   [Rn] 5f3 6d1 7s2 */
+    {93, 5, 'f', 6, 'd', 1},   /* Np  [Rn] 5f4 6d1 7s2 */
+    {96, 5, 'f', 6, 'd', 1},   /* Cm  [Rn] 5f7 6d1 7s2 */
+};
+static const int exception_count =
+    (int)(sizeof exceptions / sizeof exceptions[0]);
+
+/* The subshell n,letter in the list, added empty if the fill never reached it
+ * (lanthanum's 5d). */
+static tools_subshell_t *find_shell(tools_subshell_t *shells, int *count,
+                                    int n, char letter)
 {
-    return z == 24 || z == 29 || z == 42 || z == 47 || z == 79;
+    int i;
+
+    for (i = 0; i < *count; i++) {
+        if (shells[i].n == n && shells[i].letter == letter)
+            return &shells[i];
+    }
+    shells[*count].n = n;
+    shells[*count].letter = letter;
+    shells[*count].electrons = 0;
+    return &shells[(*count)++];
 }
 
 /* Where a subshell sits when the configuration is written in n order. */
@@ -119,15 +162,17 @@ int tools_configuration(int z, int charge, tools_subshell_t *out, int max)
         count++;
     }
 
-    /* The exceptions: move one electron from the outer s to the d below it. */
-    if (charge == 0 && is_exception(z)) {
-        for (i = 0; i < count; i++) {
-            if (shells[i].letter == 'd' && i > 0 && shells[i - 1].letter == 's'
-                && shells[i - 1].electrons == 2
-                && (shells[i].electrons == 4 || shells[i].electrons == 9)) {
-                shells[i - 1].electrons = 1;
-                shells[i].electrons += 1;
-            }
+    /* The exceptions, on the neutral atom (so a cation starts from them too;
+     * an anion keeps filling). */
+    for (i = 0; charge >= 0 && i < exception_count; i++) {
+        if (exceptions[i].z == z) {
+            tools_subshell_t *from = find_shell(shells, &count, exceptions[i].from_n,
+                                                exceptions[i].from_l);
+            tools_subshell_t *to = find_shell(shells, &count, exceptions[i].to_n,
+                                              exceptions[i].to_l);
+
+            from->electrons -= exceptions[i].moved;
+            to->electrons += exceptions[i].moved;
         }
     }
 
