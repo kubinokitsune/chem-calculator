@@ -29,8 +29,9 @@ int ask_equation(const char *title, const char *prompt, char *text, int length,
                  chem_species_t *left, int *n_left,
                  chem_species_t *right, int *n_right);
 
-/* Add the equation to the open result page, one species a line, using
- * `coefficients` (reactants first, 1 is left out). */
+/* Add the equation to the open result page, using `coefficients` (reactants
+ * first, 1 is left out). It is packed onto as few lines as fit, and a line
+ * breaks only before a "+" or "->", the next one indented two spaces. */
 void show_equation(const chem_species_t *left, int n_left,
                    const chem_species_t *right, int n_right, const int *coefficients);
 

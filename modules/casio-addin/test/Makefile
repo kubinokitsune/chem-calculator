@@ -16,7 +16,7 @@ CFLAGS ?= -std=c99 -Wall -Wextra -Werror -Wno-format-truncation -O1 -g
 CORE = ../src/core/chem.c ../src/core/elements.c ../src/core/stoich.c \
        ../src/core/solution.c ../src/core/balance.c ../src/core/energy.c ../src/core/tools.c
 
-SCREENS = ../src/ui/ui.c ../src/screens/common.c ../src/screens/ptable.c \
+SCREENS = ../src/ui/ui.c ../src/ui/battery.c ../src/screens/common.c ../src/screens/ptable.c \
           ../src/screens/stoich_screen.c ../src/screens/balance_screen.c \
           ../src/screens/gas_screen.c ../src/screens/aqua_screen.c \
           ../src/screens/energy_screen.c ../src/screens/tools_screen.c
@@ -27,7 +27,8 @@ test_core: test_core.c $(CORE) ../src/core/chem.h
 	$(CC) $(CFLAGS) -o $@ test_core.c $(CORE) -lm
 
 # The screens are built against the fake screen and keypad in test/stubs.
-test_screens: test_screens.c fake_gint.c $(CORE) $(SCREENS)
+test_screens: test_screens.c fake_gint.c fake_gint.h $(CORE) $(SCREENS) \
+               ../src/ui/battery.h ../src/ui/flask_mark.h
 	$(CC) $(CFLAGS) -I stubs -o $@ test_screens.c fake_gint.c $(CORE) $(SCREENS) -lm
 
 core: test_core

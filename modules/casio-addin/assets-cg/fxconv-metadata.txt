@@ -1,0 +1,17 @@
+font-body.png:
+  name: font_body
+  type: font
+  charset: print
+  grid.size: 11x22
+  grid.padding: 0
+  grid.border: 0
+  char-spacing: 0
+
+font-bold.png:
+  name: font_bold
+  type: font
+  charset: print
+  grid.size: 11x22
+  grid.padding: 0
+  grid.border: 0
+  char-spacing: 0

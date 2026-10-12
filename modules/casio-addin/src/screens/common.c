@@ -70,17 +70,26 @@ int ask_equation(const char *title, const char *prompt, char *text, int length,
 void show_equation(const chem_species_t *left, int n_left,
                    const chem_species_t *right, int n_right, const int *coefficients)
 {
-    char line[UI_LINE_LEN];
+    char line[UI_LINE_LEN] = "", piece[UI_LINE_LEN];
     int i;
 
     for (i = 0; i < n_left + n_right; i++) {
         const char *text = (i < n_left) ? left[i].formula : right[i - n_left].formula;
-        const char *lead = (i == 0) ? "" : ((i == n_left) ? "->  " : "+   ");
+        const char *sign = (i == 0) ? "" : ((i == n_left) ? "-> " : "+ ");
 
         if (coefficients[i] == 1)
-            snprintf(line, sizeof line, "%s%s", lead, text);
+            snprintf(piece, sizeof piece, "%s%s", sign, text);
         else
-            snprintf(line, sizeof line, "%s%d %s", lead, coefficients[i], text);
-        ui_result_line(line);
+            snprintf(piece, sizeof piece, "%s%d %s", sign, coefficients[i], text);
+
+        if (line[0] == 0) {
+            strcpy(line, piece);
+        } else if (strlen(line) + 1 + strlen(piece) < sizeof line) {
+            strcat(strcat(line, " "), piece);
+        } else {                        /* wrap before the + or ->, indented */
+            ui_result_line(line);
+            snprintf(line, sizeof line, "  %s", piece);
+        }
     }
+    ui_result_line(line);
 }

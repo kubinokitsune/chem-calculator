@@ -12,6 +12,7 @@
 
 #define C_WHITE 0xffff
 #define C_BLACK 0x0000
+#define C_BLUE  0x001f
 #define C_NONE  (-1)
 #define C_RGB(r, g, b) (((r) << 11) | ((g) << 5) | (b))
 
@@ -28,6 +29,7 @@ void dtext(int x, int y, int fg, const char *text);
 void dtext_opt(int x, int y, int fg, int bg, int halign, int valign,
                const char *text, int size);
 void dsize(const char *text, const font_t *font, int *width, int *height);
+const font_t *dfont(const font_t *font);
 void dupdate(void);
 void dpixel(int x, int y, int colour);
 

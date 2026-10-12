@@ -43,3 +43,21 @@ values because that is what the syllabus uses.
 The [physical calculator](https://github.com/kubinokitsune/chemcalc-handheld)
 built on this engine is licensed **noncommercially** — build one for yourself,
 do not sell it. The chemistry engine in this repository stays MIT.
+
+## Third-party material
+
+The add-in's MENU icon is drawn on the icon template from the
+[fxSDK](https://git.planet-casio.com/Lephenixnoir/fxsdk)
+(`modules/casio-addin/assets-cg/template-uns.png` and `template-sel.png`),
+Copyright (C) 2015-2022 gint/fxSDK contributors, used under the MIT licence.
+The full licence text is in
+[`modules/casio-addin/assets-cg/LICENSE-fxsdk-template.txt`](modules/casio-addin/assets-cg/LICENSE-fxsdk-template.txt).
+
+The add-in's text is set in a bitmap conversion of the 11×22
+ter-u22n/ter-u22b glyphs from
+[Terminus Font](https://terminus-font.sourceforge.net/) by Dimitar Toshkov
+Zhekov, Copyright (C) 2020 (SIL OFL 1.1); not an official Terminus release
+(`modules/casio-addin/assets-cg/font-body.png` and `font-bold.png`, made by
+`make_font.py`). The full
+licence text is in
+[`modules/casio-addin/assets-cg/LICENSE-terminus-OFL.txt`](modules/casio-addin/assets-cg/LICENSE-terminus-OFL.txt).

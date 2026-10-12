@@ -32,7 +32,8 @@ Nothing else needs to be copied, and the Python version can stay alongside it.
 - **Arrows** move, **EXE** chooses, **EXIT** goes back one level, and EXIT at
   the topic list leaves the add-in.
 - A menu entry can also be picked by typing its number.
-- **F1–F6** are labelled along the bottom of every screen.
+- **F1–F6** are labelled along the bottom of the entry fields, where they type
+  the symbols the keypad lacks.
 - In a formula field the keypad's own printed letters are used: press the key
   with the letter on it. **ALPHA** (or F5) switches to digits, **SHIFT** (or
   F4) to small letters, and F1–F3 type `(`, `)` and the hydrate dot.
@@ -99,11 +100,71 @@ fxsdk build-cg
 which produces `ChemCalc.g3a`. `python3-pil` is not optional — gint converts
 its fonts with it, and the build fails late without it.
 
+## The MENU icon
+
+`assets-cg/make_icons.py` draws `icon-uns.png` and `icon-sel.png` (92 × 64,
+opaque RGB). The tile, its gradient and bevel, and the cyan selected
+background come from the icon template in the fxSDK (© gint/fxSDK
+contributors, MIT licence, see `assets-cg/LICENSE-fxsdk-template.txt`), kept as
+`template-uns.png` and `template-sel.png`; the script recolours the tile orange
+and draws the white flask. The calculator prints the name "ChemCalc" under the
+icon itself, so none is drawn. The same script writes `src/ui/flask_mark.h`,
+the flask at 3x that the menus show as a pale watermark. Regenerate both with
+`py assets-cg/make_icons.py` (needs Pillow).
+
+## The text
+
+Body text - menu rows, prompts, what you type, the lines of an answer - is set
+in an 11 × 22 pixel bitmap font, so 34 characters fit across. Rows are 24 px
+apart, as the calculator's are, which leaves 7: a result page shows its heading
+and 6 lines, and a menu 7 rows (6 when it has an example line along the bottom,
+as the main menu does). Headings and answers use the bold cut. The small print - the status
+strip, the softkey labels, the grey hints and the "e.g." examples - stays in
+gint's own 8 × 9 font, as the calculator's does.
+
+`assets-cg/make_font.py` writes `font-body.png` and `font-bold.png`, and
+`assets-cg/fxconv-metadata.txt` has fxconv turn them into the gint fonts
+`font_body` and `font_bold`. The font is a bitmap conversion of the 11×22
+ter-u22n/ter-u22b glyphs from Terminus Font by Dimitar Toshkov Zhekov (SIL OFL
+1.1); not an official Terminus release. The glyphs come from the Debian/Ubuntu
+package `xfonts-terminus` and the licence is `assets-cg/LICENSE-terminus-OFL.txt`. Regenerate the PNGs with
+`py assets-cg/make_font.py` (needs Pillow).
+
+## The status strip and the menus
+
+- The **battery** at the top left is the calculator's own icon, not an
+  estimate: `src/ui/battery.c` has the OS draw its status bar into the OS's
+  VRAM (`DisplayStatusArea`, syscall 0x1D81, inside a gint world switch), once
+  without and once with the battery, and copies the pixels that differ. So it
+  always matches the status bar of the built-in apps (levels, low-battery
+  state and all), whatever the battery type. No syscall that returns the
+  battery *level* is documented, and the voltage ones (0x1186, 0x12D5) give a
+  raw reading with no published thresholds (and a scale that community tools
+  correct by about 10 % on the fx-CG50), so those are not used. If the OS
+  draws no battery the strip shows none rather than a made-up one. It asks the
+  OS at most every 30 seconds. Not yet checked on a real calculator: the OS
+  may keep the level it measured when ChemCalc started, instead of
+  re-measuring while it runs.
+- The letter mode beside it is drawn as the calculator's own ALPHA indicator
+  is (Software User's Guide, "Status Bar"): a red box with a white **A** for
+  capitals or **a** for small letters, and the yellow padlock of alpha-lock,
+  since ALPHA stays on until it is pressed again. In digit mode there is no
+  box, as on the calculator. SHIFT only toggles small letters here, so it has
+  no indicator of its own. The entry fields read ALPHA and SHIFT as keys of
+  their own: gint's `getkey()` would swallow them as modifiers.
+- Menus are drawn over a gradient from white to light orange with a pale flask,
+  like the calculator's own application menus; entry and result screens stay
+  white, as theirs do. The gradient is dithered where one colour step gives way
+  to the next, so it does not show bands.
+- A long answer scrolls with the arrows (magenta arrows say which way), and a
+  message too wide for its box wraps onto up to three lines of about 30
+  characters.
+
 ## How it is laid out, and how it is tested
 
 ```
 src/core/      the chemistry: plain C99, no calculator headers at all
-src/ui/        title bar, softkeys, menus, entry fields, result pages
+src/ui/        status strip, softkeys, menus, entry fields, result pages
 src/screens/   one file per topic, built out of the two above
 test/          tests that run on a PC
 ```
@@ -123,7 +184,8 @@ make -C test core     # the chemistry only
 make -C test screens  # the menus and screens
 ```
 
-620 checks at present: 381 for the chemistry and 239 for the screens. The
+793 checks at present: 426 for the chemistry and 367 for the screens, among
+them that nothing is drawn past the screen's right edge. The
 expected values are the same hand-worked IB figures the desktop calculator and
 the Python port are tested against, so the three cannot quietly disagree.
 

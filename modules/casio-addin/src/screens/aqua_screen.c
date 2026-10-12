@@ -109,7 +109,6 @@ static void screen_weak(void)
 
     ui_result_begin((choice == 0) ? "Weak acid" : "Weak base");
     ui_result_value((choice == 0) ? "Ka" : "Kb", k, "");
-    ui_result_value((choice == 0) ? "pKa" : "pKb", aqua_pka_from_ka(k), "");
     ui_result_value("c", concentration, "mol/dm3");
     ui_result_rule();
     show_all_four(ph);
@@ -135,7 +134,6 @@ static void screen_buffer(void)
     }
 
     ui_result_begin("Buffer");
-    ui_result_value("Ka", ka, "");
     ui_result_value("pKa", aqua_pka_from_ka(ka), "");
     ui_result_value("[salt]/[acid]", salt / acid, "");
     ui_result_rule();

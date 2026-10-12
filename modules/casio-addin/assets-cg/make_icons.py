@@ -1,52 +1,120 @@
 """Draw the two MENU icons for the add-in (92 x 64, as the fx-CG50 wants).
 
-Unselected is the flat version, selected is the brighter one the calculator
-shows when the cursor is on it.
+The tile, its dithered gradient, bevel and the cyan "selected" background come
+from the icon template in the fxSDK (Copyright (C) 2015-2022 gint/fxSDK
+contributors, MIT licence; see LICENSE-fxsdk-template.txt), stored here
+as template-uns.png / template-sel.png. The tile is recoloured orange and a
+white conical flask is drawn on it. The add-in NAME below the tile (y >= 43) is
+printed by the calculator itself, so nothing is drawn there.
+
+Both images must be opaque RGB: fxgxa turns transparent pixels black.
 """
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw, ImageOps
 
 # The icons go next to this script, wherever the repo is checked out.
-OUT = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parent
 
-W, H = 92, 64
+TILE = (242, 138, 36)           # saturated orange; no built-in app uses it
+MID = (151, 184, 185)           # the template tile's middle grey-teal band
+LREF = sum(MID) / 3
+X0, Y0, X1, Y1 = 5, 5, 86, 42   # the tile, inclusive
+CORNER_X = (5, 6, 7, 84, 85, 86)
+CORNER_Y = (5, 6, 41, 42)
+
+
+def recolour(p):
+    """Keep the template's light/dark structure, swap the hue for TILE."""
+    lum = sum(p[:3]) / 3
+    if lum <= LREF:
+        return tuple(round(c * lum / LREF) for c in TILE)
+    k = (lum - LREF) / (255 - LREF)
+    return tuple(round(c + (255 - c) * k) for c in TILE)
+
+
+def tile_image(selected):
+    base = Image.open(HERE / ("template-sel.png" if selected else "template-uns.png"))
+    base = base.convert("RGB")
+    out = base.copy()
+    for y in range(Y0, Y1 + 1):
+        for x in range(X0, X1 + 1):
+            p = base.getpixel((x, y))
+            if x in CORNER_X and y in CORNER_Y:
+                # a rounded corner: tile blended into the background, so
+                # recolour the tile part only, keeping the blend amount
+                bg = base.getpixel((x, 46)) if selected else (255, 255, 255)
+                ref = base.getpixel((min(max(x, 8), 83), y))
+                span = sum(abs(a - b) for a, b in zip(ref, bg)) or 1
+                a = min(1.0, sum(abs(q - b) for q, b in zip(p, bg)) / span)
+                t = recolour(ref)
+                out.putpixel((x, y), tuple(round(b + a * (c - b)) for b, c in zip(bg, t)))
+            else:
+                out.putpixel((x, y), recolour(p))
+    return out
+
+
+# The left half of the glyph; flask() mirrors it, so it is exactly symmetric
+# about x = 45.5, the middle of the tile (x 5..86), and its y 9..38 are centred
+# on y = 23.5, the middle of the tile (y 5..42). It spans x 24..67, clear of the
+# OS's shortcut-key square at about x 72..83, y 8..19.
+RECTS = ((36, 9, 55, 10),       # lip
+         (40, 11, 41, 20),      # neck
+         (24, 37, 67, 38),      # base
+         (34, 29, 57, 30),      # liquid level
+         (45, 23, 46, 24))      # a drop
+SHOULDER = ((41, 20), (24, 36))
+BUBBLE = (41, 34)
+
+
+def flask(k=1):
+    """The glyph as a mask, 2 px strokes drawn k times as big on a 92 x 64
+    canvas. k = 1 is the icon; the menus' watermark is the same shape at 3."""
+    m = Image.new("L", (92 * k, 64 * k), 0)
+    d = ImageDraw.Draw(m)
+    for x0, y0, x1, y1 in RECTS:
+        d.rectangle([x0 * k, y0 * k, (x1 + 1) * k - 1, (y1 + 1) * k - 1], fill=255)
+    a, b = SHOULDER
+    d.line([(a[0] * k, a[1] * k), (b[0] * k, b[1] * k)], fill=255, width=2 * k)
+    x, y = BUBBLE
+    d.ellipse([(x - 2) * k, (y - 2) * k, (x + 3) * k - 1, (y + 3) * k - 1],
+              outline=255, width=k)
+    return ImageChops.lighter(m, ImageOps.mirror(m))
 
 
 def draw(selected):
-    image = Image.new("RGBA", (W, H), (255, 255, 255, 255))
-    d = ImageDraw.Draw(image)
-
-    glass = (70, 110, 200) if not selected else (40, 90, 210)
-    liquid = (60, 170, 120) if not selected else (40, 190, 120)
-    ink = (20, 30, 50)
-
-    if selected:
-        d.rectangle([0, 0, W - 1, H - 1], fill=(232, 240, 255, 255))
-
-    # a conical flask: neck, shoulders, body
-    neck_left, neck_right, neck_top = 40, 52, 6
-    base_left, base_right, base_y = 20, 72, 50
-
-    d.rectangle([neck_left, neck_top, neck_right, 20], outline=glass, width=2)
-    d.polygon([(neck_left, 20), (base_left, base_y), (base_right, base_y),
-               (neck_right, 20)], outline=glass)
-    d.line([(neck_left, 20), (base_left, base_y)], fill=glass, width=2)
-    d.line([(neck_right, 20), (base_right, base_y)], fill=glass, width=2)
-    d.line([(base_left, base_y), (base_right, base_y)], fill=glass, width=2)
-
-    # the liquid inside
-    d.polygon([(30, 38), (23, base_y - 1), (69, base_y - 1), (62, 38)], fill=liquid)
-
-    # three bubbles
-    for x, y, r in ((36, 44, 2), (46, 42, 3), (56, 46, 2)):
-        d.ellipse([x - r, y - r, x + r, y + r], fill=(255, 255, 255))
-
-    # the name along the bottom
-    d.text((26, 53), "ChemCalc", fill=ink)
+    image = tile_image(selected)
+    mask = flask()
+    shadow = Image.new("L", mask.size, 0)
+    shadow.paste(mask.point(lambda v: v * 3 // 10), (0, 1))     # 30% black, +1 y
+    image.paste((0, 0, 0), mask=shadow)
+    image.paste((255, 255, 255), mask=mask)
     return image
 
 
-draw(False).save(OUT / "icon-uns.png")
-draw(True).save(OUT / "icon-sel.png")
-print("icons written to", OUT)
+def watermark():
+    """The glyph at 3x as a 1 bpp bitmap for the menus' background, written as
+    a C header (rows top to bottom, 8 pixels a byte, leftmost pixel = top bit)."""
+    mask = flask(3).point(lambda v: 255 if v >= 128 else 0)
+    mask = mask.crop(mask.getbbox())
+    w, h = mask.size
+    rows = []
+    for y in range(h):
+        bits = [mask.getpixel((x, y)) > 0 for x in range(w)]
+        bits += [False] * (-w % 8)
+        rows.append(", ".join("0x%02x" % sum(b << (7 - i) for i, b in enumerate(bits[j:j + 8]))
+                              for j in range(0, len(bits), 8)))
+    path = HERE.parent / "src" / "ui" / "flask_mark.h"
+    path.write_text(
+        "/* The flask glyph at 3x, a 1 bpp bitmap. Generated by assets-cg/make_icons.py;\n"
+        " * do not edit. */\n"
+        "#define FLASK_W %d\n#define FLASK_H %d\n"
+        "static const unsigned char flask_mark[] = {\n    %s\n};\n"
+        % (w, h, ",\n    ".join(rows)), newline="\n")
+
+
+if __name__ == "__main__":
+    draw(False).save(HERE / "icon-uns.png")
+    draw(True).save(HERE / "icon-sel.png")
+    watermark()
+    print("icons and watermark written")

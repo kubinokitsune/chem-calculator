@@ -10,12 +10,15 @@
 #include "fake_gint.h"
 #include "../src/screens/screens.h"
 #include "../src/ui/ui.h"
+#include "../src/ui/battery.h"
 #include "../src/core/energy.h"
 
 #include <stdio.h>
 #include <string.h>
 
 static int passed, failed;
+
+#define MAGENTA C_RGB(31, 0, 31)        /* the scroll arrows */
 
 static void ok(const char *label, int condition, const char *detail)
 {
@@ -78,6 +81,22 @@ static void bond_pick(const char *bond)
     fake_press(KEY_EXE);
 }
 
+/* Choose a half-cell by name in the cell-potential lists, the same way. */
+static void half_cell_pick(const char *half_cell)
+{
+    int i, item = 0;
+
+    for (i = 0; i < energy_half_cell_count; i++)
+        if (strcmp(energy_half_cells[i].half_cell, half_cell) == 0)
+            item = i + 1;
+    if (item == 0)
+        ok("the half-cell is in the booklet", 0, half_cell);
+    fake_press(KEY_1);
+    for (i = 1; i < item; i++)
+        fake_press(KEY_DOWN);
+    fake_press(KEY_EXE);
+}
+
 /* The bond screen is open at Bond enthalpies: leave it, and check that the
  * script used exactly the keys the screens asked for. */
 static void bond_finish(void)
@@ -122,6 +141,8 @@ int main(void)
     showed("and gives its mass", "55.85");
     showed("and its group", "Group 8");
     showed("and its category", "Transition metal");
+    showed("group, period and block share a line", "Group 8   Period 4   d block");
+    showed("and the last line, electronegativity, is in view", "Electronegativity = 1.83");
     ok("the screen did not run out of keys", fake_ran_out_of_keys() == 0, NULL);
 
     /* By atomic number this time. */
@@ -235,7 +256,7 @@ int main(void)
     screen_balance();
     showed("propane balances as 1, 5, 3, 4", "Coefficients: 1, 5, 3, 4");
     showed("and the equation is shown", "5 O2");
-    showed("with the products on their own lines", "->  3 CO2");
+    showed("on one line, as it will be written", "C3H8 + 5 O2 -> 3 CO2 + 4 H2O");
     all_keys_used("propane");
 
     /* Brackets, typed with F1 and F2. */
@@ -254,19 +275,21 @@ int main(void)
     screen_balance();
     showed("permanganate + HCl is 2, 16, 2, 2, 8, 5",
            "Coefficients: 2, 16, 2, 2, 8, 5");
-    showed("the 16 shows on the HCl line", "16 HCl");
+    showed("the 16 shows on the HCl", "16 HCl");
     all_keys_used("permanganate");
 
-    /* 47 characters: wider than the field, so it scrolls while typing. */
+    /* 46 characters: wider than the 34 the field shows, so it scrolls while typing. */
     fake_reset();
     equation("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
     fake_press(KEY_EXIT);
     screen_balance();
+    /* "Coefficients: " and these seven are 35 characters, one more than a line:
+     * the list gets a line of its own rather than losing its last digit */
     showed("glucose + dichromate is 1, 4, 16, 6, 4, 4, 22",
-           "Coefficients: 1, 4, 16, 6, 4, 4, 22");
+           "Coefficients:\n1, 4, 16, 6, 4, 4, 22\n");
     ok("the long equation was never drawn in one piece",
        !fake_screen_has("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O"), "no scrolling");
-    showed("but its end was in view", "6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
+    showed("but its end was in view", "2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
     all_keys_used("long equation");
 
     /* Numbers in front are ignored, and the prompt says so. */
@@ -275,7 +298,7 @@ int main(void)
     fake_press(KEY_EXIT);
     screen_balance();
     showed("a typed coefficient is ignored by the balancer", "Coefficients: 1, 5, 3, 4");
-    showed("and the prompt says so", "numbers in front are ignored");
+    showed("and the prompt says so", "front numbers ignored");
     all_keys_used("ignored coefficient");
 
     /* Mistakes: the message is shown, the text stays, and it can be fixed. */
@@ -378,8 +401,31 @@ int main(void)
         ok("a 47-character equation is all in the buffer",
            strlen(text) == 47 && strcmp(text + 40, "CH4+CH4") == 0, text);
         ok("the field scrolls rather than running off the screen",
-           !fake_screen_has(text) && fake_screen_has(text + 2),
+           !fake_screen_has(text) && fake_screen_has(text + 13),
            "the whole text was drawn, or the end was not");
+
+        /* The longest equation the field holds, UI_EQUATION_LEN - 1 characters, is
+         * more than twice the screen's width: typing it must keep the end, and
+         * the caret after it, inside the screen. A hundred are typed, so the
+         * last few are refused. */
+        {
+            char many[101] = "";
+            int before, i;
+
+            for (i = 0; i < 25; i++)
+                strcat(many, "CH4+");
+            fake_reset();
+            text[0] = 0;
+            fake_press_text(many);
+            fake_press(KEY_EXE);
+            before = fake_overflows();
+            ui_equation_input("Equation", "Equation:", text, UI_EQUATION_LEN);
+            ok("a hundred typed characters fill the buffer to its limit",
+               (int)strlen(text) == UI_EQUATION_LEN - 1, text);
+            ok("its end is drawn", fake_screen_has(text + strlen(text) - 34), NULL);
+            ok("and so is the caret, inside the screen: nothing ran past the edge",
+               fake_overflows() == before, fake_first_overflow());
+        }
 
         /* DEL takes "->" away in one go; any other character one at a time. */
         fake_reset();
@@ -427,6 +473,70 @@ int main(void)
         }
     }
 
+    section("3b. The answer is in view the moment a result opens");
+
+    /* No key is pressed on the result page except the one that leaves it, so
+     * what shows is the first frame. A page that fits draws no scroll arrow. */
+    fake_reset();
+    menu_pick(5);                       /* Atom economy */
+    equation("CH4+2O2->CO2+2H2O");
+    menu_pick(2);                       /* H2O */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("atom economy: the equation takes one line", "CH4 + 2 O2 -> CO2 + 2 H2O");
+    showed("atom economy: 45.02 % is on the first screen", "atom economy = 45.02 %");
+    ok("atom economy: the page fits, so nothing is scrolled", fake_rects(MAGENTA) == 0, NULL);
+    all_keys_used("atom economy first view");
+
+    fake_reset();
+    equation("C3H8+O2->CO2+H2O");
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("balancer: propane's 1, 5, 3, 4 are on the first screen", "Coefficients: 1, 5, 3, 4");
+    showed("balancer: with the equation above them", "C3H8 + 5 O2 -> 3 CO2 + 4 H2O");
+    ok("balancer: the page fits, so nothing is scrolled", fake_rects(MAGENTA) == 0, NULL);
+    all_keys_used("propane first view");
+
+    fake_reset();
+    equation("KMnO4+HCl->KCl+MnCl2+H2O+Cl2");
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("balancer: permanganate's 2, 16, 2, 2, 8, 5 are on the first screen",
+           "Coefficients: 2, 16, 2, 2, 8, 5");
+    showed("balancer: the equation wraps at a + and shows its end", "5 Cl2");
+    ok("balancer: and still nothing is scrolled", fake_rects(MAGENTA) == 0, NULL);
+    all_keys_used("permanganate first view");
+
+    /* A long equation still fits when it takes two lines... */
+    fake_reset();
+    menu_pick(5);
+    equation("KMnO4+HCl->KCl+MnCl2+H2O+Cl2");
+    menu_pick(4);                       /* Cl2 */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a two-line equation: the answer is on the first screen", "atom economy = 39.41 %");
+    showed("and the equation's second line", "  + 2 MnCl2 + 8 H2O + 5 Cl2");
+    /* heading, 2 + 1 + 2 + 1 + 1 lines: one more than the 6 a page holds, so it
+     * opens scrolled to the answer, with the up arrow showing */
+    ok("one line too many: the up arrow shows", fake_rects(MAGENTA) > 0, NULL);
+    all_keys_used("two-line atom economy");
+
+    /* ...but a three-line one makes the page too long: it opens scrolled so
+     * that the last rule and the answer are in view, with the up arrow showing. */
+    fake_reset();
+    menu_pick(5);
+    equation("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
+    menu_pick(1);                       /* CO2 */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a three-line equation: the answer is still on the first screen", "atom economy = ");
+    showed("and so is the last rule's wanted line", "CO2 M x coeff = ");
+    ok("and the up arrow shows there is more above", fake_rects(MAGENTA) > 0, NULL);
+    all_keys_used("three-line atom economy");
+
     section("4. The gas screens");
 
     /* 2.00 mol at 300 K in 5.00 dm3 gives 997 kPa. */
@@ -464,6 +574,7 @@ int main(void)
     fake_press(KEY_EXIT);
     screen_acids();
     showed("ethanoic acid has pH 2.88", "2.88");
+    showed("and its last answer, [OH-], is in view", "[OH-]");
 
     section("6. The energy screens");
 
@@ -491,6 +602,22 @@ int main(void)
     screen_energy();
     showed("dG comes out at -32.96 kJ/mol", "-32.96");
     showed("and it is called spontaneous", "spontaneous");
+
+    /* Cu2+/Cu reduced and Zn2+/Zn oxidised: E(cell) 1.10 V, and every line of
+     * the result, spontaneous last, is on the first screen. */
+    fake_reset();
+    menu_pick(4);                       /* Cell potential */
+    half_cell_pick("Cu2+/Cu");
+    half_cell_pick("Zn2+/Zn");
+    fake_press_number("2");
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_energy();
+    showed("the cell names its reduced half-cell and E", "E(red) Cu2+/Cu = 0.34 V");
+    showed("and its oxidised one", "E(ox) Zn2+/Zn = -0.76 V");
+    showed("Cu2+/Cu against Zn2+/Zn is 1.1 V", "E(cell) = 1.1 V");
+    showed("and spontaneous, in view without scrolling", "\nspontaneous\n");
+    all_keys_used("cell potential");
 
     /* H2 + Cl2 -> 2HCl, picking every bond from the list. */
     fake_reset();
@@ -579,6 +706,7 @@ int main(void)
     fake_press(KEY_EXE);
     menu_pick(2);
     fake_press_text("c-s");  fake_press(KEY_EXE);
+    fake_press(KEY_EXE);                /* "not in the booklet" */
     fake_press_number("272");           /* its kJ/mol */
     fake_press_number("2");
     menu_pick(1);
@@ -586,10 +714,27 @@ int main(void)
     bond_pick("C-H");        fake_press_number("1");
     menu_pick(1);
     bond_finish();
-    showed("an unknown bond asks for its enthalpy", "Not in booklet. kJ/mol of c-s:");
+    showed("an unknown bond is said to be missing", "Bond not in the booklet");
+    showed("and asks for its enthalpy", "kJ/mol of c-s:");
     showed("and the typed value is used, in the spelling typed", "2 x c-s (272) = 544");
     showed("so dH is 544 - 414 = 130", "dH = 130 kJ/mol");
     showed("which is endothermic", "endothermic");
+
+    /* The longest bond name still shows the prompt to its colon. */
+    fake_reset();
+    menu_pick(2);
+    fake_press(KEY_EXE);
+    menu_pick(2);
+    fake_press_text("Cs-Cs-Cs-Cs-Cs");  fake_press(KEY_EXE);
+    fake_press(KEY_EXE);
+    fake_press_number("272");
+    fake_press_number("2");
+    menu_pick(1);
+    fake_press(KEY_EXE);
+    bond_pick("C-H");        fake_press_number("1");
+    menu_pick(1);
+    bond_finish();
+    showed("a long bond name keeps the prompt's colon", "kJ/mol of Cs-Cs-Cs-Cs-Cs:");
 
     /* Equal bonds broken and formed: nothing changes, and it must not be
      * called endothermic. */
@@ -755,6 +900,7 @@ int main(void)
     bond_pick("C-H");        fake_press(KEY_EXIT);     /* the count field */
     menu_pick(2);
     fake_press_text("c-s");  fake_press(KEY_EXE);
+    fake_press(KEY_EXE);                               /* "not in the booklet" */
     fake_press(KEY_EXIT);                              /* the kJ/mol field */
     bond_pick("H-H");        fake_press_number("1");
     menu_pick(1);
@@ -859,6 +1005,32 @@ int main(void)
     screen_tools();
     showed("Fe3+ ends at 3d5", "3d5");
 
+    /* Oganesson's configuration is over 80 characters, more than two lines of
+     * 34: it is split at spaces over as many lines as it needs, and the last of
+     * them is on a line of its own, not cut off. */
+    fake_reset();
+    menu_pick(1);
+    fake_press_text("Og");
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("the heaviest configuration starts on its first line", "\n1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6\n");
+    showed("and its last line is whole", "\n6p6 6d10 7s2 7p6\n");
+    showed("its shorthand drops the whole [Rn] core", "\n[Rn] 5f14 6d10 7s2 7p6\n");
+    all_keys_used("long configuration");
+
+    fake_reset();
+    menu_pick(1);
+    fake_press_text("Pb");
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXE);
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_tools();
+    showed("lead's shorthand keeps 4f14 and drops 5s2 5p6", "\n[Xe] 4f14 5d10 6s2 6p2\n");
+
     /* Oxidation numbers of permanganate. */
     fake_reset();
     menu_pick(2);                       /* Oxidation numbers */
@@ -920,7 +1092,8 @@ int main(void)
     screen_tools();
     showed("benzene has an IHD of 4", "IHD = 4");
 
-    /* Atom economy: one equation, then the product that is wanted. */
+    /* Atom economy: one equation, then the product that is wanted. The page
+     * is a heading and 6 lines with no key pressed, answer included. */
     fake_reset();
     menu_pick(5);                       /* Atom economy */
     equation("CH4+2O2->CO2+2H2O");
@@ -930,11 +1103,24 @@ int main(void)
     screen_stoichiometry();
     showed("atom economy of 2 H2O from CH4 + 2O2 is 45.02 %", "atom economy = 45.02 %");
     showed("reactants M x coeff is 80.05", "reactants M x coeff = 80.05 g/mol");
-    showed("wanted M x coeff is 36.04", "wanted M x coeff = 36.04 g/mol");
+    showed("the wanted H2O has M x coeff 36.04", "H2O M x coeff = 36.04 g/mol");
     showed("the product menu lists the right-hand side", "Desired product");
     showed("the equation is shown as used", "2 O2");
     ok("and it is not the old 71 %", !fake_screen_has("71"), NULL);
     all_keys_used("atom economy");
+
+    /* A long product formula must not push the value or its unit off the line. */
+    fake_reset();
+    menu_pick(5);                       /* Atom economy */
+    equation("3CaCl2+2Na3PO4->Ca3(PO4)2+6NaCl");
+    menu_pick(1);                       /* Desired product: Ca3(PO4)2 */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a long product is named on its own line", "wanted: Ca3(PO4)2");
+    showed("and its value and unit are whole", "wanted M x coeff = 310.2 g/mol");
+    showed("with the atom economy beneath", "atom economy = ");
+    all_keys_used("atom economy, long product");
 
     /* No numbers typed: it balances the equation, and says what it used. */
     fake_reset();
@@ -946,8 +1132,7 @@ int main(void)
     screen_stoichiometry();
     showed("an unbalanced equation gives the same 45.02 %", "atom economy = 45.02 %");
     showed("the result shows the balanced O2", "2 O2");
-    showed("and the balanced H2O", "->  CO2");
-    showed("and 2 H2O", "+   2 H2O");
+    showed("and the whole balanced equation on one line", "CH4 + 2 O2 -> CO2 + 2 H2O");
     all_keys_used("unbalanced");
 
     /* The other product of the same reaction. */
@@ -959,7 +1144,7 @@ int main(void)
     fake_press(KEY_EXIT);
     screen_stoichiometry();
     showed("CO2 is the wanted product: 54.98 %", "atom economy = 54.98 %");
-    showed("its M x coeff is 44.01", "wanted M x coeff = 44.01 g/mol");
+    showed("and CO2 has M x coeff 44.01", "CO2 M x coeff = 44.01 g/mol");
     all_keys_used("CO2");
 
     fake_reset();
@@ -1120,8 +1305,373 @@ int main(void)
     showed("the balancer says what to type",
            "C3H8+O2->CO2+H2O gives 1, 5, 3, 4");
 
+    section("9. The calculator's own look");
+
+    /* Pixels cannot be read back, but the text and the scrolling can. */
+    {
+        static char names[32][16];
+        static const char *items[32];
+        int i, cursor = 0, choice;
+
+        for (i = 0; i < 32; i++) {
+            snprintf(names[i], sizeof names[i], "Item %d", i + 1);
+            items[i] = names[i];
+        }
+
+        /* UP from the top wraps to the last of 32 entries, far below the 7 rows
+         * that fit, and the list scrolls to show it. */
+        fake_reset();
+        fake_press(KEY_UP);
+        fake_press(KEY_EXE);
+        choice = ui_menu("Long menu", items, 32, &cursor);
+        ok("a menu longer than the screen reaches its last entry", choice == 31, NULL);
+        showed("and shows it, numbered like the OS menus", "32:Item 32");
+        ok("the old 32/32 position badge is gone", !fake_screen_has("32/32"), NULL);
+        ok("EXIT does the going back, so there is no BACK key", !fake_screen_has("BACK"), NULL);
+        all_keys_used("long menu");
+
+        /* A page of 14 lines shows its heading and 6 lines, scrolls with DOWN
+         * one line at a time to reach the last line, and has no BACK key either. */
+        fake_reset();
+        ui_result_begin("Long page");
+        for (i = 0; i < 14; i++)
+            ui_result_line(items[i]);
+        fake_press(KEY_EXE);
+        ui_result_show();
+        showed("a result page shows its heading", "Long page");
+        showed("and its sixth line", "Item 6");
+        ok("but not its seventh until it scrolls", !fake_screen_has("Item 7"), NULL);
+        ok("the result page has no BACK key", !fake_screen_has("BACK"), NULL);
+        all_keys_used("page top");
+
+        fake_reset();
+        ui_result_begin("Long page");
+        for (i = 0; i < 14; i++)
+            ui_result_line(items[i]);
+        for (i = 0; i < 7; i++)
+            fake_press(KEY_DOWN);
+        fake_press(KEY_EXE);
+        ui_result_show();
+        ok("seven DOWNs are not enough to reach the 14th line", !fake_screen_has("Item 14"), NULL);
+        all_keys_used("page almost at the end");
+
+        fake_reset();
+        ui_result_begin("Long page");
+        for (i = 0; i < 14; i++)
+            ui_result_line(items[i]);
+        for (i = 0; i < 8; i++)
+            fake_press(KEY_DOWN);
+        fake_press(KEY_EXE);
+        ui_result_show();
+        showed("eight DOWNs scroll to its last line", "Item 14");
+        all_keys_used("long page");
+
+        /* a page that ends in a rule and an answer, as the procedures' do, but
+         * is too long to fit: it opens scrolled down, so the answer is in view
+         * and the up arrow (magenta) says there is more above */
+        fake_reset();
+        ui_result_begin("Answer page");
+        for (i = 0; i < 9; i++)
+            ui_result_line(items[i]);
+        ui_result_rule();
+        ui_result_line("the answer");
+        fake_press(KEY_EXE);
+        ui_result_show();
+        showed("a long page opens with its answer in view", "the answer");
+        ok("and the lines above scrolled out", !fake_screen_has("Item 4"), NULL);
+        showed("down to the last rule's six lines", "Item 6");
+        ok("an up arrow shows there is more above", fake_rects(MAGENTA) > 0, NULL);
+        ok("and the heading is still there", fake_screen_has("Answer page"), NULL);
+        all_keys_used("answer page");
+
+        fake_reset();
+        ui_result_begin("Answer page");
+        for (i = 0; i < 9; i++)
+            ui_result_line(items[i]);
+        ui_result_rule();
+        ui_result_line("the answer");
+        for (i = 0; i < 5; i++)
+            fake_press(KEY_UP);
+        fake_press(KEY_EXE);
+        ui_result_show();
+        showed("UP scrolls back to the first line", "Item 1");
+        all_keys_used("answer page, back up");
+
+        /* every one of the 32 entries is drawn on the way down, in order, and
+         * the sevens are paged by RIGHT */
+        fake_reset();
+        for (i = 0; i < 31; i++)
+            fake_press(KEY_DOWN);
+        fake_press(KEY_EXE);
+        cursor = 0;
+        choice = ui_menu("Long menu", items, 32, &cursor);
+        for (i = 1; i <= 32; i++) {
+            char line[16];
+
+            snprintf(line, sizeof line, "%d:Item %d", i, i);
+            if (!fake_screen_has(line))
+                break;
+        }
+        ok("walking down a 32-item menu draws every item", i == 33 && choice == 31, NULL);
+        all_keys_used("walk the long menu");
+
+        fake_reset();
+        fake_press(KEY_RIGHT);
+        fake_press(KEY_EXE);
+        cursor = 0;
+        choice = ui_menu("Long menu", items, 32, &cursor);
+        ok("RIGHT pages down by the seven rows shown", choice == 7, NULL);
+        all_keys_used("page the long menu");
+
+        /* a menu with examples keeps the seventh row for the example: six entries
+         * are shown, the seventh is below the fold, and RIGHT pages by six */
+        {
+            static const char *const hints[32] = {"the example"};
+
+            fake_reset();
+            fake_press(KEY_EXE);
+            cursor = 0;
+            ui_menu_hints("Hints", items, hints, 32, &cursor);
+            showed("a menu with examples shows its sixth entry", "6:Item 6");
+            ok("but not its seventh, which would sit on the example",
+               !fake_screen_has("7:Item 7"), NULL);
+            showed("and the example", "the example");
+            ok("and the arrow shows there is more", fake_rects(MAGENTA) > 0, NULL);
+
+            fake_reset();
+            fake_press(KEY_RIGHT);
+            fake_press(KEY_EXE);
+            cursor = 0;
+            choice = ui_menu_hints("Hints", items, hints, 32, &cursor);
+            ok("RIGHT pages by the six rows shown", choice == 6, NULL);
+        }
+
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_message("Title", "A message");
+        showed("a message is shown", "A message");
+        ok("and has no BACK key", !fake_screen_has("BACK"), NULL);
+        all_keys_used("message");
+
+        /* the longest message, 37 characters, is wider than the pop-up can be:
+         * it wraps at a space, in two even lines rather than a word on its own */
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_message("Rates", "Two different temperatures are needed");
+        showed("a long message wraps: first line", "\nTwo different\n");
+        showed("and second line", "\ntemperatures are needed\n");
+        ok("and is not drawn in one piece", !fake_screen_has("different temperatures"), NULL);
+        all_keys_used("long message");
+    }
+
+    section("10. Battery, mode indicators and the menus' background");
+
+    {
+        static const char *const items[] = {"Item 1", "Item 2", "Item 3"};
+        static const char *const hints[] = {"hint one", "hint two", NULL};
+        const int tint = C_RGB(31, UI_TINT_G, UI_TINT_B), red = C_RGB(31, 0, 0);
+        const int yellow = C_RGB(31, 31, 0);
+        int cursor = 0, v;
+        char text[UI_EQUATION_LEN] = "";
+
+        /* the strip: the OS's own battery icon, copied pixel for pixel from its
+         * status bar. Only a menu is drawn here, and the one thing in a menu
+         * that is blue is the battery. */
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("three bars on the OS's icon are three blue bars here", fake_rects(C_BLUE) == 3 * 24, NULL);
+        ok("the OS was asked once", fake_os_reads() == 1, NULL);
+        {
+            int x1, y1, x2, y2;
+
+            ok("and they sit where the OS has them, 6 px in from the left",
+               fake_last_rect(C_BLUE, &x1, &y1, &x2, &y2) && x1 == 22 && y1 == 16, NULL);
+        }
+        ok("the OS's status area is put back off, with its default flags",
+           fake_os_status() == 0x303, NULL);
+
+        fake_reset();
+        fake_battery(1);
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("one bar on the OS's icon is one bar here", fake_rects(C_BLUE) == 24, NULL);
+
+        fake_reset();
+        fake_battery(0);
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("an empty OS icon is drawn, with no bars", fake_rects(C_BLUE) == 0 && battery_draw() == 1, NULL);
+
+        fake_reset();
+        fake_battery(-1);
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("when the OS draws no battery none is shown, not a made-up one",
+           fake_rects(C_BLUE) == 0 && battery_draw() == 0, NULL);
+        ok("and the menu still works", fake_screen_has("1:Item 1"), NULL);
+
+        fake_reset();
+        fake_battery(-2);
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("a change as wide as the whole bar is not a battery icon", battery_draw() == 0, NULL);
+
+        /* many redraws, few questions: it must not slow the keys down */
+        fake_reset();
+        for (v = 0; v < 5; v++)
+            fake_press(KEY_DOWN);
+        fake_press(KEY_EXE);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("six redraws ask the OS once", fake_os_reads() == 1, NULL);
+        fake_press(KEY_EXE);
+        fake_advance(29);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("and 29 seconds later still once", fake_os_reads() == 1, NULL);
+        fake_press(KEY_EXE);
+        fake_advance(2);
+        ui_menu("Battery", items, 3, &cursor);
+        ok("31 seconds later it asks again", fake_os_reads() == 2, NULL);
+
+        /* The mode indicator, as the OS draws its ALPHA one (Software User's Guide,
+         * "Status Bar"): white on a solid red box, A or a, with a yellow padlock
+         * because ALPHA stays on until it is pressed again; nothing at all in
+         * digit mode. A screen is a frame, so counting frames and red boxes says
+         * which screens had the box. */
+
+        /* the stand-in behaves like gint: getkey() swallows ALPHA and SHIFT as
+         * modifiers and only getkey_opt() without them returns the keys */
+        fake_reset();
+        fake_press(KEY_ALPHA);  fake_press(KEY_1);
+        fake_press(KEY_SHIFT);  fake_press(KEY_2);
+        fake_press(KEY_ALPHA);  fake_press(KEY_ALPHA);
+        {
+            key_event_t a = getkey(), b = getkey();
+            key_event_t c = getkey_opt(GETKEY_DEFAULT & ~(GETKEY_MOD_SHIFT | GETKEY_MOD_ALPHA), NULL);
+            key_event_t d = getkey_opt(GETKEY_DEFAULT & ~(GETKEY_MOD_SHIFT | GETKEY_MOD_ALPHA), NULL);
+            ok("getkey() swallows ALPHA: the next key comes back with alpha set",
+               a.key == KEY_1 && a.alpha == 1 && a.shift == 0, NULL);
+            ok("and SHIFT the same way", b.key == KEY_2 && b.shift == 1 && b.alpha == 0, NULL);
+            ok("without the modifier options ALPHA is a key of its own",
+               c.key == KEY_ALPHA && d.key == KEY_ALPHA, NULL);
+        }
+
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("letters mode shows an A", fake_text_colour("A") != -2, NULL);
+        ok("in white", fake_text_colour("A") == C_WHITE, NULL);
+        ok("on a solid red box", fake_rects(red) == 1, NULL);
+        ok("with the alpha-lock padlock, yellow", fake_rects(yellow) == 1, NULL);
+
+        /* ALPHA off: the box goes (the second screen has none), digits type */
+        fake_reset();
+        fake_press(KEY_ALPHA);
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("ALPHA redraws the field", fake_frames() == 2, NULL);
+        ok("and the red box is only on the screen before it", fake_rects(red) == 1, NULL);
+        ok("and so is the padlock", fake_rects(yellow) == 1, NULL);
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);  fake_press(KEY_1);  fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("after ALPHA a number key types its digit", strcmp(text, "1") == 0, text);
+
+        /* ALPHA on again: the box comes back (first and third screens) */
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);  fake_press(KEY_ALPHA);
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("ALPHA twice redraws twice", fake_frames() == 3, NULL);
+        ok("the box is on the first and third screens", fake_rects(red) == 2, NULL);
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);  fake_press(KEY_ALPHA);  fake_press(KEY_1);
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("after ALPHA twice a number key is the letter on it again", strcmp(text, "U") == 0, text);
+
+        /* small letters: the same red box, with a white a, as the OS's A and a */
+        fake_reset();
+        fake_press(KEY_SHIFT);              /* SHIFT toggles small letters here */
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("after SHIFT it shows a small a, still white", fake_text_colour("a") == C_WHITE, NULL);
+        ok("in a red box on both screens it was drawn", fake_rects(red) == 2, NULL);
+        ok("SHIFT has no indicator of its own, since it is not a pending key",
+           fake_text_colour("S") == -2, NULL);
+        ok("the small a has the padlock too", fake_rects(yellow) == 2, NULL);
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_F5);                 /* the equation field's A <-> a key */
+        fake_press(KEY_XOT);
+        fake_press(KEY_F5);
+        fake_press(KEY_XOT);
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("F5 and SHIFT agree: a then A", strcmp(text, "aA") == 0, text);
+
+        /* digit mode has no indicator, even with small letters picked */
+        fake_reset();
+        fake_press(KEY_ALPHA);
+        fake_press(KEY_SHIFT);
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("digits mode: SHIFT redraws, no box on the screens after ALPHA",
+           fake_frames() == 3 && fake_rects(red) == 1, NULL);
+
+        fake_reset();
+        {
+            double value = 0.0;
+            fake_press(KEY_EXE);
+            ui_number_input("Mode", "Number:", &value, 1);
+        }
+        ok("a number field has no box and no red", fake_rects(red) == 0
+           && fake_text_colour("A") == -2 && !fake_screen_has("123"), NULL);
+
+        /* the background: on the menus, not on the entry and result screens, as in
+         * the OS; and the text on it is all still there, in its own colours */
+        cursor = 0;
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_menu_hints("Menu", items, hints, 3, &cursor);
+        ok("a menu is drawn over the light orange gradient", fake_rects(tint) >= 1, NULL);
+        ok("the menu text is all still captured",
+           fake_screen_has("1:Item 1") && fake_screen_has("2:Item 2")
+           && fake_screen_has("3:Item 3") && fake_screen_has("hint one"), NULL);
+        ok("the chosen row is white on the black bar",
+           fake_text_colour("1:Item 1") == C_WHITE && fake_text_colour("2:Item 2") == C_BLACK, NULL);
+        ok("the hint stays black", fake_text_colour("hint one") == C_BLACK, NULL);
+
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("an entry screen stays white", fake_rects(tint) == 0, NULL);
+
+        fake_reset();
+        ui_result_begin("Result");
+        ui_result_line("A line");
+        fake_press(KEY_EXE);
+        ui_result_show();
+        ok("a result page stays white", fake_rects(tint) == 0, NULL);
+
+        fake_reset();
+        fake_press(KEY_EXE);
+        ui_message("Title", "A message");
+        ok("so does a message", fake_rects(tint) == 0, NULL);
+    }
+
+    /* every screen above has been drawn by now: none ran off the right edge */
+    ok("nothing was drawn past the edge of the screen", fake_overflows() == 0,
+       fake_first_overflow());
+
     printf("\n============================================================\n");
-    printf("  Screen tests  Total: %d   Passed: %d   Failed: %d\n",
+    printf("  Screen tests Total: %d   Passed: %d   Failed: %d\n",
            passed + failed, passed, failed);
     return failed ? 1 : 0;
 }

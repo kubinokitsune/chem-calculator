@@ -123,7 +123,7 @@ static void screen_empirical(void)
     float empirical_mass = 0.0f;
     int n, i;
 
-    ui_example("C 40, H 6.7, O 53.3 -> CH2O, Mr 180 -> C6H12O6");
+    ui_example("C 40, H 6.7, O 53.3 -> CH2O, Mr 180->C6H12O6");
     if (!ui_number_input("Empirical formula", "How many elements? (2-6)",
                          &how_many, 0))
         return;
@@ -228,6 +228,7 @@ static void screen_atom_economy(void)
     chem_species_t left[EQ_SIDE_MAX], right[EQ_SIDE_MAX];
     const char *names[EQ_SIDE_MAX];
     int coefficients[BAL_MAX_SPECIES];
+    char label[UI_LINE_LEN];
     float percent = 0.0f, wanted_mass = 0.0f, reactants_mass = 0.0f;
     int n_left, n_right, wanted, i;
 
@@ -236,7 +237,7 @@ static void screen_atom_economy(void)
         int cursor = 0;
         chem_error_t error;
 
-        if (!ask_equation("Atom economy", "Equation (leave numbers out to balance):",
+        if (!ask_equation("Atom economy", "Equation, omit numbers to balance:",
                           text, (int)sizeof text, left, &n_left, right, &n_right))
             return;
         for (i = 0; i < n_right; i++)
@@ -257,8 +258,15 @@ static void screen_atom_economy(void)
     ui_result_begin("Atom economy");
     show_equation(left, n_left, right, n_right, coefficients);
     ui_result_rule();
-    ui_result_text("Wanted:", right[wanted].formula);
-    ui_result_value("wanted M x coeff", wanted_mass, "g/mol");
+    /* A long formula in the label would push the value and unit off the line:
+     * it gets a line of its own and the label says "wanted". */
+    if (strlen(right[wanted].formula) <= 8) {
+        snprintf(label, sizeof label, "%s M x coeff", right[wanted].formula);
+    } else {
+        ui_result_text("wanted:", right[wanted].formula);
+        snprintf(label, sizeof label, "wanted M x coeff");
+    }
+    ui_result_value(label, wanted_mass, "g/mol");
     ui_result_value("reactants M x coeff", reactants_mass, "g/mol");
     ui_result_rule();
     ui_result_value("atom economy", percent, "%");

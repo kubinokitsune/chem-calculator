@@ -1,4 +1,4 @@
-/* ui.h - the screen furniture: title bar, softkeys, lists, entry fields.
+/* ui.h - the screen furniture: status strip, softkeys, lists, entry fields.
  *
  * This is the part that makes ChemCalc behave like the calculator's own
  * applications: F1-F6 along the bottom, arrow keys to move, EXE to accept and
@@ -7,29 +7,40 @@
 #ifndef UI_H
 #define UI_H
 
-#define UI_LINE_LEN   44      /* characters that fit across the screen */
+#define UI_LINE_LEN   35      /* room for 34 characters, which fit across the screen */
 #define UI_MAX_LINES  40      /* lines one result page can hold */
 #define UI_TEXT_LEN   24      /* room for one typed entry: a formula, a count */
 #define UI_EQUATION_LEN 96    /* room for a typed equation */
 
 /* ---- frame -------------------------------------------------------------- */
 
-/* Clear the screen and draw the title bar. Does not call dupdate(). */
+/* Clear the screen and draw the white status strip: the battery at the left (the
+ * OS's own icon, left out when the OS draws none), `title` small and grey in
+ * the middle, over a black rule. Does not call dupdate(). */
 void ui_frame(const char *title);
 
-/* Draw the six softkey labels along the bottom. A NULL or "" label leaves
- * that key blank. Does not call dupdate(). */
+/* Draw the six softkey labels along the bottom, as the OS draws command keys:
+ * black text in a black-bordered white tab. A NULL or "" label leaves that key
+ * blank. Does not call dupdate(). */
 void ui_softkeys(const char *const *labels);
 
 /* ---- menus -------------------------------------------------------------- */
 
-/* A list the user moves through with the arrows. `cursor` is kept between
+/* The menus are drawn over a gradient from white to a light orange, with a
+ * paler flask on it, as the calculator's own application menus are. The orange
+ * is C_RGB(31, UI_TINT_G, UI_TINT_B), at the right edge. */
+#define UI_TINT_G 24
+#define UI_TINT_B 17
+
+/* A list the user moves through with the arrows, rows numbered "1:", "2:"... with
+ * the chosen one a black bar and magenta arrows when it scrolls. `cursor` is kept between
  * calls so the list reopens where it was left. Returns the chosen index, or
  * -1 when the user pressed EXIT. */
 int ui_menu(const char *title, const char *const *items, int count, int *cursor);
 
 /* The same, with a one-line example for each entry, shown along the bottom as
- * the highlight moves. `hints` may be NULL, and so may any entry in it. */
+ * the highlight moves. `hints` may be NULL, and so may any entry in it. The
+ * example takes the seventh row, so such a menu shows six entries at a time. */
 int ui_menu_hints(const char *title, const char *const *items,
                   const char *const *hints, int count, int *cursor);
 
@@ -41,8 +52,11 @@ void ui_example(const char *text);
 /* ---- entry fields ------------------------------------------------------- */
 
 /* Type a formula or any other text. The keypad's printed letters are used
- * directly: ALPHA switches between letters and digits, SHIFT between capitals
- * and small letters, and F1-F3 put in ( ) and the hydrate dot.
+ * directly: ALPHA switches between letters and digits (a red box with A or a beside
+ * the battery while letters are on, nothing in digit mode, as on the OS), SHIFT
+ * between capitals and small letters, and F1-F3 put in ( ) and the hydrate dot.
+ * The fields read ALPHA and SHIFT as keys of their own (gint's getkey() would
+ * swallow them as modifiers).
  * Returns 1 when EXE was pressed, 0 when EXIT was. */
 int ui_text_input(const char *title, const char *prompt, char *buffer, int length);
 
@@ -83,10 +97,13 @@ void ui_result_text(const char *label, const char *text);
 void ui_result_value(const char *label, double value, const char *unit);
 void ui_result_rule(void);
 /* Show the page and wait. Scrolls with the arrows when there is more than a
- * screenful. Returns when EXIT or EXE is pressed. */
+ * screenful; such a page opens scrolled down as far as the last rule (so the
+ * answers after it are in view), with the up arrow showing. Returns when EXIT
+ * or EXE is pressed. */
 void ui_result_show(void);
 
-/* A one-line message in the middle of the screen, dismissed with any key. */
+/* A message in the middle of the screen, dismissed with any key. A long one is
+ * wrapped at spaces onto up to three lines of 30 characters. */
 void ui_message(const char *title, const char *message);
 
 #endif /* UI_H */

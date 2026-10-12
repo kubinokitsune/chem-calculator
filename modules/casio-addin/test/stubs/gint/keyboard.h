@@ -34,6 +34,15 @@ typedef struct {
     int alpha;
 } key_event_t;
 
+/* The option bits that matter here, with gint's values. */
+enum {
+    GETKEY_MOD_SHIFT = 0x0001, GETKEY_MOD_ALPHA = 0x0002, GETKEY_DEFAULT = 0x05df
+};
+
+/* As in gint, getkey() is getkey_opt(GETKEY_DEFAULT, NULL), and with the SHIFT
+ * and ALPHA options on, those two keys are never returned: they only set the
+ * `shift` and `alpha` fields of the next key. */
 key_event_t getkey(void);
+key_event_t getkey_opt(int options, volatile int *timeout);
 
 #endif

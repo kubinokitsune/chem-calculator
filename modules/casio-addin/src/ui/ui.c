@@ -1,6 +1,8 @@
 /* ui.c - see ui.h. This is the only file that talks to the screen and keypad. */
 
 #include "ui.h"
+#include "battery.h"
+#include "flask_mark.h"
 #include "../core/chem.h"
 
 #include <gint/display.h>
@@ -11,102 +13,209 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* The fx-CG50 screen is 396 x 224 and gint's font is 8 x 9, so a row of text
- * needs about 15 px to sit comfortably. */
-#define ROW_HEIGHT   15
-#define TITLE_HEIGHT 26
-#define FOOT_HEIGHT  22
-#define BODY_TOP     (TITLE_HEIGHT + 6)
-#define BODY_BOTTOM  (DHEIGHT - FOOT_HEIGHT - 4)
-#define BODY_ROWS    ((BODY_BOTTOM - BODY_TOP) / ROW_HEIGHT)
-#define SCROLL_X     (DWIDTH - 8)
+/* The fx-CG50's own applications are drawn on a 384 x 216 area that sits 6 px
+ * in from the left of gint's 396 x 224 screen. The body text is Terminus 11 x 22
+ * (assets-cg/font-body.png, and font-bold.png for headings and answers), so 34
+ * characters fit across. Rows are 24 px apart, as the OS's are, which leaves 7
+ * of them: a result page is its heading and 6 lines, a menu 7 rows - or 6 and a
+ * line for the example. The small print - the status strip, the softkey labels,
+ * the hints and the examples - stays in gint's own 8 x 9 font, as the OS keeps
+ * its small print small. */
+#define FONT_W       11
+#define FONT_H       22
+#define ROW_HEIGHT   24
+#define TEXT_DY      ((ROW_HEIGHT - FONT_H) / 2)     /* where text sits in a row */
+#define STRIP_HEIGHT 24          /* white status strip, 1 px rule on its last row */
+#define SOFT_TOP     192         /* top of the softkey tabs */
+#define BODY_TOP     STRIP_HEIGHT
+#define BODY_BOTTOM  (SOFT_TOP - 4)
+#define BODY_ROWS    ((SOFT_TOP - BODY_TOP) / ROW_HEIGHT)
+#define ROW_LEFT     6           /* the selected-row bar runs ROW_LEFT..ROW_RIGHT */
+#define ROW_RIGHT    381
+#define ARROW_X      381
+#define OS_RIGHT     389         /* the last column of the OS's 384 x 216 area */
+#define OS_BOTTOM    219         /* and its last row */
 
 /* Colours are 5-6-5: C_RGB takes 0-31 for each. */
-#define COL_BAR       C_RGB(3, 9, 18)      /* the deep blue title bar */
-#define COL_BAR_EDGE  C_RGB(8, 20, 30)     /* the lighter line under it */
-#define COL_ACCENT    C_RGB(0, 24, 20)     /* teal, for the accent line */
-#define COL_TEXT      C_RGB(3, 3, 6)
-#define COL_MUTED     C_RGB(14, 14, 17)
-#define COL_STRIPE    C_RGB(30, 30, 31)    /* every other row */
-#define COL_PICK      C_RGB(5, 16, 28)     /* the selected row */
-#define COL_PANEL     C_RGB(26, 30, 31)    /* the answer panel */
-#define COL_PANEL_EDGE C_RGB(16, 24, 29)
-#define COL_FIELD     C_RGB(29, 29, 31)
-#define COL_KEY       C_RGB(6, 6, 9)       /* the softkey tabs */
-#define COL_RULE      C_RGB(20, 20, 23)
+#define COL_GREY      C_RGB(17, 17, 17)    /* the strip title and the hints */
+#define COL_RED       C_RGB(31, 0, 0)      /* the ALPHA indicator's box */
+#define COL_YELLOW    C_RGB(31, 31, 0)     /* and its padlock */
+#define COL_MAGENTA   C_RGB(31, 0, 31)     /* the scroll arrows */
 
 /* ---- small drawing helpers ---------------------------------------------- */
 
-/* Text drawn twice, a pixel apart, reads as bold with only one font. */
-static void bold(int x, int y, int colour, const char *text)
+/* The two body fonts, made by fxconv from assets-cg. gint's own is the default. */
+extern font_t font_body, font_bold;
+
+/* Body text, in the plain font or the bold one. dtext() uses whatever font was
+ * last set, so each call sets its own and puts the default back. */
+static void text_in(font_t *font, int x, int y, int colour, const char *text)
 {
+    dfont(font);
     dtext(x, y, colour, text);
-    dtext(x + 1, y, colour, text);
+    dfont(NULL);
 }
 
-/* A filled box with its corners knocked off, which reads as rounded. */
-static void panel(int x1, int y1, int x2, int y2, int fill, int edge)
+static void big(int x, int y, int colour, const char *text)
 {
-    drect(x1, y1, x2, y2, fill);
-    if (edge >= 0) {
-        drect(x1, y1, x2, y1, edge);
-        drect(x1, y2, x2, y2, edge);
-        drect(x1, y1, x1, y2, edge);
-        drect(x2, y1, x2, y2, edge);
+    text_in(&font_body, x, y, colour, text);
+}
+
+static void heavy(int x, int y, int colour, const char *text)
+{
+    text_in(&font_bold, x, y, colour, text);
+}
+
+/* Row `i` of the body, counting from 0. */
+static int row_y(int i)
+{
+    return BODY_TOP + i * ROW_HEIGHT;
+}
+
+/* A magenta arrow, 8 px wide and 7 high, pointing down (or up) at the right
+ * edge of the row that starts at `y`. */
+static void arrow(int y, int up)
+{
+    int k, top = y + (ROW_HEIGHT - 7) / 2;
+
+    drect(ARROW_X, top + (up ? 3 : 0), ARROW_X + 1, top + (up ? 6 : 3), COL_MAGENTA);
+    for (k = 0; k < 4; k++) {
+        int line = up ? top + 3 - k : top + 3 + k;
+        drect(ARROW_X - 3 + k, line, ARROW_X + 4 - k, line, COL_MAGENTA);
     }
 }
 
-static void scrollbar(int first, int shown, int total)
+/* Arrows for a list whose rows start at row `first_row` and show `shown` of
+ * `total` items from item `first`: up on the first row if there are more above,
+ * down on the last if there are more below. */
+static void scroll_arrows(int first_row, int first, int shown, int total)
 {
-    int track_top = BODY_TOP, track_bottom = BODY_BOTTOM;
-    int height = track_bottom - track_top;
-    int bar_top, bar_height;
-
-    if (total <= shown)
-        return;
-    bar_height = height * shown / total;
-    if (bar_height < 12)
-        bar_height = 12;
-    bar_top = track_top + (height - bar_height) * first / (total - shown);
-
-    drect(SCROLL_X, track_top, SCROLL_X + 3, track_bottom, C_RGB(28, 28, 30));
-    panel(SCROLL_X, bar_top, SCROLL_X + 3, bar_top + bar_height, COL_BAR_EDGE, -1);
+    if (first > 0)
+        arrow(row_y(first_row), 1);
+    if (first + shown < total)
+        arrow(row_y(first_row + shown - 1), 0);
 }
 
+/* The status strip: the OS's own battery icon, the screen's name, small and
+ * grey, in the middle, over a black rule. */
 void ui_frame(const char *title)
 {
     dclear(C_WHITE);
-    drect(0, 0, DWIDTH - 1, TITLE_HEIGHT - 3, COL_BAR);
-    drect(0, TITLE_HEIGHT - 2, DWIDTH - 1, TITLE_HEIGHT - 2, COL_BAR_EDGE);
-    drect(0, TITLE_HEIGHT - 1, DWIDTH - 1, TITLE_HEIGHT - 1, COL_ACCENT);
-    bold(8, TITLE_HEIGHT / 2 - 5, C_WHITE, title);
+    battery_draw();
+    dtext_opt(DWIDTH / 2, STRIP_HEIGHT / 2 - 1, COL_GREY, C_NONE,
+              DTEXT_CENTER, DTEXT_MIDDLE, title, -1);
+    drect(ROW_LEFT + 2, STRIP_HEIGHT - 1, ROW_RIGHT + 6, STRIP_HEIGHT - 1, C_BLACK);
 }
 
-/* A short note on the right of the title bar: a position, a mode, an arrow. */
-static void ui_badge(const char *text)
+/* The letter mode beside the battery, drawn as the OS draws its ALPHA
+ * indicator (Software User's Guide, "Status Bar", p. 1-5): white on a solid red
+ * box, an A for capitals and an a for small letters, with a yellow padlock
+ * because here ALPHA stays on until it is pressed again, as the OS's alpha
+ * lock does. Digit mode has no indicator, as on the OS: `letter` is 0 and
+ * nothing is drawn. SHIFT has none either: here it is the small-letters toggle,
+ * which the "a" already shows. */
+static void mode_box(char letter)
 {
-    int width;
+    char glyph[2] = {letter, 0};
+    int width, x = ROW_LEFT + 22, lock;
 
-    if (text == NULL || text[0] == 0)
+    if (battery_right() + 3 > x)                        /* keep clear of a wide icon */
+        x = battery_right() + 3;
+
+    if (letter == 0)
         return;
-    dsize(text, NULL, &width, NULL);
-    panel(DWIDTH - width - 14, 4, DWIDTH - 6, TITLE_HEIGHT - 6, COL_BAR_EDGE, -1);
-    dtext(DWIDTH - width - 10, TITLE_HEIGHT / 2 - 5, C_WHITE, text);
+    dsize(glyph, NULL, &width, NULL);
+    drect(x, 4, x + width + 8, 21, C_BLACK);
+    drect(x + 2, 6, x + width + 6, 19, COL_RED);
+    /* small print has no bold: twice, a pixel apart, reads as one */
+    dtext(x + 4, 8, C_WHITE, glyph);
+    dtext(x + 5, 8, C_WHITE, glyph);
+
+    lock = x + width + 7;                               /* a padlock on the corner */
+    drect(lock + 2, 12, lock + 5, 13, C_BLACK);
+    drect(lock, 14, lock + 7, 21, C_BLACK);
+    drect(lock + 1, 15, lock + 6, 20, COL_YELLOW);
+    drect(lock + 3, 17, lock + 4, 19, C_BLACK);
 }
 
+/* ---- the menus' background ---------------------------------------------- */
+
+/* Like the OS's own application menus: a gradient that is white on the left
+ * and a light orange (the icon's colour, thinned) on the right, with a big pale
+ * flask on it. The OS keeps this to an application's home menu; its entry and
+ * result screens stay white, and so do ours. */
+#define GRAD_FROM 100            /* white up to this column, full tint by... */
+#define GRAD_TO   385            /* ...this one */
+#define MARK_X    (OS_RIGHT - 12 - FLASK_W)
+#define MARK_Y    100
+
+/* The colour of column x: 5-bit channels, `paler` percent of the way to white.
+ * The channels are worked out in 256ths and then rounded to a whole step. With
+ * `dither` the rounding point moves along a 4-column pattern, so where one step
+ * gives way to the next the two colours take turns, in proportion, rather than
+ * meeting in a hard edge. Still one colour per column, so the background stays
+ * a handful of rectangles. */
+static int shade(int x, int paler, int dither)
+{
+    static const unsigned char point[4] = {32, 160, 96, 224};      /* around 128 */
+    int t = x <= GRAD_FROM ? 0 : x >= GRAD_TO ? 256 : (x - GRAD_FROM) * 256 / (GRAD_TO - GRAD_FROM);
+    int g = 31 * 256 - (31 - UI_TINT_G) * t;
+    int b = 31 * 256 - (31 - UI_TINT_B) * t;
+    int d = dither ? point[x & 3] : 128;
+
+    g += (31 * 256 - g) * paler / 100;
+    b += (31 * 256 - b) * paler / 100;
+    return C_RGB(31, (g + d) >> 8, (b + d) >> 8);
+}
+
+/* Is pixel x of row y of the flask set? Rows are padded to whole bytes. */
+static int mark_set(int x, int y)
+{
+    return x < FLASK_W && (flask_mark[y * ((FLASK_W + 7) / 8) + x / 8] >> (7 - x % 8) & 1);
+}
+
+static void menu_background(void)
+{
+    static int mark[FLASK_W];
+    int x, from, y;
+
+    /* one rectangle for each run of columns that share a colour */
+    for (from = x = ROW_LEFT; x <= OS_RIGHT + 1; x++)
+        if (x > OS_RIGHT || shade(x, 0, 1) != shade(from, 0, 1)) {
+            drect(from, STRIP_HEIGHT, x - 1, OS_BOTTOM, shade(from, 0, 1));
+            from = x;
+        }
+
+    /* the flask: the same gradient, 45% paler, so it stays a watermark. It is
+     * drawn in runs along each row, which dithering would cut to a pixel each. */
+    for (x = 0; x < FLASK_W; x++)
+        mark[x] = shade(MARK_X + x, 45, 0);
+    for (y = 0; y < FLASK_H; y++)
+        for (x = 0; x < FLASK_W; x++) {
+            if (!mark_set(x, y))
+                continue;
+            for (from = x; mark_set(x + 1, y) && mark[x + 1] == mark[from]; x++)
+                ;
+            drect(MARK_X + from, MARK_Y + y, MARK_X + x, MARK_Y + y, mark[from]);
+        }
+}
+
+/* The six tabs. They are all commands, so each is white with a black border
+ * (the OS draws keys that open another menu solid black). */
 void ui_softkeys(const char *const *labels)
 {
-    int i, width = DWIDTH / 6;
+    int i;
 
-    drect(0, DHEIGHT - FOOT_HEIGHT, DWIDTH - 1, DHEIGHT - 1, C_WHITE);
     for (i = 0; i < 6; i++) {
-        int x = i * width + 2;
-        int right = x + width - 5;
+        int x = 9 + 64 * i, y = SOFT_TOP, w = 61, h = 22;
 
         if (labels == NULL || labels[i] == NULL || labels[i][0] == 0)
             continue;
-        panel(x, DHEIGHT - FOOT_HEIGHT + 2, right, DHEIGHT - 3, COL_KEY, -1);
-        dtext_opt((x + right) / 2, DHEIGHT - FOOT_HEIGHT / 2, C_WHITE, C_NONE,
+        drect(x + 1, y, x + w - 2, y, C_BLACK);
+        drect(x + 1, y + h - 1, x + w - 2, y + h - 1, C_BLACK);
+        drect(x, y + 1, x + 1, y + h - 2, C_BLACK);
+        drect(x + w - 2, y + 1, x + w - 1, y + h - 2, C_BLACK);
+        dtext_opt(x + w / 2, y + h / 2, C_BLACK, C_NONE,
                   DTEXT_CENTER, DTEXT_MIDDLE, labels[i], -1);
     }
 }
@@ -114,7 +223,7 @@ void ui_softkeys(const char *const *labels)
 /* ---- menus -------------------------------------------------------------- */
 
 /* The example shown on entry screens, set by each procedure as it starts. */
-static char current_example[UI_LINE_LEN + 20];
+static char current_example[64];
 
 void ui_example(const char *text)
 {
@@ -132,7 +241,8 @@ int ui_menu(const char *title, const char *const *items, int count, int *cursor)
 int ui_menu_hints(const char *title, const char *const *items,
                   const char *const *hints, int count, int *cursor)
 {
-    static const char *const keys[6] = {"", "", "", "", "", "BACK"};
+    /* the example takes the seventh row, so a menu with hints shows six */
+    int rows = hints != NULL ? BODY_ROWS - 1 : BODY_ROWS;
     int top = 0, here = (cursor != NULL) ? *cursor : 0;
 
     if (here >= count)
@@ -144,44 +254,31 @@ int ui_menu_hints(const char *title, const char *const *items,
 
         if (here < top)
             top = here;
-        if (here >= top + BODY_ROWS)
-            top = here - BODY_ROWS + 1;
+        if (here >= top + rows)
+            top = here - rows + 1;
 
         ui_frame(title);
-        for (i = 0; i < BODY_ROWS && top + i < count; i++) {
-            int y = BODY_TOP + i * ROW_HEIGHT;
+        menu_background();
+        for (i = 0; i < rows && top + i < count; i++) {
+            int y = row_y(i);
             int picked = (top + i == here);
-            char number[8];
+            char line[UI_LINE_LEN + 8];
 
+            /* the chosen row is a black bar, like the OS's own menus */
             if (picked)
-                panel(4, y - 2, SCROLL_X - 4, y + ROW_HEIGHT - 4, COL_PICK, -1);
-            else if ((top + i) & 1)
-                drect(4, y - 2, SCROLL_X - 4, y + ROW_HEIGHT - 4, COL_STRIPE);
-
-            snprintf(number, sizeof number, "%d", top + i + 1);
-            dtext(10, y, picked ? C_WHITE : COL_MUTED, number);
-            if (picked) {
-                bold(26, y, C_WHITE, items[top + i]);
-                dtext(SCROLL_X - 16, y, C_WHITE, ">");
-            } else {
-                dtext(26, y, COL_TEXT, items[top + i]);
-            }
+                drect(ROW_LEFT, y, ROW_RIGHT, y + ROW_HEIGHT - 1, C_BLACK);
+            snprintf(line, sizeof line, "%d:%s", top + i + 1, items[top + i]);
+            big(10, y + TEXT_DY, picked ? C_WHITE : C_BLACK, line);
         }
-        if (count > BODY_ROWS) {
-            char position[16];
-            snprintf(position, sizeof position, "%d/%d", here + 1, count);
-            ui_badge(position);
-            scrollbar(top, BODY_ROWS, count);
-        }
+        scroll_arrows(0, top, rows, count);
         /* The example for whatever is highlighted, along the bottom: it says
          * what the option is for without having to open it. */
         if (hints != NULL && hints[here] != NULL && hints[here][0] != 0) {
-            int y = BODY_BOTTOM - 14;
-            panel(4, y - 3, DWIDTH - 5, y + 14, COL_PANEL, COL_PANEL_EDGE);
-            dtext(10, y, COL_MUTED, "e.g.");
-            dtext(44, y, COL_TEXT, hints[here]);
+            int y = row_y(rows) + (ROW_HEIGHT - 9) / 2;
+
+            dtext(10, y, COL_GREY, "e.g.");
+            dtext(44, y, C_BLACK, hints[here]);
         }
-        ui_softkeys(keys);
         dupdate();
 
         event = getkey();
@@ -193,12 +290,12 @@ int ui_menu_hints(const char *title, const char *const *items,
             here = (here < count - 1) ? here + 1 : 0;
             break;
         case KEY_LEFT:
-            here -= BODY_ROWS;
+            here -= rows;
             if (here < 0)
                 here = 0;
             break;
         case KEY_RIGHT:
-            here += BODY_ROWS;
+            here += rows;
             if (here > count - 1)
                 here = count - 1;
             break;
@@ -285,43 +382,45 @@ static char digit_for_key(int key)
     }
 }
 
-/* Room for typed text inside the field, leaving the cursor and a margin. */
-#define FIELD_WIDTH (DWIDTH - 16 - 16 - 4)
+/* Room for typed text inside the field: a full line, the cursor just after it. */
+#define FIELD_WIDTH ((UI_LINE_LEN - 1) * FONT_W)
 
 /* Draw the shared parts of an entry screen. */
 static void entry_screen(const char *title, const char *prompt,
-                         const char *text, const char *mode,
+                         const char *text, char mode,
                          const char *const *keys, const char *hint,
                          const char *hint2)
 {
-    int caret, box_top = BODY_TOP + ROW_HEIGHT + 2;
+    int caret, y = row_y(1) + TEXT_DY;
 
     ui_frame(title);
-    ui_badge(mode);
-    dtext(10, BODY_TOP, COL_MUTED, prompt);
+    mode_box(mode);
+    big(10, row_y(0) + TEXT_DY, C_BLACK, prompt);
 
-    panel(8, box_top, DWIDTH - 9, box_top + 26, COL_FIELD, COL_PANEL_EDGE);
-
-    /* Text wider than the box scrolls: drop letters off the front until the
+    /* Text wider than the line scrolls: drop letters off the front until the
      * end, where the cursor is, fits. */
-    for (dsize(text, NULL, &caret, NULL); caret > FIELD_WIDTH && text[0] != 0; text++)
-        dsize(text + 1, NULL, &caret, NULL);
-    bold(16, box_top + 9, COL_TEXT, text);
-
-    drect(17 + caret, box_top + 7, 18 + caret, box_top + 19, COL_BAR_EDGE);
+    for (dsize(text, &font_body, &caret, NULL); caret > FIELD_WIDTH && text[0] != 0; text++)
+        dsize(text + 1, &font_body, &caret, NULL);
+    big(10, y, C_BLACK, text);
+    drect(11 + caret, y + 3, 12 + caret, y + 19, C_BLACK);
 
     if (current_example[0] != 0) {
-        int y = box_top + 38;
-        panel(8, y - 4, DWIDTH - 9, y + 15, COL_PANEL, COL_PANEL_EDGE);
-        dtext(14, y, COL_MUTED, "e.g.");
-        dtext(48, y, COL_TEXT, current_example);
+        int ey = row_y(3) + (ROW_HEIGHT - 9) / 2;
+
+        dtext(10, ey, COL_GREY, "e.g.");
+        dtext(44, ey, C_BLACK, current_example);
     }
     if (hint != NULL)
-        dtext(10, BODY_BOTTOM - 12, COL_MUTED, hint);
+        dtext(10, BODY_BOTTOM - 12, COL_GREY, hint);
     if (hint2 != NULL)
-        dtext(10, BODY_BOTTOM - 26, COL_MUTED, hint2);
+        dtext(10, BODY_BOTTOM - 26, COL_GREY, hint2);
     ui_softkeys(keys);
 }
+
+/* getkey() swallows SHIFT and ALPHA as modifiers, so a screen that wants to
+ * see those two keys themselves - a text field, where ALPHA is a toggle - asks
+ * for everything else gint's getkey() does, but without the two modifiers. */
+#define RAW_KEYS (GETKEY_DEFAULT & ~(GETKEY_MOD_SHIFT | GETKEY_MOD_ALPHA))
 
 /* The field behind ui_text_input, ui_bond_input and ui_equation_input. F1-F3
  * type the one-character labels in `extras`, which the softkey bar shows. It
@@ -352,12 +451,12 @@ static int text_field(const char *title, const char *prompt, char *buffer,
         if (!equation)
             keys[5] = "OK";
 
-        entry_screen(title, prompt, buffer, alpha ? (small ? "abc" : "ABC") : "123",
+        entry_screen(title, prompt, buffer, alpha ? (small ? 'a' : 'A') : 0,
                      keys, "[DEL] rub out   [EXE] accept   [EXIT] back",
                      equation ? "F1-F4: ( ) + ->    [SHIFT]: small letters" : NULL);
         dupdate();
 
-        event = getkey();
+        event = getkey_opt(RAW_KEYS, NULL);
         switch (event.key) {
         case KEY_EXE:
             return 1;
@@ -503,7 +602,7 @@ static int number_field(const char *title, const char *prompt, double *value,
         key_event_t event;
         char letter = 0;
 
-        entry_screen(title, prompt, text, "123", typed ? count_keys : keys, hint, NULL);
+        entry_screen(title, prompt, text, 0, typed ? count_keys : keys, hint, NULL);
         dupdate();
 
         event = getkey();
@@ -600,6 +699,13 @@ void ui_result_line(const char *text)
 void ui_result_text(const char *label, const char *text)
 {
     char line[UI_LINE_LEN];
+
+    /* what will not fit beside its label goes on a line of its own */
+    if ((int)(strlen(label) + 1 + strlen(text)) >= UI_LINE_LEN) {
+        ui_result_line(label);
+        ui_result_line(text);
+        return;
+    }
     snprintf(line, sizeof line, "%s %s", label, text);
     ui_result_line(line);
 }
@@ -624,74 +730,101 @@ void ui_result_rule(void)
 
 void ui_result_show(void)
 {
-    static const char *const keys[6] = {"", "", "", "", "", "BACK"};
-    int top = 0;
+    int rows = BODY_ROWS - 1;               /* row 0 holds the heading */
+    /* A page too long for the screen opens at its end, so the last rule and the
+     * answers are in view and the up arrow shows there is more above. */
+    int top = page_used - rows;
+
+    if (top > page_last_rule)
+        top = page_last_rule;
+    if (top < 0)
+        top = 0;
 
     for (;;) {
         key_event_t event;
         int i;
 
-        ui_frame(page_title);
+        ui_frame("ChemCalc");
+        heavy(10, row_y(0) + TEXT_DY, C_BLUE, page_title);
 
-        /* Everything after the last rule is the answer, so it gets a panel of
-         * its own and heavier text: that is what the eye should land on. */
-        if (page_last_rule >= 0 && page_last_rule >= top
-            && page_last_rule < top + BODY_ROWS) {
-            int first = page_last_rule + 1 - top;
-            int last = page_used - 1 - top;
-
-            if (last >= BODY_ROWS)
-                last = BODY_ROWS - 1;
-            if (last >= first)
-                panel(6, BODY_TOP + first * ROW_HEIGHT - 3, SCROLL_X - 4,
-                      BODY_TOP + (last + 1) * ROW_HEIGHT - 4,
-                      COL_PANEL, COL_PANEL_EDGE);
-        }
-
-        for (i = 0; i < BODY_ROWS && top + i < page_used; i++) {
-            int y = BODY_TOP + i * ROW_HEIGHT;
+        /* Everything after the last rule is the answer, so it is drawn bold. */
+        for (i = 0; i < rows && top + i < page_used; i++) {
+            int y = row_y(i + 1);
             int answer = (page_last_rule >= 0 && top + i > page_last_rule);
 
             if (page[top + i][0] == '\x01')
-                drect(10, y + ROW_HEIGHT / 2 - 2, SCROLL_X - 8,
-                      y + ROW_HEIGHT / 2 - 2, COL_RULE);
-            else if (answer)
-                bold(12, y, COL_TEXT, page[top + i]);
+                drect(10, y + ROW_HEIGHT / 2, ROW_RIGHT - 6, y + ROW_HEIGHT / 2, C_BLACK);
             else
-                dtext(12, y, COL_TEXT, page[top + i]);
+                text_in(answer ? &font_bold : &font_body, 12, y + TEXT_DY,
+                        C_BLACK, page[top + i]);
         }
-        if (page_used > BODY_ROWS) {
-            char position[16];
-            snprintf(position, sizeof position, "%d/%d",
-                     top + 1, page_used - BODY_ROWS + 1);
-            ui_badge(position);
-            scrollbar(top, BODY_ROWS, page_used);
-        }
-        ui_softkeys(keys);
+        scroll_arrows(1, top, rows, page_used);
         dupdate();
 
         event = getkey();
         if (event.key == KEY_EXIT || event.key == KEY_EXE || event.key == KEY_F6)
             return;
-        if (event.key == KEY_DOWN && top + BODY_ROWS < page_used)
+        if (event.key == KEY_DOWN && top + rows < page_used)
             top++;
         if (event.key == KEY_UP && top > 0)
             top--;
     }
 }
 
+/* A message is wrapped at spaces into lines of up to MSG_COLS characters, as
+ * evenly as a greedy fill allows: aim for the length of the message shared out
+ * over the lines it needs, and a little over, so no lone word is left over. */
+#define MSG_COLS  30
+#define MSG_LINES 3
+
+static int wrap(const char *message, char lines[MSG_LINES][MSG_COLS + 1])
+{
+    int n = 0, total = (int)strlen(message), needed = (total + MSG_COLS - 1) / MSG_COLS;
+    int limit = needed > 1 ? (total + needed - 1) / needed + 4 : MSG_COLS;
+
+    if (limit > MSG_COLS)
+        limit = MSG_COLS;
+    while (*message && n < MSG_LINES) {
+        int cut = (int)strlen(message);
+
+        if (cut > limit)
+            for (cut = limit; cut > 0 && message[cut] != ' '; cut--)
+                ;
+        if (cut == 0)
+            cut = limit;            /* a word too long for a line is split */
+        memcpy(lines[n], message, (size_t)cut);
+        lines[n++][cut] = 0;
+        for (message += cut; *message == ' '; message++)
+            ;
+    }
+    return n;
+}
+
 void ui_message(const char *title, const char *message)
 {
-    static const char *const keys[6] = {"", "", "", "", "", "BACK"};
-    int width, middle = DHEIGHT / 2;
+    char lines[MSG_LINES][MSG_COLS + 1];
+    int n = wrap(message, lines), middle = DHEIGHT / 2, i, widest = 0;
+    int width[MSG_LINES], half = n * ROW_HEIGHT / 2 + 14, x1, x2;
+    int y1 = middle - half, y2 = middle + half;
 
     ui_frame(title);
-    dsize(message, NULL, &width, NULL);
-    panel(DWIDTH / 2 - width / 2 - 14, middle - 18, DWIDTH / 2 + width / 2 + 14,
-          middle + 18, COL_PANEL, COL_PANEL_EDGE);
-    dtext_opt(DWIDTH / 2, middle, COL_TEXT, C_NONE, DTEXT_CENTER, DTEXT_MIDDLE,
-              message, -1);
-    ui_softkeys(keys);
+    for (i = 0; i < n; i++) {
+        dsize(lines[i], &font_body, &width[i], NULL);
+        if (width[i] > widest)
+            widest = width[i];
+    }
+    x1 = DWIDTH / 2 - widest / 2 - 20;
+    x2 = DWIDTH / 2 + widest / 2 + 20;
+    /* the OS's pop-up frame, outside in: 1 px black, 1 white, 4 blue, 2 black */
+    drect(x1, y1, x2, y2, C_BLACK);
+    drect(x1 + 1, y1 + 1, x2 - 1, y2 - 1, C_WHITE);
+    drect(x1 + 2, y1 + 2, x2 - 2, y2 - 2, C_BLUE);
+    drect(x1 + 6, y1 + 6, x2 - 6, y2 - 6, C_BLACK);
+    drect(x1 + 8, y1 + 8, x2 - 8, y2 - 8, C_WHITE);
+    for (i = 0; i < n; i++)
+        big(DWIDTH / 2 - width[i] / 2,
+            middle - n * ROW_HEIGHT / 2 + i * ROW_HEIGHT + TEXT_DY,
+            C_BLACK, lines[i]);
     dupdate();
     getkey();
 }
