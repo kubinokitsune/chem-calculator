@@ -19,11 +19,10 @@ static void element_card(int z)
     ui_result_value("Ar", e->mass, "");
     ui_result_rule();
     if (chem_is_f_block(z))
-        snprintf(line, sizeof line, "f block      Period %d", chem_period(z));
+        snprintf(line, sizeof line, "f block   Period %d", chem_period(z));
     else
-        snprintf(line, sizeof line, "Group %-8d Period %d", chem_group(z), chem_period(z));
-    ui_result_line(line);
-    snprintf(line, sizeof line, "%c block", chem_block(z));
+        snprintf(line, sizeof line, "Group %d   Period %d   %c block",
+                 chem_group(z), chem_period(z), chem_block(z));
     ui_result_line(line);
     ui_result_line(chem_category(z));
     ui_result_text("State:", chem_state(z));

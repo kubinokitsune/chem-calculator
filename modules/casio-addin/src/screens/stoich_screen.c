@@ -228,6 +228,7 @@ static void screen_atom_economy(void)
     chem_species_t left[EQ_SIDE_MAX], right[EQ_SIDE_MAX];
     const char *names[EQ_SIDE_MAX];
     int coefficients[BAL_MAX_SPECIES];
+    char label[UI_LINE_LEN];
     float percent = 0.0f, wanted_mass = 0.0f, reactants_mass = 0.0f;
     int n_left, n_right, wanted, i;
 
@@ -257,8 +258,8 @@ static void screen_atom_economy(void)
     ui_result_begin("Atom economy");
     show_equation(left, n_left, right, n_right, coefficients);
     ui_result_rule();
-    ui_result_text("Wanted:", right[wanted].formula);
-    ui_result_value("wanted M x coeff", wanted_mass, "g/mol");
+    snprintf(label, sizeof label, "%s M x coeff", right[wanted].formula);
+    ui_result_value(label, wanted_mass, "g/mol");
     ui_result_value("reactants M x coeff", reactants_mass, "g/mol");
     ui_result_rule();
     ui_result_value("atom economy", percent, "%");

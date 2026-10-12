@@ -728,7 +728,15 @@ void ui_result_rule(void)
 
 void ui_result_show(void)
 {
-    int top = 0, rows = PAGE_ROWS - 1;      /* row 0 holds the heading */
+    int rows = PAGE_ROWS - 1;               /* row 0 holds the heading */
+    /* A page too long for the screen opens at its end, so the last rule and the
+     * answers are in view and the up arrow shows there is more above. */
+    int top = page_used - rows;
+
+    if (top > page_last_rule)
+        top = page_last_rule;
+    if (top < 0)
+        top = 0;
 
     for (;;) {
         key_event_t event;

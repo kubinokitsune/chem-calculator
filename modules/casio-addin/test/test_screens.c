@@ -18,6 +18,8 @@
 
 static int passed, failed;
 
+#define MAGENTA C_RGB(31, 0, 31)        /* the scroll arrows */
+
 static void ok(const char *label, int condition, const char *detail)
 {
     if (condition) {
@@ -79,6 +81,22 @@ static void bond_pick(const char *bond)
     fake_press(KEY_EXE);
 }
 
+/* Choose a half-cell by name in the cell-potential lists, the same way. */
+static void half_cell_pick(const char *half_cell)
+{
+    int i, item = 0;
+
+    for (i = 0; i < energy_half_cell_count; i++)
+        if (strcmp(energy_half_cells[i].half_cell, half_cell) == 0)
+            item = i + 1;
+    if (item == 0)
+        ok("the half-cell is in the booklet", 0, half_cell);
+    fake_press(KEY_1);
+    for (i = 1; i < item; i++)
+        fake_press(KEY_DOWN);
+    fake_press(KEY_EXE);
+}
+
 /* The bond screen is open at Bond enthalpies: leave it, and check that the
  * script used exactly the keys the screens asked for. */
 static void bond_finish(void)
@@ -96,18 +114,6 @@ static void equation(const char *text)
 {
     fake_press_text(text);
     fake_press(KEY_EXE);
-}
-
-/* A result page is open: scroll it to the end, so that every line has been on
- * screen. The body shows the heading and 7 lines, so a page of ten, like atom
- * economy, hides its answer until it is scrolled; the extra presses are
- * harmless once the end is reached. */
-static void page_end(void)
-{
-    int i;
-
-    for (i = 0; i < 12; i++)
-        fake_press(KEY_DOWN);
 }
 
 /* The script used exactly the keys the screens asked for. */
@@ -135,6 +141,8 @@ int main(void)
     showed("and gives its mass", "55.85");
     showed("and its group", "Group 8");
     showed("and its category", "Transition metal");
+    showed("group, period and block share a line", "Group 8   Period 4   d block");
+    showed("and the last line, electronegativity, is in view", "Electronegativity = 1.83");
     ok("the screen did not run out of keys", fake_ran_out_of_keys() == 0, NULL);
 
     /* By atomic number this time. */
@@ -248,7 +256,7 @@ int main(void)
     screen_balance();
     showed("propane balances as 1, 5, 3, 4", "Coefficients: 1, 5, 3, 4");
     showed("and the equation is shown", "5 O2");
-    showed("with the products on their own lines", "->  3 CO2");
+    showed("on one line, as it will be written", "C3H8 + 5 O2 -> 3 CO2 + 4 H2O");
     all_keys_used("propane");
 
     /* Brackets, typed with F1 and F2. */
@@ -263,18 +271,16 @@ int main(void)
     /* A long one: 28 characters, small letters, four products. */
     fake_reset();
     equation("KMnO4+HCl->KCl+MnCl2+H2O+Cl2");
-    page_end();                         /* the coefficients are the last line */
     fake_press(KEY_EXIT);
     screen_balance();
     showed("permanganate + HCl is 2, 16, 2, 2, 8, 5",
            "Coefficients: 2, 16, 2, 2, 8, 5");
-    showed("the 16 shows on the HCl line", "16 HCl");
+    showed("the 16 shows on the HCl", "16 HCl");
     all_keys_used("permanganate");
 
     /* 46 characters: wider than the 36 the field shows, so it scrolls while typing. */
     fake_reset();
     equation("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
-    page_end();
     fake_press(KEY_EXIT);
     screen_balance();
     showed("glucose + dichromate is 1, 4, 16, 6, 4, 4, 22",
@@ -465,6 +471,68 @@ int main(void)
         }
     }
 
+    section("3b. The answer is in view the moment a result opens");
+
+    /* No key is pressed on the result page except the one that leaves it, so
+     * what shows is the first frame. A page that fits draws no scroll arrow. */
+    fake_reset();
+    menu_pick(5);                       /* Atom economy */
+    equation("CH4+2O2->CO2+2H2O");
+    menu_pick(2);                       /* H2O */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("atom economy: the equation takes one line", "CH4 + 2 O2 -> CO2 + 2 H2O");
+    showed("atom economy: 45.02 % is on the first screen", "atom economy = 45.02 %");
+    ok("atom economy: the page fits, so nothing is scrolled", fake_rects(MAGENTA) == 0, NULL);
+    all_keys_used("atom economy first view");
+
+    fake_reset();
+    equation("C3H8+O2->CO2+H2O");
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("balancer: propane's 1, 5, 3, 4 are on the first screen", "Coefficients: 1, 5, 3, 4");
+    showed("balancer: with the equation above them", "C3H8 + 5 O2 -> 3 CO2 + 4 H2O");
+    ok("balancer: the page fits, so nothing is scrolled", fake_rects(MAGENTA) == 0, NULL);
+    all_keys_used("propane first view");
+
+    fake_reset();
+    equation("KMnO4+HCl->KCl+MnCl2+H2O+Cl2");
+    fake_press(KEY_EXIT);
+    screen_balance();
+    showed("balancer: permanganate's 2, 16, 2, 2, 8, 5 are on the first screen",
+           "Coefficients: 2, 16, 2, 2, 8, 5");
+    showed("balancer: the equation wraps at a + and shows its end", "5 Cl2");
+    ok("balancer: and still nothing is scrolled", fake_rects(MAGENTA) == 0, NULL);
+    all_keys_used("permanganate first view");
+
+    /* A long equation still fits when it takes two lines... */
+    fake_reset();
+    menu_pick(5);
+    equation("KMnO4+HCl->KCl+MnCl2+H2O+Cl2");
+    menu_pick(4);                       /* Cl2 */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a two-line equation: the answer is on the first screen", "atom economy = 39.41 %");
+    showed("and the equation's first line", "2 KMnO4 + 16 HCl -> 2 KCl + 2 MnCl2");
+    ok("with nothing scrolled", fake_rects(MAGENTA) == 0, NULL);
+    all_keys_used("two-line atom economy");
+
+    /* ...but a three-line one makes the page too long: it opens scrolled so
+     * that the last rule and the answer are in view, with the up arrow showing. */
+    fake_reset();
+    menu_pick(5);
+    equation("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
+    menu_pick(1);                       /* CO2 */
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_stoichiometry();
+    showed("a three-line equation: the answer is still on the first screen", "atom economy = ");
+    showed("and so is the last rule's wanted line", "CO2 M x coeff = ");
+    ok("and the up arrow shows there is more above", fake_rects(MAGENTA) > 0, NULL);
+    all_keys_used("three-line atom economy");
+
     section("4. The gas screens");
 
     /* 2.00 mol at 300 K in 5.00 dm3 gives 997 kPa. */
@@ -502,6 +570,7 @@ int main(void)
     fake_press(KEY_EXIT);
     screen_acids();
     showed("ethanoic acid has pH 2.88", "2.88");
+    showed("and its last answer, [OH-], is in view", "[OH-]");
 
     section("6. The energy screens");
 
@@ -529,6 +598,22 @@ int main(void)
     screen_energy();
     showed("dG comes out at -32.96 kJ/mol", "-32.96");
     showed("and it is called spontaneous", "spontaneous");
+
+    /* Cu2+/Cu reduced and Zn2+/Zn oxidised: E(cell) 1.10 V, and every line of
+     * the result, spontaneous last, is on the first screen. */
+    fake_reset();
+    menu_pick(4);                       /* Cell potential */
+    half_cell_pick("Cu2+/Cu");
+    half_cell_pick("Zn2+/Zn");
+    fake_press_number("2");
+    fake_press(KEY_EXIT);
+    fake_press(KEY_EXIT);
+    screen_energy();
+    showed("the cell names its reduced half-cell and E", "E(red) Cu2+/Cu = 0.34 V");
+    showed("and its oxidised one", "E(ox) Zn2+/Zn = -0.76 V");
+    showed("Cu2+/Cu against Zn2+/Zn is 1.1 V", "E(cell) = 1.1 V");
+    showed("and spontaneous, in view without scrolling", "\nspontaneous\n");
+    all_keys_used("cell potential");
 
     /* H2 + Cl2 -> 2HCl, picking every bond from the list. */
     fake_reset();
@@ -905,7 +990,6 @@ int main(void)
     fake_press_text("Og");
     fake_press(KEY_EXE);
     fake_press(KEY_EXE);
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_tools();
@@ -974,19 +1058,18 @@ int main(void)
     screen_tools();
     showed("benzene has an IHD of 4", "IHD = 4");
 
-    /* Atom economy: one equation, then the product that is wanted. Its page is
-     * ten lines, so page_end() scrolls down to the answer before leaving. */
+    /* Atom economy: one equation, then the product that is wanted. The page
+     * is a heading and 7 lines with no key pressed, answer included. */
     fake_reset();
     menu_pick(5);                       /* Atom economy */
     equation("CH4+2O2->CO2+2H2O");
     menu_pick(2);                       /* Desired product: H2O */
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
     showed("atom economy of 2 H2O from CH4 + 2O2 is 45.02 %", "atom economy = 45.02 %");
     showed("reactants M x coeff is 80.05", "reactants M x coeff = 80.05 g/mol");
-    showed("wanted M x coeff is 36.04", "wanted M x coeff = 36.04 g/mol");
+    showed("the wanted H2O has M x coeff 36.04", "H2O M x coeff = 36.04 g/mol");
     showed("the product menu lists the right-hand side", "Desired product");
     showed("the equation is shown as used", "2 O2");
     ok("and it is not the old 71 %", !fake_screen_has("71"), NULL);
@@ -997,14 +1080,12 @@ int main(void)
     menu_pick(5);
     equation("CH4+O2->CO2+H2O");
     menu_pick(2);                       /* H2O */
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
     showed("an unbalanced equation gives the same 45.02 %", "atom economy = 45.02 %");
     showed("the result shows the balanced O2", "2 O2");
-    showed("and the balanced H2O", "->  CO2");
-    showed("and 2 H2O", "+   2 H2O");
+    showed("and the whole balanced equation on one line", "CH4 + 2 O2 -> CO2 + 2 H2O");
     all_keys_used("unbalanced");
 
     /* The other product of the same reaction. */
@@ -1012,19 +1093,17 @@ int main(void)
     menu_pick(5);
     equation("CH4+2O2->CO2+2H2O");
     menu_pick(1);                       /* CO2 */
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
     showed("CO2 is the wanted product: 54.98 %", "atom economy = 54.98 %");
-    showed("its M x coeff is 44.01", "wanted M x coeff = 44.01 g/mol");
+    showed("and CO2 has M x coeff 44.01", "CO2 M x coeff = 44.01 g/mol");
     all_keys_used("CO2");
 
     fake_reset();
     menu_pick(5);
     equation("N2+3H2->2NH3");
     menu_pick(1);
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1036,7 +1115,6 @@ int main(void)
     menu_pick(5);
     equation("CH4+2O2->CO2+2H2O");
     menu_pick(2);
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1055,7 +1133,6 @@ int main(void)
     fake_press_text("2H2O");            /* ... and the field still holds the rest */
     fake_press(KEY_EXE);
     menu_pick(2);
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1071,7 +1148,6 @@ int main(void)
     fake_press_text("->CO2+2H2O");
     fake_press(KEY_EXE);
     menu_pick(2);
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1087,7 +1163,6 @@ int main(void)
     fake_press_text("O");
     fake_press(KEY_EXE);
     menu_pick(2);
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1104,7 +1179,6 @@ int main(void)
     fake_press(KEY_DEL);                /* O2 and "->" are gone: back to H2 */
     equation("+O2->H2O");
     menu_pick(1);
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1119,7 +1193,6 @@ int main(void)
     fake_press(KEY_EXIT);               /* leave Desired product */
     fake_press(KEY_EXE);                /* the equation is still there */
     menu_pick(2);
-    page_end();
     fake_press(KEY_EXIT);
     fake_press(KEY_EXIT);
     screen_stoichiometry();
@@ -1246,8 +1319,9 @@ int main(void)
         showed("seven DOWNs scroll to its last line", "Item 14");
         all_keys_used("long page");
 
-        /* a page that ends in a rule and an answer, as the procedures' do:
-         * the answer is last, and is reached by scrolling */
+        /* a page that ends in a rule and an answer, as the procedures' do, but
+         * is too long to fit: it opens scrolled down, so the answer is in view
+         * and the up arrow (magenta) says there is more above */
         fake_reset();
         ui_result_begin("Answer page");
         for (i = 0; i < 9; i++)
@@ -1256,18 +1330,25 @@ int main(void)
         ui_result_line("the answer");
         fake_press(KEY_EXE);
         ui_result_show();
-        ok("an answer below the fold is not drawn at first", !fake_screen_has("the answer"), NULL);
-        fake_reset();
-        ui_result_begin("Answer page");
-        for (i = 0; i < 9; i++)
-            ui_result_line(items[i]);
-        ui_result_rule();
-        ui_result_line("the answer");
-        page_end();
-        fake_press(KEY_EXE);
-        ui_result_show();
-        showed("but scrolling reaches it", "the answer");
+        showed("a long page opens with its answer in view", "the answer");
+        ok("and the lines above scrolled out", !fake_screen_has("Item 4"), NULL);
+        showed("down to the last rule's seven lines", "Item 5");
+        ok("an up arrow shows there is more above", fake_rects(MAGENTA) > 0, NULL);
+        ok("and the heading is still there", fake_screen_has("Answer page"), NULL);
         all_keys_used("answer page");
+
+        fake_reset();
+        ui_result_begin("Answer page");
+        for (i = 0; i < 9; i++)
+            ui_result_line(items[i]);
+        ui_result_rule();
+        ui_result_line("the answer");
+        for (i = 0; i < 4; i++)
+            fake_press(KEY_UP);
+        fake_press(KEY_EXE);
+        ui_result_show();
+        showed("UP scrolls back to the first line", "Item 1");
+        all_keys_used("answer page, back up");
 
         /* every one of the 32 entries is drawn on the way down, in order, and
          * the sevens are paged by RIGHT */

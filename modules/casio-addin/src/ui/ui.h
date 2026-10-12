@@ -93,7 +93,9 @@ void ui_result_text(const char *label, const char *text);
 void ui_result_value(const char *label, double value, const char *unit);
 void ui_result_rule(void);
 /* Show the page and wait. Scrolls with the arrows when there is more than a
- * screenful. Returns when EXIT or EXE is pressed. */
+ * screenful; such a page opens scrolled down as far as the last rule (so the
+ * answers after it are in view), with the up arrow showing. Returns when EXIT
+ * or EXE is pressed. */
 void ui_result_show(void);
 
 /* A message in the middle of the screen, dismissed with any key. A long one is

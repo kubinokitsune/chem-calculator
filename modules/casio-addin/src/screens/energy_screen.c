@@ -255,9 +255,9 @@ static void screen_gibbs(void)
 static void screen_cells(void)
 {
     static int cursor;
-    int choice, i;
+    int choice, reduced, i;
     const char *names[32];
-    char line[UI_LINE_LEN];
+    char label[UI_LINE_LEN];
     double cathode = 0.0, anode = 0.0, electrons = 2.0;
 
     for (i = 0; i < energy_half_cell_count && i < 32; i++)
@@ -267,8 +267,8 @@ static void screen_cells(void)
     choice = ui_menu("Half-cell being reduced", names, energy_half_cell_count, &cursor);
     if (choice < 0)
         return;
-    cathode = energy_half_cells[choice].potential;
-    snprintf(line, sizeof line, "%s", energy_half_cells[choice].half_cell);
+    reduced = choice;
+    cathode = energy_half_cells[reduced].potential;
 
     choice = ui_menu("Half-cell being oxidised", names, energy_half_cell_count, &cursor);
     if (choice < 0)
@@ -279,10 +279,10 @@ static void screen_cells(void)
         return;
 
     ui_result_begin("Cell potential");
-    ui_result_text("reduced:", line);
-    ui_result_value("E(red)", cathode, "V");
-    ui_result_text("oxidised:", energy_half_cells[choice].half_cell);
-    ui_result_value("E(ox)", anode, "V");
+    snprintf(label, sizeof label, "E(red) %s", energy_half_cells[reduced].half_cell);
+    ui_result_value(label, cathode, "V");
+    snprintf(label, sizeof label, "E(ox) %s", energy_half_cells[choice].half_cell);
+    ui_result_value(label, anode, "V");
     ui_result_rule();
     ui_result_value("E(cell)", cathode - anode, "V");
     ui_result_value("dG", energy_gibbs_from_cell((int)electrons, cathode - anode), "kJ/mol");

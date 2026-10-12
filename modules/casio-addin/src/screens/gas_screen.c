@@ -184,7 +184,6 @@ static void screen_ice(void)
 
     ui_result_begin("ICE table");
     ui_result_value("x", x, "");
-    ui_result_rule();
     ui_result_value("[A]", a - x, "");
     ui_result_value("[B]", b - x, "");
     ui_result_value("[C]", c + x, "");
