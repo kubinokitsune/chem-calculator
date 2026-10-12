@@ -7,4 +7,8 @@
  * It asks the OS at most every 30 seconds and reuses the picture in between. */
 int battery_draw(void);
 
+/* The first column right of the icon last drawn, or 0 if there is none, so
+ * that whatever sits beside it can keep clear. */
+int battery_right(void);
+
 #endif

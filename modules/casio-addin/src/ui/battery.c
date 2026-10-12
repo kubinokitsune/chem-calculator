@@ -111,12 +111,18 @@ static int read_os(int unused)
     return 0;
 }
 
+/* Building with -DCHEMCALC_NO_BATTERY leaves the OS alone and draws no icon:
+ * the way out if the OS calls misbehave on some calculator or OS version. */
 int battery_draw(void)
 {
     static uint32_t read_at;
     static int have;
     uint32_t now = rtc_ticks();
     int x, y;
+
+#ifdef CHEMCALC_NO_BATTERY
+    return 0;
+#endif
 
     /* unsigned, so it also refreshes when the clock wraps at midnight */
     if (!have || now - read_at >= REFRESH_TICKS) {
@@ -129,4 +135,13 @@ int battery_draw(void)
             if (shot[gy + y][gx + x] != 0xFFFF)
                 dpixel(OS_LEFT + gx + x, gy + y, shot[gy + y][gx + x]);
     return gw > 0;
+}
+
+int battery_right(void)
+{
+#ifdef CHEMCALC_NO_BATTERY
+    return 0;
+#else
+    return gw > 0 ? OS_LEFT + gx + gw : 0;
+#endif
 }

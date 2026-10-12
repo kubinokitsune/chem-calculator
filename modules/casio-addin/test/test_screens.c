@@ -1488,7 +1488,7 @@ int main(void)
             ok("and they sit where the OS has them, 6 px in from the left",
                fake_last_rect(C_BLUE, &x1, &y1, &x2, &y2) && x1 == 22 && y1 == 16, NULL);
         }
-        ok("the OS's status area is left as it was found: off, with its default flags",
+        ok("the OS's status area is put back off, with its default flags",
            fake_os_status() == 0x303, NULL);
 
         fake_reset();

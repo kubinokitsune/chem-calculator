@@ -52,7 +52,7 @@ void ui_example(const char *text);
 /* ---- entry fields ------------------------------------------------------- */
 
 /* Type a formula or any other text. The keypad's printed letters are used
- * directly: ALPHA switches between letters and digits (a red A or a box beside
+ * directly: ALPHA switches between letters and digits (a red box with A or a beside
  * the battery while letters are on, nothing in digit mode, as on the OS), SHIFT
  * between capitals and small letters, and F1-F3 put in ( ) and the hydrate dot.
  * The fields read ALPHA and SHIFT as keys of their own (gint's getkey() would

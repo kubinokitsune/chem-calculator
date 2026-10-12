@@ -119,6 +119,9 @@ static void mode_box(char letter)
     char glyph[2] = {letter, 0};
     int width, x = ROW_LEFT + 22, lock;
 
+    if (battery_right() + 3 > x)                        /* keep clear of a wide icon */
+        x = battery_right() + 3;
+
     if (letter == 0)
         return;
     dsize(glyph, NULL, &width, NULL);
