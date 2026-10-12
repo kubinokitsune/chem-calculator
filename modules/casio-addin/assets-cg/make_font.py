@@ -1,6 +1,6 @@
 """Make the add-in's two text fonts, font-body.png and font-bold.png.
 
-They are the 10 x 20 bitmaps of Terminus Font ("ter-u20n" and "ter-u20b"),
+They are the 11 x 22 bitmaps of Terminus Font ("ter-u22n" and "ter-u22b"),
 Copyright (C) 2020 Dimitar Toshkov Zhekov, SIL Open Font License 1.1; see
 LICENSE-terminus-OFL.txt. The glyphs are copied pixel for pixel, only laid out
 as the grid fxconv wants: printable ASCII 0x20-0x7E, 16 glyphs a row, black on
@@ -9,7 +9,7 @@ white. fxconv-metadata.txt turns each PNG into a gint font.
 The Terminus bitmaps come from the Debian/Ubuntu package xfonts-terminus
 (sudo apt install xfonts-terminus), which keeps them in /usr/share/fonts/X11/misc.
 
-    py make_font.py [directory with ter-u20n_unicode.pcf.gz and ter-u20b_unicode.pcf.gz]
+    py make_font.py [directory with ter-u22n_unicode.pcf.gz and ter-u22b_unicode.pcf.gz]
 
 Needs Pillow. The PNGs are written next to this script.
 """
@@ -22,7 +22,7 @@ from PIL import Image, PcfFontFile
 HERE = Path(__file__).resolve().parent
 SOURCE = Path(sys.argv[1] if len(sys.argv) > 1 else "/usr/share/fonts/X11/misc")
 
-W, H = 10, 20
+W, H = 11, 22
 COLUMNS = 16
 FIRST, COUNT = 0x20, 95         # gint's "print" character set
 
@@ -44,5 +44,5 @@ def make(name, source):
     print("wrote", HERE / name)
 
 
-make("font-body.png", "ter-u20n_unicode.pcf.gz")
-make("font-bold.png", "ter-u20b_unicode.pcf.gz")
+make("font-body.png", "ter-u22n_unicode.pcf.gz")
+make("font-bold.png", "ter-u22b_unicode.pcf.gz")

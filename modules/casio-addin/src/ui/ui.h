@@ -7,7 +7,7 @@
 #ifndef UI_H
 #define UI_H
 
-#define UI_LINE_LEN   37      /* room for 36 characters, which fit across the screen */
+#define UI_LINE_LEN   35      /* room for 34 characters, which fit across the screen */
 #define UI_MAX_LINES  40      /* lines one result page can hold */
 #define UI_TEXT_LEN   24      /* room for one typed entry: a formula, a count */
 #define UI_EQUATION_LEN 96    /* room for a typed equation */
@@ -39,7 +39,8 @@ void ui_softkeys(const char *const *labels);
 int ui_menu(const char *title, const char *const *items, int count, int *cursor);
 
 /* The same, with a one-line example for each entry, shown along the bottom as
- * the highlight moves. `hints` may be NULL, and so may any entry in it. */
+ * the highlight moves. `hints` may be NULL, and so may any entry in it. The
+ * example takes the seventh row, so such a menu shows six entries at a time. */
 int ui_menu_hints(const char *title, const char *const *items,
                   const char *const *hints, int count, int *cursor);
 
@@ -51,8 +52,11 @@ void ui_example(const char *text);
 /* ---- entry fields ------------------------------------------------------- */
 
 /* Type a formula or any other text. The keypad's printed letters are used
- * directly: ALPHA switches between letters and digits, SHIFT between capitals
- * and small letters, and F1-F3 put in ( ) and the hydrate dot.
+ * directly: ALPHA switches between letters and digits (a red A or a box beside
+ * the battery while letters are on, nothing in digit mode, as on the OS), SHIFT
+ * between capitals and small letters, and F1-F3 put in ( ) and the hydrate dot.
+ * The fields read ALPHA and SHIFT as keys of their own (gint's getkey() would
+ * swallow them as modifiers).
  * Returns 1 when EXE was pressed, 0 when EXIT was. */
 int ui_text_input(const char *title, const char *prompt, char *buffer, int length);
 

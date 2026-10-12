@@ -32,6 +32,9 @@ void fake_press_number(const char *text);
 const char *fake_screen(void);
 int fake_screen_has(const char *text);
 
+/* How many screens have been shown (dupdate calls) since the last reset. */
+int fake_frames(void);
+
 /* What the colours and the battery looked like: how many rectangles of
  * `colour` were drawn, and the colour the text `text` was last drawn in (-2 if
  * it never was). */

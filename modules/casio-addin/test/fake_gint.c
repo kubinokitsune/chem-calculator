@@ -20,6 +20,7 @@ static int captured_used;
 static int queue[FAKE_KEY_QUEUE];
 static int queue_used, queue_next;
 static int keys_exhausted;
+static int frames;
 
 /* every text drawn: where it starts in `captured` and its colour */
 #define MAX_TEXTS 4096
@@ -30,11 +31,11 @@ static int text_at[MAX_TEXTS], text_fg[MAX_TEXTS], texts;
 static int rect_colour[MAX_COLOURS], rect_count[MAX_COLOURS], colours;
 static int rect_last[MAX_COLOURS][4];
 
-/* The fonts. The add-in's own two are 10 px wide on every glyph; gint's
+/* The fonts. The add-in's own two are 11 px wide on every glyph; gint's
  * default is proportional, and its widths are those of font8x9.png as fxconv
  * trims them (95 glyphs from the space, each followed by 1 px of spacing). */
 struct font { int width; };
-font_t font_body = { 10 }, font_bold = { 10 };
+font_t font_body = { 11 }, font_bold = { 11 };
 static font_t font_small = { 0 };
 static const font_t *current_font = &font_small;
 static const unsigned char small_width[95] = {
@@ -56,6 +57,7 @@ void fake_reset(void)
 {
     texts = 0;
     colours = 0;
+    frames = 0;
     fake_battery(600, 1);
     os_reads = 0;
     captured[0] = 0;
@@ -346,33 +348,59 @@ void dsize(const char *text, const font_t *font, int *width, int *height)
     if (width != NULL)
         *width = text_width(text, font);
     if (height != NULL)
-        *height = (font == &font_small) ? 9 : 20;
+        *height = (font == &font_small) ? 9 : 22;
 }
 
 void dupdate(void)
 {
+    frames++;
 }
 
-key_event_t getkey(void)
+int fake_frames(void)
 {
-    key_event_t event;
+    return frames;
+}
 
-    event.type = 1;
-    event.shift = 0;
-    event.alpha = 0;
+/* The next key the test queued, or EXIT (and a note) when it ran out. */
+static int next_key(void)
+{
     if (queue_next >= queue_used) {
         /* The screen asked for more input than the test provided. Rather than
          * spinning for ever, say EXIT and record that it happened. */
         keys_exhausted++;
-        event.key = KEY_EXIT;
         if (keys_exhausted > 200) {
             fprintf(stderr, "fake_gint: a screen will not stop asking for keys\n");
             exit(2);
         }
-        return event;
+        return KEY_EXIT;
     }
-    event.key = queue[queue_next++];
-    return event;
+    return queue[queue_next++];
+}
+
+/* Like gint's: with the SHIFT/ALPHA options on, those keys are swallowed and
+ * the next key comes back with `shift` or `alpha` set; with them off, they are
+ * keys like any other. (The first version of this fake always returned them,
+ * which is why a text field that waited for KEY_ALPHA passed here and did
+ * nothing on the calculator.) */
+key_event_t getkey_opt(int options, volatile int *timeout)
+{
+    key_event_t event = {1, 0, 0, 0};
+
+    (void)timeout;
+    for (;;) {
+        event.key = next_key();
+        if (event.key == KEY_SHIFT && (options & GETKEY_MOD_SHIFT))
+            event.shift = 1;
+        else if (event.key == KEY_ALPHA && (options & GETKEY_MOD_ALPHA))
+            event.alpha = 1;
+        else
+            return event;
+    }
+}
+
+key_event_t getkey(void)
+{
+    return getkey_opt(GETKEY_DEFAULT, NULL);
 }
 
 /* ---- the OS: battery and clock ------------------------------------------ */

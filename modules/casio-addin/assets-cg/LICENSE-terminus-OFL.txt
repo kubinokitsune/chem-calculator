@@ -1,4 +1,4 @@
-Terminus Font, version 4.49 (the "ter-u20n" and "ter-u20b" bitmaps, 10x20), as
+Terminus Font, version 4.49 (the "ter-u22n" and "ter-u22b" bitmaps, 11x22), as
 shipped in the Debian package xfonts-terminus 4.49-1. The font files themselves
 state "Copyright (C) 2020 Dimitar Toshkov Zhekov", under the licence below.
 The licence and copyright notice below are the ones that package ships with it;

@@ -53,8 +53,8 @@ Copyright (C) 2015-2022 gint/fxSDK contributors, used under the MIT licence.
 The full licence text is in
 [`modules/casio-addin/assets-cg/LICENSE-fxsdk-template.txt`](modules/casio-addin/assets-cg/LICENSE-fxsdk-template.txt).
 
-The add-in's text is set in a bitmap conversion of the 10×20
-ter-u20n/ter-u20b glyphs from
+The add-in's text is set in a bitmap conversion of the 11×22
+ter-u22n/ter-u22b glyphs from
 [Terminus Font](https://terminus-font.sourceforge.net/) by Dimitar Toshkov
 Zhekov, Copyright (C) 2020 (SIL OFL 1.1); not an official Terminus release
 (`modules/casio-addin/assets-cg/font-body.png` and `font-bold.png`, made by

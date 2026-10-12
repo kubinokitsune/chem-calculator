@@ -20,7 +20,7 @@ void screen_balance(void)
     for (;;) {
         chem_error_t error;
 
-        if (!ask_equation("Balancer", "Equation (numbers in front ignored):",
+        if (!ask_equation("Balancer", "Equation (front numbers ignored):",
                           text, (int)sizeof text, left, &n_left, right, &n_right))
             return;
         for (i = 0; i < n_left + n_right; i++)

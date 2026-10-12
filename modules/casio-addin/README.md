@@ -115,16 +115,17 @@ the flask at 3x that the menus show as a pale watermark. Regenerate both with
 ## The text
 
 Body text - menu rows, prompts, what you type, the lines of an answer - is set
-in a 10 × 20 pixel bitmap font, so 36 characters fit across and a menu
-shows 7 rows (22 px apart; a result page shows its heading and 7 lines, 21 px
-apart). Headings and answers use the bold cut. The small print - the status
+in an 11 × 22 pixel bitmap font, so 34 characters fit across. Rows are 24 px
+apart, as the calculator's are, which leaves 7: a result page shows its heading
+and 6 lines, and a menu 7 rows (6 when it has an example line along the bottom,
+as the main menu does). Headings and answers use the bold cut. The small print - the status
 strip, the softkey labels, the grey hints and the "e.g." examples - stays in
 gint's own 8 × 9 font, as the calculator's does.
 
 `assets-cg/make_font.py` writes `font-body.png` and `font-bold.png`, and
 `assets-cg/fxconv-metadata.txt` has fxconv turn them into the gint fonts
-`font_body` and `font_bold`. The font is a bitmap conversion of the 10×20
-ter-u20n/ter-u20b glyphs from Terminus Font by Dimitar Toshkov Zhekov (SIL OFL
+`font_body` and `font_bold`. The font is a bitmap conversion of the 11×22
+ter-u22n/ter-u22b glyphs from Terminus Font by Dimitar Toshkov Zhekov (SIL OFL
 1.1); not an official Terminus release. The glyphs come from the Debian/Ubuntu
 package `xfonts-terminus` and the licence is `assets-cg/LICENSE-terminus-OFL.txt`. Regenerate the PNGs with
 `py assets-cg/make_font.py` (needs Pillow).
@@ -137,9 +138,13 @@ package `xfonts-terminus` and the licence is `assets-cg/LICENSE-terminus-OFL.txt
   seconds. Bars are approximate (3 for a fresh set of 4 AAAs): the thresholds
   are in the source. A reading outside 2.00 to 9.00 V is not a battery:
   like no reading at all, it draws no battery.
-- The input mode beside it is white on a red box, **A** for capitals and **a**
-  for small letters, or a plain framed **123** for digits. SHIFT only toggles
-  small letters here, so it has no indicator of its own.
+- The letter mode beside it is drawn as the calculator's own ALPHA indicator
+  is (Software User's Guide, "Status Bar"): a red box with a white **A** for
+  capitals or **a** for small letters, and the yellow padlock of alpha-lock,
+  since ALPHA stays on until it is pressed again. In digit mode there is no
+  box, as on the calculator. SHIFT only toggles small letters here, so it has
+  no indicator of its own. The entry fields read ALPHA and SHIFT as keys of
+  their own: gint's `getkey()` would swallow them as modifiers.
 - Menus are drawn over a gradient from white to light orange with a pale flask,
   like the calculator's own application menus; entry and result screens stay
   white, as theirs do. The gradient is dithered where one colour step gives way
@@ -172,7 +177,7 @@ make -C test core     # the chemistry only
 make -C test screens  # the menus and screens
 ```
 
-788 checks at present: 426 for the chemistry and 362 for the screens, among
+805 checks at present: 426 for the chemistry and 379 for the screens, among
 them that nothing is drawn past the screen's right edge. The
 expected values are the same hand-worked IB figures the desktop calculator and
 the Python port are tested against, so the three cannot quietly disagree.

@@ -278,16 +278,18 @@ int main(void)
     showed("the 16 shows on the HCl", "16 HCl");
     all_keys_used("permanganate");
 
-    /* 46 characters: wider than the 36 the field shows, so it scrolls while typing. */
+    /* 46 characters: wider than the 34 the field shows, so it scrolls while typing. */
     fake_reset();
     equation("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
     fake_press(KEY_EXIT);
     screen_balance();
+    /* "Coefficients: " and these seven are 35 characters, one more than a line:
+     * the list gets a line of its own rather than losing its last digit */
     showed("glucose + dichromate is 1, 4, 16, 6, 4, 4, 22",
-           "Coefficients: 1, 4, 16, 6, 4, 4, 22");
+           "Coefficients:\n1, 4, 16, 6, 4, 4, 22\n");
     ok("the long equation was never drawn in one piece",
        !fake_screen_has("C6H12O6+K2Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O"), "no scrolling");
-    showed("but its end was in view", "Cr2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
+    showed("but its end was in view", "2O7+H2SO4->CO2+K2SO4+Cr2(SO4)3+H2O");
     all_keys_used("long equation");
 
     /* Numbers in front are ignored, and the prompt says so. */
@@ -296,7 +298,7 @@ int main(void)
     fake_press(KEY_EXIT);
     screen_balance();
     showed("a typed coefficient is ignored by the balancer", "Coefficients: 1, 5, 3, 4");
-    showed("and the prompt says so", "numbers in front ignored");
+    showed("and the prompt says so", "front numbers ignored");
     all_keys_used("ignored coefficient");
 
     /* Mistakes: the message is shown, the text stays, and it can be fixed. */
@@ -399,7 +401,7 @@ int main(void)
         ok("a 47-character equation is all in the buffer",
            strlen(text) == 47 && strcmp(text + 40, "CH4+CH4") == 0, text);
         ok("the field scrolls rather than running off the screen",
-           !fake_screen_has(text) && fake_screen_has(text + 11),
+           !fake_screen_has(text) && fake_screen_has(text + 13),
            "the whole text was drawn, or the end was not");
 
         /* The longest equation the field holds, UI_EQUATION_LEN - 1 characters, is
@@ -420,7 +422,7 @@ int main(void)
             ui_equation_input("Equation", "Equation:", text, UI_EQUATION_LEN);
             ok("a hundred typed characters fill the buffer to its limit",
                (int)strlen(text) == UI_EQUATION_LEN - 1, text);
-            ok("its end is drawn", fake_screen_has(text + strlen(text) - 36), NULL);
+            ok("its end is drawn", fake_screen_has(text + strlen(text) - 34), NULL);
             ok("and so is the caret, inside the screen: nothing ran past the edge",
                fake_overflows() == before, fake_first_overflow());
         }
@@ -515,8 +517,10 @@ int main(void)
     fake_press(KEY_EXIT);
     screen_stoichiometry();
     showed("a two-line equation: the answer is on the first screen", "atom economy = 39.41 %");
-    showed("and the equation's first line", "2 KMnO4 + 16 HCl -> 2 KCl + 2 MnCl2");
-    ok("with nothing scrolled", fake_rects(MAGENTA) == 0, NULL);
+    showed("and the equation's second line", "  + 2 MnCl2 + 8 H2O + 5 Cl2");
+    /* heading, 2 + 1 + 2 + 1 + 1 lines: one more than the 6 a page holds, so it
+     * opens scrolled to the answer, with the up arrow showing */
+    ok("one line too many: the up arrow shows", fake_rects(MAGENTA) > 0, NULL);
     all_keys_used("two-line atom economy");
 
     /* ...but a three-line one makes the page too long: it opens scrolled so
@@ -1002,7 +1006,7 @@ int main(void)
     showed("Fe3+ ends at 3d5", "3d5");
 
     /* Oganesson's configuration is over 80 characters, more than two lines of
-     * 36: it is split at spaces over as many lines as it needs, and the last of
+     * 34: it is split at spaces over as many lines as it needs, and the last of
      * them is on a line of its own, not cut off. */
     fake_reset();
     menu_pick(1);
@@ -1013,7 +1017,7 @@ int main(void)
     fake_press(KEY_EXIT);
     screen_tools();
     showed("the heaviest configuration starts on its first line", "\n1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6\n");
-    showed("and its last line is whole", "\n6d10 7s2 7p6\n");
+    showed("and its last line is whole", "\n6p6 6d10 7s2 7p6\n");
     showed("its shorthand drops the whole [Rn] core", "\n[Rn] 5f14 6d10 7s2 7p6\n");
     all_keys_used("long configuration");
 
@@ -1089,7 +1093,7 @@ int main(void)
     showed("benzene has an IHD of 4", "IHD = 4");
 
     /* Atom economy: one equation, then the product that is wanted. The page
-     * is a heading and 7 lines with no key pressed, answer included. */
+     * is a heading and 6 lines with no key pressed, answer included. */
     fake_reset();
     menu_pick(5);                       /* Atom economy */
     equation("CH4+2O2->CO2+2H2O");
@@ -1326,7 +1330,7 @@ int main(void)
         ok("EXIT does the going back, so there is no BACK key", !fake_screen_has("BACK"), NULL);
         all_keys_used("long menu");
 
-        /* A page of 14 lines shows its heading and 7 lines, scrolls with DOWN
+        /* A page of 14 lines shows its heading and 6 lines, scrolls with DOWN
          * one line at a time to reach the last line, and has no BACK key either. */
         fake_reset();
         ui_result_begin("Long page");
@@ -1335,21 +1339,10 @@ int main(void)
         fake_press(KEY_EXE);
         ui_result_show();
         showed("a result page shows its heading", "Long page");
-        showed("and its seventh line", "Item 7");
-        ok("but not its eighth until it scrolls", !fake_screen_has("Item 8"), NULL);
+        showed("and its sixth line", "Item 6");
+        ok("but not its seventh until it scrolls", !fake_screen_has("Item 7"), NULL);
         ok("the result page has no BACK key", !fake_screen_has("BACK"), NULL);
         all_keys_used("page top");
-
-        fake_reset();
-        ui_result_begin("Long page");
-        for (i = 0; i < 14; i++)
-            ui_result_line(items[i]);
-        for (i = 0; i < 6; i++)
-            fake_press(KEY_DOWN);
-        fake_press(KEY_EXE);
-        ui_result_show();
-        ok("six DOWNs are not enough to reach the 14th line", !fake_screen_has("Item 14"), NULL);
-        all_keys_used("page almost at the end");
 
         fake_reset();
         ui_result_begin("Long page");
@@ -1359,7 +1352,18 @@ int main(void)
             fake_press(KEY_DOWN);
         fake_press(KEY_EXE);
         ui_result_show();
-        showed("seven DOWNs scroll to its last line", "Item 14");
+        ok("seven DOWNs are not enough to reach the 14th line", !fake_screen_has("Item 14"), NULL);
+        all_keys_used("page almost at the end");
+
+        fake_reset();
+        ui_result_begin("Long page");
+        for (i = 0; i < 14; i++)
+            ui_result_line(items[i]);
+        for (i = 0; i < 8; i++)
+            fake_press(KEY_DOWN);
+        fake_press(KEY_EXE);
+        ui_result_show();
+        showed("eight DOWNs scroll to its last line", "Item 14");
         all_keys_used("long page");
 
         /* a page that ends in a rule and an answer, as the procedures' do, but
@@ -1375,7 +1379,7 @@ int main(void)
         ui_result_show();
         showed("a long page opens with its answer in view", "the answer");
         ok("and the lines above scrolled out", !fake_screen_has("Item 4"), NULL);
-        showed("down to the last rule's seven lines", "Item 5");
+        showed("down to the last rule's six lines", "Item 6");
         ok("an up arrow shows there is more above", fake_rects(MAGENTA) > 0, NULL);
         ok("and the heading is still there", fake_screen_has("Answer page"), NULL);
         all_keys_used("answer page");
@@ -1386,7 +1390,7 @@ int main(void)
             ui_result_line(items[i]);
         ui_result_rule();
         ui_result_line("the answer");
-        for (i = 0; i < 4; i++)
+        for (i = 0; i < 5; i++)
             fake_press(KEY_UP);
         fake_press(KEY_EXE);
         ui_result_show();
@@ -1419,6 +1423,29 @@ int main(void)
         ok("RIGHT pages down by the seven rows shown", choice == 7, NULL);
         all_keys_used("page the long menu");
 
+        /* a menu with examples keeps the seventh row for the example: six entries
+         * are shown, the seventh is below the fold, and RIGHT pages by six */
+        {
+            static const char *const hints[32] = {"the example"};
+
+            fake_reset();
+            fake_press(KEY_EXE);
+            cursor = 0;
+            ui_menu_hints("Hints", items, hints, 32, &cursor);
+            showed("a menu with examples shows its sixth entry", "6:Item 6");
+            ok("but not its seventh, which would sit on the example",
+               !fake_screen_has("7:Item 7"), NULL);
+            showed("and the example", "the example");
+            ok("and the arrow shows there is more", fake_rects(MAGENTA) > 0, NULL);
+
+            fake_reset();
+            fake_press(KEY_RIGHT);
+            fake_press(KEY_EXE);
+            cursor = 0;
+            choice = ui_menu_hints("Hints", items, hints, 32, &cursor);
+            ok("RIGHT pages by the six rows shown", choice == 6, NULL);
+        }
+
         fake_reset();
         fake_press(KEY_EXE);
         ui_message("Title", "A message");
@@ -1443,6 +1470,7 @@ int main(void)
         static const char *const items[] = {"Item 1", "Item 2", "Item 3"};
         static const char *const hints[] = {"hint one", "hint two", NULL};
         const int tint = C_RGB(31, UI_TINT_G, UI_TINT_B), red = C_RGB(31, 0, 0);
+        const int yellow = C_RGB(31, 31, 0);
         int cursor = 0, v;
         char text[UI_EQUATION_LEN] = "";
 
@@ -1526,14 +1554,69 @@ int main(void)
         ui_menu("Battery", items, 3, &cursor);
         ok("31 seconds later it asks again", fake_os_reads() == 2, NULL);
 
-        /* the mode indicator: white on a solid red box, A or a, as the OS's ALPHA */
+        /* The mode indicator, as the OS draws its ALPHA one (Software User's Guide,
+         * "Status Bar"): white on a solid red box, A or a, with a yellow padlock
+         * because ALPHA stays on until it is pressed again; nothing at all in
+         * digit mode. A screen is a frame, so counting frames and red boxes says
+         * which screens had the box. */
+
+        /* the stand-in behaves like gint: getkey() swallows ALPHA and SHIFT as
+         * modifiers and only getkey_opt() without them returns the keys */
+        fake_reset();
+        fake_press(KEY_ALPHA);  fake_press(KEY_1);
+        fake_press(KEY_SHIFT);  fake_press(KEY_2);
+        fake_press(KEY_ALPHA);  fake_press(KEY_ALPHA);
+        {
+            key_event_t a = getkey(), b = getkey();
+            key_event_t c = getkey_opt(GETKEY_DEFAULT & ~(GETKEY_MOD_SHIFT | GETKEY_MOD_ALPHA), NULL);
+            key_event_t d = getkey_opt(GETKEY_DEFAULT & ~(GETKEY_MOD_SHIFT | GETKEY_MOD_ALPHA), NULL);
+            ok("getkey() swallows ALPHA: the next key comes back with alpha set",
+               a.key == KEY_1 && a.alpha == 1 && a.shift == 0, NULL);
+            ok("and SHIFT the same way", b.key == KEY_2 && b.shift == 1 && b.alpha == 0, NULL);
+            ok("without the modifier options ALPHA is a key of its own",
+               c.key == KEY_ALPHA && d.key == KEY_ALPHA, NULL);
+        }
+
         fake_reset();
         fake_press(KEY_EXE);
         ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
         ok("letters mode shows an A", fake_text_colour("A") != -2, NULL);
         ok("in white", fake_text_colour("A") == C_WHITE, NULL);
         ok("on a solid red box", fake_rects(red) == 1, NULL);
+        ok("with the alpha-lock padlock, yellow", fake_rects(yellow) == 1, NULL);
 
+        /* ALPHA off: the box goes (the second screen has none), digits type */
+        fake_reset();
+        fake_press(KEY_ALPHA);
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("ALPHA redraws the field", fake_frames() == 2, NULL);
+        ok("and the red box is only on the screen before it", fake_rects(red) == 1, NULL);
+        ok("and so is the padlock", fake_rects(yellow) == 1, NULL);
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);  fake_press(KEY_1);  fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("after ALPHA a number key types its digit", strcmp(text, "1") == 0, text);
+
+        /* ALPHA on again: the box comes back (first and third screens) */
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);  fake_press(KEY_ALPHA);
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("ALPHA twice redraws twice", fake_frames() == 3, NULL);
+        ok("the box is on the first and third screens", fake_rects(red) == 2, NULL);
+
+        fake_reset();
+        text[0] = 0;
+        fake_press(KEY_ALPHA);  fake_press(KEY_ALPHA);  fake_press(KEY_1);
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("after ALPHA twice a number key is the letter on it again", strcmp(text, "U") == 0, text);
+
+        /* small letters: the same red box, with a white a, as the OS's A and a */
         fake_reset();
         fake_press(KEY_SHIFT);              /* SHIFT toggles small letters here */
         fake_press(KEY_EXE);
@@ -1542,13 +1625,26 @@ int main(void)
         ok("in a red box on both screens it was drawn", fake_rects(red) == 2, NULL);
         ok("SHIFT has no indicator of its own, since it is not a pending key",
            fake_text_colour("S") == -2, NULL);
+        ok("the small a has the padlock too", fake_rects(yellow) == 2, NULL);
 
         fake_reset();
-        fake_press(KEY_ALPHA);
+        text[0] = 0;
+        fake_press(KEY_F5);                 /* the equation field's A <-> a key */
+        fake_press(KEY_XOT);
+        fake_press(KEY_F5);
+        fake_press(KEY_XOT);
         fake_press(KEY_EXE);
         ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
-        ok("digits mode shows 123, black, in a plain box", fake_text_colour("123") == C_BLACK, NULL);
-        ok("and the box is red only on the screen before", fake_rects(red) == 1, NULL);
+        ok("F5 and SHIFT agree: a then A", strcmp(text, "aA") == 0, text);
+
+        /* digit mode has no indicator, even with small letters picked */
+        fake_reset();
+        fake_press(KEY_ALPHA);
+        fake_press(KEY_SHIFT);
+        fake_press(KEY_EXE);
+        ui_equation_input("Mode", "Equation:", text, UI_EQUATION_LEN);
+        ok("digits mode: SHIFT redraws, no box on the screens after ALPHA",
+           fake_frames() == 3 && fake_rects(red) == 1, NULL);
 
         fake_reset();
         {
@@ -1556,8 +1652,8 @@ int main(void)
             fake_press(KEY_EXE);
             ui_number_input("Mode", "Number:", &value, 1);
         }
-        ok("a number field shows 123 and no red", fake_text_colour("123") == C_BLACK
-           && fake_rects(red) == 0, NULL);
+        ok("a number field has no box and no red", fake_rects(red) == 0
+           && fake_text_colour("A") == -2 && !fake_screen_has("123"), NULL);
 
         /* the background: on the menus, not on the entry and result screens, as in
          * the OS; and the text on it is all still there, in its own colours */
