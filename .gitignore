@@ -36,3 +36,6 @@ modules/chemistry-calculator/ui_interface/server.log
 
 # graphify knowledge graph - generated (root is a private submodule; this ignores nested build dirs)
 graphify-out/
+
+# local design reference images (copyrighted — do not commit to public repo)
+references/fx-cg50/
