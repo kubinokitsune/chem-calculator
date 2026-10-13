@@ -402,8 +402,82 @@ check("Na⁺ has the neon configuration", electron_configuration("Na", 1)[0],
       electron_configuration("Ne")[0])
 check("shorthand for iron", noble_gas_shorthand("Fe"), "[Ar] 3d⁶ 4s²")
 check("shorthand for bromine", noble_gas_shorthand("Br"), "[Ar] 3d¹⁰ 4s² 4p⁵")
-check("by name and by atomic number agree",
-      electron_configuration("iron")[0], electron_configuration(26)[0])
+check("shorthand for sodium", noble_gas_shorthand("Na"), "[Ne] 3s¹")
+check("shorthand for copper", noble_gas_shorthand("Cu"), "[Ar] 3d¹⁰ 4s¹")
+check("shorthand for silver", noble_gas_shorthand("Ag"), "[Kr] 4d¹⁰ 5s¹")
+check("shorthand for lead keeps 4f and drops 5s 5p 4d", noble_gas_shorthand("Pb"),
+      "[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p²")
+check("shorthand for uranium", noble_gas_shorthand("U"), "[Rn] 5f³ 6d¹ 7s²")
+check("shorthand for oganesson", noble_gas_shorthand("Og"), "[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁶")
+check("shorthand of an ion: Fe³⁺", noble_gas_shorthand("Fe", 3), "[Ar] 3d⁵")
+check("shorthand of an anion: Cl⁻", noble_gas_shorthand("Cl", -1), "[Ne] 3s² 3p⁶")
+check("Ag⁺ is 4d¹⁰ (exception applies to ions too)", noble_gas_shorthand("Ag", 1), "[Kr] 4d¹⁰")
+check("Cu²⁺ is 3d⁹", noble_gas_shorthand("Cu", 2), "[Ar] 3d⁹")
+
+# Ground states from the NIST Atomic Spectra Database ("Ground Levels and Ionization
+# Energies for the Neutral Atoms"; same as the CRC Handbook). IB only needs Cr and Cu.
+NIST_EXCEPTIONS = {
+    24: ("Cr", "[Ar] 3d5 4s1"), 29: ("Cu", "[Ar] 3d10 4s1"), 41: ("Nb", "[Kr] 4d4 5s1"),
+    42: ("Mo", "[Kr] 4d5 5s1"), 44: ("Ru", "[Kr] 4d7 5s1"), 45: ("Rh", "[Kr] 4d8 5s1"),
+    46: ("Pd", "[Kr] 4d10"), 47: ("Ag", "[Kr] 4d10 5s1"), 78: ("Pt", "[Xe] 4f14 5d9 6s1"),
+    79: ("Au", "[Xe] 4f14 5d10 6s1"), 57: ("La", "[Xe] 5d1 6s2"),
+    58: ("Ce", "[Xe] 4f1 5d1 6s2"), 64: ("Gd", "[Xe] 4f7 5d1 6s2"), 89: ("Ac", "[Rn] 6d1 7s2"),
+    90: ("Th", "[Rn] 6d2 7s2"), 91: ("Pa", "[Rn] 5f2 6d1 7s2"), 92: ("U", "[Rn] 5f3 6d1 7s2"),
+    93: ("Np", "[Rn] 5f4 6d1 7s2"), 96: ("Cm", "[Rn] 5f7 6d1 7s2"), 103: ("Lr", "[Rn] 5f14 7s2 7p1"),
+}
+_PLAIN = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
+for z, (sym, want) in NIST_EXCEPTIONS.items():
+    check(f"{sym} ground state is {want} (NIST)",
+          noble_gas_shorthand(sym).translate(_PLAIN), want)
+
+import re
+from electron_config import EXCEPTIONS, NOBLE_GASES
+_NOBLE_Z = {sym: z for z, sym in NOBLE_GASES}
+
+
+def _electrons(text):
+    """Electrons in a plain or superscript config, '[Xe]' counting as Xe's Z."""
+    text = text.translate(_PLAIN)
+    core = re.match(r"\[(\w+)\]", text)
+    return (_NOBLE_Z[core.group(1)] if core else 0) + sum(
+        int(c) for c in re.findall(r"\d[spdf](\d+)", text))
+
+
+check("every exception element is in the NIST table above",
+      sorted(EXCEPTIONS), sorted(NIST_EXCEPTIONS))
+check("Z = 3..118: noble core + shorthand electrons equal Z",
+      [z for z in range(3, 119) if _electrons(noble_gas_shorthand(z)) != z], [])
+check("Z = 1..118: the full configuration holds exactly Z electrons",
+      [z for z in range(1, 119) if _electrons(electron_configuration(z)[0]) != z], [])
+
+
+def _shorthand_is_full_minus_core(z):
+    """core sub-levels + the written sub-levels == the full configuration, shell by shell."""
+    text = noble_gas_shorthand(z).translate(_PLAIN)
+    core_z = _NOBLE_Z[re.match(r"\[(\w+)\]", text).group(1)]
+    total = dict(electron_configuration(core_z)[1])
+    for n, letter, count in re.findall(r"(\d)([spdf])(\d+)", text):
+        total[n + letter] = total.get(n + letter, 0) + int(count)
+    return total == dict(electron_configuration(z)[1])
+
+
+check("Z = 3..118: shorthand is the full configuration minus exactly the core's sub-levels",
+      [z for z in range(3, 119) if not _shorthand_is_full_minus_core(z)], [])
+
+# Desktop and add-in agree. The exception table in tools.c must equal EXCEPTIONS here, and
+# both sides must give the shared golden file for all 118 elements (the add-in side of that
+# is section 11 of casio-addin/test/test_core.c).
+_HERE = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(_HERE, "..", "..", "casio-addin", "src", "core", "tools.c"), encoding="utf-8") as _f:
+    _c_table = {int(z): (f"{fn}{fl}", f"{tn}{tl}", int(m)) for z, fn, fl, tn, tl, m in re.findall(
+        r"\{(\d+), (\d), '(\w)', (\d), '(\w)', (\d)\},", _f.read())}
+check("add-in exception table (tools.c) equals the desktop EXCEPTIONS", _c_table, EXCEPTIONS)
+with open(os.path.join(_HERE, "electron_configs.txt"), encoding="utf-8") as _f:
+    _golden = [line.split(" ", 2) for line in _f.read().splitlines() if line[:1].isdigit()]
+check("golden file covers Z = 1..118", [int(z) for z, _, _ in _golden], list(range(1, 119)))
+check("desktop matches the shared golden configuration for every element",
+      [z for z, _, cfg in _golden if electron_configuration(int(z))[0].translate(_PLAIN) != cfg], [])
+
 check("chlorine has 7 outer electrons", valence_electrons("Cl")[0], 7)
 check_raises("unknown element rejected", lambda: electron_configuration("Xx"), ValueError)
 check_raises("removing more electrons than it has is rejected",

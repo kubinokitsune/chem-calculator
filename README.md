@@ -150,7 +150,7 @@ python test_files/test_api.py             # web page <-> Flask API contract
 python test_files/stress_new_features.py  # ~36 000 checks: gas units, ionic balancing, limiting reactant
 python test_files/test_ui.py              # clicks through the real page in a browser (needs playwright)
 python test_files/test_casio.py           # the Casio fx-CG50 port: every menu, plus its MicroPython limits
-make -C ../casio-addin/test               # the fx-CG50 add-in: 280 chemistry checks + 35 screen checks
+make -C ../casio-addin/test               # the fx-CG50 add-in: 459 chemistry checks + 367 screen checks
 ```
 
 All of these run in GitHub Actions on every push.

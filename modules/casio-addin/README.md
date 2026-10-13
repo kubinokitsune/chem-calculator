@@ -144,7 +144,10 @@ package `xfonts-terminus` and the licence is `assets-cg/LICENSE-terminus-OFL.txt
   draws no battery the strip shows none rather than a made-up one. It asks the
   OS at most every 30 seconds. Not yet checked on a real calculator: the OS
   may keep the level it measured when ChemCalc started, instead of
-  re-measuring while it runs.
+  re-measuring while it runs. If the OS calls ever misbehave on some
+  calculator or OS version, add `-DCHEMCALC_NO_BATTERY` to
+  `target_compile_options` in `CMakeLists.txt` and rebuild: ChemCalc then
+  leaves the OS alone and draws no battery.
 - The letter mode beside it is drawn as the calculator's own ALPHA indicator
   is (Software User's Guide, "Status Bar"): a red box with a white **A** for
   capitals or **a** for small letters, and the yellow padlock of alpha-lock,
@@ -184,7 +187,7 @@ make -C test core     # the chemistry only
 make -C test screens  # the menus and screens
 ```
 
-793 checks at present: 426 for the chemistry and 367 for the screens, among
+826 checks at present: 459 for the chemistry and 367 for the screens, among
 them that nothing is drawn past the screen's right edge. The
 expected values are the same hand-worked IB figures the desktop calculator and
 the Python port are tested against, so the three cannot quietly disagree.

@@ -229,6 +229,15 @@ for symbol, charge, want in [("Fe", 0, "1s2 2s2 2p6 3s2 3p6 3d6 4s2"),
     desk = desk_ec.electron_configuration(symbol, charge)[0]
     plain = desk.translate(str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789"))
     equal(f"  matches the desktop version ({symbol} {charge:+d})", got, plain)
+_plain = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
+equal("every element in the Python add-in's table (Z = 1..56) has the desktop configuration",
+      [z for z in range(1, 57)
+       if chemstruct.config_text(chemstruct.configuration(z)) !=
+       desk_ec.electron_configuration(z)[0].translate(_plain)], [])
+equal("  and the desktop shorthand (Z = 3..56)",
+      [z for z in range(3, 57)
+       if chemstruct.shorthand(chemstruct.configuration(z), z) !=
+       desk_ec.noble_gas_shorthand(z).translate(_plain)], [])
 equal("shorthand for iron", chemstruct.shorthand(
     chemstruct.configuration(26, 0), 26), "[Ar] 3d6 4s2")
 
